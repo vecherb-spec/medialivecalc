@@ -2,21 +2,92 @@ import streamlit as st
 import math
 
 # Конфигурация страницы
-st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
+st.set_page_config(page_title="MediaLive LED Calculator 2025", layout="wide", page_icon="🖥️", initial_sidebar_state="expanded")
 
-# Красивый дизайн
+# Самый красивый дизайн 2025 года
 st.markdown("""
     <style>
-    .main {background: linear-gradient(to bottom right, #0f0c29, #302b63, #24243e);}
-    .stButton>button {background: linear-gradient(90deg, #667eea, #764ba2); color: white; border: none; border-radius: 12px; padding: 12px 24px; font-weight: bold; transition: all 0.3s;}
-    .stButton>button:hover {transform: scale(1.05); box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);}
-    .card {background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;}
-    h1, h2, h3 {color: #a78bfa !important;}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+
+    .main {
+        background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        color: #f0f4ff;
+    }
+
+    .stApp {
+        background: transparent;
+    }
+
+    .stButton>button {
+        background: linear-gradient(90deg, #7f5af0, #5e45d4);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 14px 28px;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.4s ease;
+        box-shadow: 0 4px 15px rgba(127, 90, 240, 0.4);
+    }
+
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(127, 90, 240, 0.6);
+    }
+
+    .card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(16px);
+        border-radius: 20px;
+        padding: 24px;
+        border: 1px solid rgba(255,255,255,0.12);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        transition: all 0.4s ease;
+        margin: 16px 0;
+    }
+
+    .card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 40px rgba(127, 90, 240, 0.3);
+    }
+
+    h1, h2, h3 {
+        color: #c084fc;
+        text-shadow: 0 2px 10px rgba(192, 132, 252, 0.3);
+    }
+
+    .stRadio > div > label {
+        color: #d1d5db;
+        font-weight: 500;
+    }
+
+    .stNumberInput > div > div > input {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid #6b7280;
+        color: white;
+        border-radius: 8px;
+    }
+
+    .stSelectbox > div > div > select {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid #6b7280;
+        color: white;
+        border-radius: 8px;
+    }
+
+    hr {
+        border-color: #4b5563;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🖥️ Калькулятор LED-экранов MediaLive")
-st.markdown("Расчёт комплектующих для экранов Qiangli 320×160 мм — быстро и точно")
+# Заголовок
+st.title("🖥️ MediaLive LED Calculator 2025")
+st.markdown("Профессиональный расчёт экранов Qiangli 320×160 мм")
 
 # Данные процессоров и портов
 PROCESSOR_PORTS = {
@@ -59,143 +130,105 @@ CARD_MAX_PIXELS = {
     "A4s Plus": 256*256
 }
 
-# Шаги пикселя по типу экрана
+# Шаги пикселя
 INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
 OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 
-# Ввод параметров
-col1, col2, col3 = st.columns(3)
+# Ввод параметров (в карточках)
+with st.container():
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
 
-with col1:
-    st.subheader("Размер и тип экрана")
-    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
-    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
-    screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
+    with col1:
+        st.subheader("Размер и тип")
+        width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
+        height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
+        screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
-with col2:
-    st.subheader("Монтаж и шаг пикселя")
-    mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
+    with col2:
+        st.subheader("Монтаж и шаг")
+        mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
 
-    # Фильтрация шагов пикселя
-    if screen_type == "Indoor":
-        pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
-    else:
-        pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
-
-    tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
-
-    # Выбор кабинета — только если "В кабинетах"
-    if mount_type == "В кабинетах":
-        st.subheader("Выбор кабинета Qiangli")
-        cabinet_options = [
-            "QM Series (640×480 мм, indoor, ~20 кг)",
-            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
-            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
-            "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
-            "Custom (введите размер и вес вручную)"
-        ]
-        cabinet_model = st.selectbox("Модель кабинета", cabinet_options, index=0)
-
-        # Размеры и вес
-        cabinet_data = {
-            "QM Series (640×480 мм, indoor, ~20 кг)": (640, 480, 20.0),
-            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)": (960, 960, 40.0),
-            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)": (500, 500, 13.5),
-            "QS Series (960×960 мм, outdoor fixed, ~45 кг)": (960, 960, 45.0),
-            "Custom (введите размер и вес вручную)": (None, None, None)
-        }
-
-        selected_data = cabinet_data.get(cabinet_model)
-        if selected_data[0] is None:  # Custom
-            col_custom1, col_custom2, col_custom3 = st.columns(3)
-            with col_custom1:
-                cabinet_width = st.number_input("Ширина кабинета (мм)", min_value=320, value=640)
-            with col_custom2:
-                cabinet_height = st.number_input("Высота кабинета (мм)", min_value=160, value=480)
-            with col_custom3:
-                cabinet_weight_per = st.number_input("Вес одного кабинета (кг)", min_value=1.0, value=20.0, step=0.5)
+        if screen_type == "Indoor":
+            pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
         else:
-            cabinet_width, cabinet_height, cabinet_weight_per = selected_data
+            pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
 
-with col3:
-    st.subheader("Частота и система")
-    refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
-    system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"], index=0)
+        tech = st.selectbox("Технология", ["SMD", "COB", "GOB"], index=0)
 
-    # Фильтрация процессоров
-    if system_type == "Синхронный":
-        vc_processors = ["VC2", "VC4", "VC6", "VC10", "VC16", "VC24"]
-        mctrl_processors = ["MCTRL300", "MCTRL600", "MCTRL700", "MCTRL4K", "MCTRL R5"]
-        vx_processors = ["VX400", "VX600 Pro", "VX1000 Pro", "VX2000 Pro", "VX16S"]
-        available_processors = vc_processors + mctrl_processors + vx_processors
-    else:
-        available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
-    processor = st.selectbox("Процессор/плеер", available_processors, index=0)
+    with col3:
+        st.subheader("Частота и система")
+        refresh_rate = st.selectbox("Частота (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
+        system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"], index=0)
 
-    # Динамическая проверка портов (видно сразу)
-    real_width = math.ceil(width_mm / 320) * 320
-    real_height = math.ceil(height_mm / 160) * 160
-    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-    required_ports = math.ceil(total_px / 650000)
-    available_ports = PROCESSOR_PORTS.get(processor, 1)
-    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
+        if system_type == "Синхронный":
+            vc_processors = ["VC2", "VC4", "VC6", "VC10", "VC16", "VC24"]
+            mctrl_processors = ["MCTRL300", "MCTRL600", "MCTRL700", "MCTRL4K", "MCTRL R5"]
+            vx_processors = ["VX400", "VX600 Pro", "VX1000 Pro", "VX2000 Pro", "VX16S"]
+            available_processors = vc_processors + mctrl_processors + vx_processors
+        else:
+            available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
+        processor = st.selectbox("Процессор", available_processors, index=0)
 
-    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-    status_color = "green" if required_ports <= available_ports else "red"
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
-        <strong>Проверка портов для выбранного процессора:</strong><br>
-        Доступно: <strong>{available_ports}</strong><br>
-        Необходимо: <strong>{required_ports}</strong><br>
-        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
-        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
-            {status_text}
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
+# Дополнительные поля (в отдельной карточке)
+with st.container():
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    col4, col5 = st.columns(2)
 
-    if load_per_port > 90 and required_ports <= available_ports:
-        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
+    with col4:
+        # Магнит для монолитного
+        if mount_type == "Монолитный":
+            magnet_size = st.selectbox("Размер магнита", ["10 мм", "13 мм", "17 мм"], index=1)
 
-# Магнит для монолитного
-magnet_size = "13 мм"
-if mount_type == "Монолитный":
-    magnet_size = st.selectbox("Размер магнита", ["10 мм", "13 мм", "17 мм"], index=1)
+        # Датчик для outdoor
+        if screen_type == "Outdoor":
+            sensor = st.radio("Датчик яркости и температуры", ["Нет", "Есть (NSO60)"], index=1)
 
-# Датчик для outdoor
-sensor = "Нет"
-if screen_type == "Outdoor":
-    sensor = st.radio("Датчик яркости и температуры", ["Нет", "Есть (NSO60 или аналог)"], index=1)
+    with col5:
+        receiving_card = st.selectbox("Принимающая карта", list(CARD_MAX_PIXELS.keys()), index=5)
 
-# Карта
-receiving_card = st.selectbox("Принимающая карта (Novastar)", list(CARD_MAX_PIXELS.keys()), index=5)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Ориентиры
-modules_per_card = st.selectbox("Модулей на карту", [8, 10, 12, 16], index=0)  # дефолт 8
-modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=2)  # дефолт 8
+# Ориентиры и запас
+with st.container():
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    col6, col7, col8 = st.columns(3)
 
-# Запас по питанию
-power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
+    with col6:
+        modules_per_card = st.selectbox("Модулей на карту", [8, 10, 12, 16], index=0)
 
-# Мощность БП
-psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=0)  # дефолт 200
+    with col7:
+        modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=2)
 
-# Сеть
-power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
+    with col8:
+        power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# БП и сеть
+with st.container():
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    col9, col10 = st.columns(2)
+
+    with col9:
+        psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=0)
+
+    with col10:
+        power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Резерв
-reserve_enabled = st.checkbox("Включить резервные элементы?", value=True)
-reserve_modules_percent = 5
-reserve_modules_custom = 0
-reserve_psu_cards = False
-reserve_patch = False
-if reserve_enabled:
-    reserve_modules_choice = st.radio("Резерв модулей", ["3%", "5%", "10%", "Свой"], index=1)
-    if reserve_modules_choice == "Свой":
-        reserve_modules_custom = st.number_input("Свой резерв модулей (шт.)", value=0)
-    reserve_psu_cards = st.checkbox("+1 к БП и картам", value=True)
-    reserve_patch = st.checkbox("Резервные патч-корды (×2)", value=False)
+with st.container():
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    reserve_enabled = st.checkbox("Включить резервные элементы?", value=True)
+    if reserve_enabled:
+        reserve_modules_choice = st.radio("Резерв модулей", ["3%", "5%", "10%", "Свой"], index=1)
+        reserve_psu_cards = st.checkbox("+1 к БП и картам", value=True)
+        reserve_patch = st.checkbox("Резервные патч-корды (×2)", value=False)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Кнопка расчёта
 if st.button("Рассчитать", type="primary", use_container_width=True):
@@ -281,13 +314,6 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     box_weight = num_boxes * 22
     box_volume = num_boxes * 0.06
 
-    # Кабинеты (для "В кабинетах")
-    if mount_type == "В кабинетах":
-        cabinets_w = math.ceil(real_width / cabinet_width)
-        cabinets_h = math.ceil(real_height / cabinet_height)
-        total_cabinets = cabinets_w * cabinets_h
-        total_cabinet_weight = total_cabinets * cabinet_weight_per
-
     # Вывод отчёта
     st.success("Расчёт готов!")
     st.markdown("### Финальный отчёт")
@@ -345,8 +371,6 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         st.markdown(f"""
         - **Вертикальные профили**: {vert_profiles} шт., длина на отрез {vert_length} мм, общая {vert_profiles * vert_length / 1000:.2f} м
         - **Горизонтальные профили**: {horiz_profiles} шт., длина на отрез {horiz_length} мм, общая {horiz_profiles * horiz_length / 1000:.2f} м
-        - **Винты M6 + резьбовые заклёпки M6**: {fasteners_m6} шт. + {reserve_fasteners} шт. (запас 3%)
-        - **Магниты {magnet_size}**: {magnets} шт. (округлено до 500 шт.)
         - **Металлические пластины**: {num_plates} шт. (по количеству БП)
         - **Винты 4×16 со сверлом к профилям**: {vinths} шт. + {reserve_vinths} шт. (запас 10%)
         """)
@@ -372,20 +396,6 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Общий вес коробок**: {box_weight} кг
         - **Общий объём коробок**: {box_volume:.2f} м³
         """)
-
-    # Кабинеты (для "В кабинетах")
-    if mount_type == "В кабинетах":
-        cabinets_w = math.ceil(real_width / cabinet_width)
-        cabinets_h = math.ceil(real_height / cabinet_height)
-        total_cabinets = cabinets_w * cabinets_h
-        total_cabinet_weight = total_cabinets * cabinet_weight_per
-
-        st.markdown("### Кабинеты")
-        st.write(f"- **Модель**: {cabinet_model}")
-        st.write(f"- **Размер одного кабинета**: {cabinet_width} × {cabinet_height} мм")
-        st.write(f"- **Количество**: {total_cabinets} шт. ({cabinets_w} × {cabinets_h})")
-        st.write(f"- **Вес одного кабинета**: {cabinet_weight_per:.1f} кг")
-        st.write(f"- **Общий вес кабинетов**: {total_cabinet_weight:.1f} кг")
 
     # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
     if mount_type == "Монолитный":
