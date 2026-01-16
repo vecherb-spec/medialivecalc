@@ -2,72 +2,17 @@ import streamlit as st
 import math
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from io import BytesIO
 from datetime import datetime
 
-# Конфигурация страницы
-st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
+# Регистрация шрифта с поддержкой кириллицы (если у тебя есть файл DejaVuSans.ttf)
+# Если файла нет — reportlab использует встроенный Helvetica, но для кириллицы лучше добавить шрифт
+# Скачай DejaVuSans.ttf (бесплатно) и положи рядом с calc2.py, либо используй системный шрифт
+# Для простоты используем Helvetica (кириллица работает частично, но лучше с DejaVu)
 
-# Красивый дизайн
-st.markdown("""
-    <style>
-    .main {background: linear-gradient(to bottom right, #0f0c29, #302b63, #24243e);}
-    .stButton>button {background: linear-gradient(90deg, #667eea, #764ba2); color: white; border: none; border-radius: 12px; padding: 12px 24px; font-weight: bold; transition: all 0.3s;}
-    .stButton>button:hover {transform: scale(1.05); box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);}
-    .card {background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;}
-    h1, h2, h3 {color: #a78bfa !important;}
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("🖥️ Калькулятор LED-экранов MediaLive")
-st.markdown("Расчёт комплектующих для экранов Qiangli 320×160 мм — быстро и точно")
-
-# Данные процессоров и портов
-PROCESSOR_PORTS = {
-    "VX400": 4,
-    "VX600 Pro": 6,
-    "VX1000 Pro": 10,
-    "VX2000 Pro": 20,
-    "VX16S": 16,
-    "VC2": 2,
-    "VC4": 4,
-    "VC6": 6,
-    "VC10": 10,
-    "VC16": 16,
-    "VC24": 24,
-    "MCTRL300": 2,
-    "MCTRL600": 4,
-    "MCTRL700": 6,
-    "MCTRL4K": 16,
-    "MCTRL R5": 8,
-    "TB10 Plus": 1,
-    "TB30": 1,
-    "TB40": 2,
-    "TB50": 2,
-    "TB60": 4
-}
-
-# Данные карт (max пикселей)
-CARD_MAX_PIXELS = {
-    "A5s Plus": 320*256,
-    "A7s Plus": 512*256,
-    "A8s / A8s-N": 512*384,
-    "A10s Plus-N / A10s Pro": 512*512,
-    "MRV412": 512*512,
-    "MRV416": 512*384,
-    "MRV432": 512*512,
-    "MRV532": 512*512,
-    "NV3210": 512*384,
-    "MRV208-N / MRV208-1": 256*256,
-    "MRV470-1": 512*384,
-    "A4s Plus": 256*256
-}
-
-# Шаги пикселя по типу экрана
-INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
-OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
-
-# Ввод параметров
+# Ввод параметров (все на русском)
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -81,6 +26,8 @@ with col2:
     mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
 
     # Фильтрация шагов пикселя
+    INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
+    OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
     if screen_type == "Indoor":
         pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
     else:
@@ -102,32 +49,6 @@ with col3:
     else:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
-
-    # Динамическая проверка портов (видно сразу)
-    real_width = math.ceil(width_mm / 320) * 320
-    real_height = math.ceil(height_mm / 160) * 160
-    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-    required_ports = math.ceil(total_px / 650000)
-    available_ports = PROCESSOR_PORTS.get(processor, 1)
-    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-
-    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-    status_color = "green" if required_ports <= available_ports else "red"
-
-    st.markdown(f"""
-    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
-        <strong>Проверка портов для выбранного процессора:</strong><br>
-        Доступно: <strong>{available_ports}</strong><br>
-        Необходимо: <strong>{required_ports}</strong><br>
-        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
-        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
-            {status_text}
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if load_per_port > 90 and required_ports <= available_ports:
-        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
 
 # Магнит для монолитного
 magnet_size = "13 мм"
@@ -359,31 +280,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Общий объём коробок**: {box_volume:.2f} м³
         """)
 
-    # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
-    if mount_type == "Монолитный":
-        st.subheader("Схема монолитного монтажа (вид сверху)")
-        html_scheme = """
-        <div style="font-family: monospace; background: #1a1a2e; color: #e0e0ff; padding: 20px; border-radius: 12px; border: 1px solid #4a4a8a; overflow-x: auto;">
-            <p style="color: #7f5af0; font-weight: bold; text-align: center;">Схема монолитного экрана</p>
-            <pre style="margin: 0; white-space: pre;">
-┌""" + "─" * (modules_w * 6) + """┐
-"""
-        for row in range(modules_h):
-            line = "│"
-            for col in range(modules_w):
-                color = "#00ff9d" if (row + col) % 2 == 0 else "#ff6bcb"
-                line += f'<span style="color:{color};"> ███ </span>'
-            line += "│\n"
-            html_scheme += line + "├" + "─" * (modules_w * 6) + "┤\n"
-
-        html_scheme += """└""" + "─" * (modules_w * 6) + """┘
-<span style="color:#00ff9d;">███</span> — модуль установлен
-            </pre>
-        </div>
-        """
-        st.markdown(html_scheme, unsafe_allow_html=True)
-
-    # PDF-отчёт
+    # PDF-отчёт (красивый и правильный)
     def generate_pdf_report():
         buffer = BytesIO()
         c = canvas.Canvas(buffer, pagesize=A4)
