@@ -1,268 +1,360 @@
 import streamlit as st
 import math
-from datetime import datetime
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
 
-# =========================
-# CONFIG
-# =========================
+# Конфигурация страницы
+st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
 
-st.set_page_config(
-    page_title="LED Calculator Qiangli 320×160",
-    page_icon="🟩",
-    layout="wide"
-)
+# Красивый дизайн
+st.markdown("""
+    <style>
+    .main {background: linear-gradient(to bottom right, #0f0c29, #302b63, #24243e);}
+    .stButton>button {background: linear-gradient(90deg, #667eea, #764ba2); color: white; border: none; border-radius: 12px; padding: 12px 24px; font-weight: bold; transition: all 0.3s;}
+    .stButton>button:hover {transform: scale(1.05); box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);}
+    .card {background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); margin: 15px 0;}
+    h1, h2, h3 {color: #a78bfa !important;}
+    </style>
+""", unsafe_allow_html=True)
 
-# =========================
-# CONSTANTS
-# =========================
+st.title("🖥️ Калькулятор LED-экранов MediaLive")
+st.markdown("Расчёт комплектующих для экранов Qiangli 320×160 мм — быстро и точно")
 
-MODULE_W = 320
-MODULE_H = 160
-
-SPECS = {
-    "Indoor": {
-        "max_w": 24,
-        "avg_w": 8,
-        "weight": 0.37,
-        "current": 5.2,
-        "brightness": "800–1800 нит"
-    },
-    "Outdoor": {
-        "max_w": 40,
-        "avg_w": 13,
-        "weight": 0.42,
-        "current": 9.2,
-        "brightness": "4500–8000 нит"
-    }
+# Данные процессоров и портов
+PROCESSOR_PORTS = {
+    "VX400": 4,
+    "VX600 Pro": 6,
+    "VX1000 Pro": 10,
+    "VX2000 Pro": 20,
+    "VX16S": 16,
+    "VC2": 2,
+    "VC4": 4,
+    "VC6": 6,
+    "VC10": 10,
+    "VC16": 16,
+    "VC24": 24,
+    "MCTRL300": 2,
+    "MCTRL600": 4,
+    "MCTRL700": 6,
+    "MCTRL4K": 16,
+    "MCTRL R5": 8,
+    "TB10 Plus": 1,
+    "TB30": 1,
+    "TB40": 2,
+    "TB50": 2,
+    "TB60": 4
 }
 
-INDOOR_PITCHES = [0.8,1.0,1.25,1.37,1.53,1.66,1.86,2.0,2.5,3.07,4.0]
-OUTDOOR_PITCHES = [2.5,3.07,4.0,5.0,6.0,6.66,8.0,10.0]
-
-NOVASTAR_CARDS = {
-    "A5s Plus": (320,256),
-    "A7s Plus": (512,256),
-    "A8s / A8s-N": (512,384),
-    "A10s Pro": (512,512),
-    "MRV412": (512,512),
-    "MRV416": (512,384),
-    "MRV432": (512,512),
-    "MRV532": (512,512),
-    "NV3210": (512,384),
-    "MRV208": (256,256),
-    "MRV470": (512,384),
-    "A4s Plus": (256,256),
+# Данные карт (max пикселей)
+CARD_MAX_PIXELS = {
+    "A5s Plus": 320*256,
+    "A7s Plus": 512*256,
+    "A8s / A8s-N": 512*384,
+    "A10s Plus-N / A10s Pro": 512*512,
+    "MRV412": 512*512,
+    "MRV416": 512*384,
+    "MRV432": 512*512,
+    "MRV532": 512*512,
+    "NV3210": 512*384,
+    "MRV208-N / MRV208-1": 256*256,
+    "MRV470-1": 512*384,
+    "A4s Plus": 256*256
 }
 
-# =========================
-# UI HEADER
-# =========================
+# Шаги пикселя по типу экрана
+INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
+OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 
-st.title("🟩 Профессиональный калькулятор LED экранов Qiangli 320×160 (Novastar)")
-st.caption("Инженерный расчёт | Электрика | Управление | Вес | PDF отчёт")
-
-st.divider()
-
-# =========================
-# INPUT PANEL
-# =========================
-
-colA, colB = st.columns(2)
-
-with colA:
-    st.subheader("📐 Геометрия экрана")
-
-    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3200)
-    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=1920)
-
-    modules_x = math.ceil(width_mm / MODULE_W)
-    modules_y = math.ceil(height_mm / MODULE_H)
-    modules = modules_x * modules_y
-
-    st.success(f"Модули: {modules_x} × {modules_y} = {modules} шт")
-    st.info(f"Реальный размер: {modules_x*MODULE_W} × {modules_y*MODULE_H} мм")
-
-with colB:
-    st.subheader("🖥 Тип экрана")
-
-    screen_type = st.selectbox("Тип экрана", ["Indoor", "Outdoor"])
-    pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES if screen_type=="Indoor" else OUTDOOR_PITCHES)
-    refresh = st.selectbox("Частота обновления (Hz)", [1920,2880,3840,6000,7680])
-
-    if refresh >= 6000:
-        st.warning("Высокая нагрузка на процессор при 6000+ Hz")
-
-# =========================
-# POWER
-# =========================
-
-st.divider()
-st.subheader("⚡ Электропитание")
-
+# Ввод параметров
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    psu_power = st.selectbox("Мощность блока питания (Вт)", [200,300,400])
-    psu_modules = st.selectbox("Модулей на БП", [4,6,8,10], index=2)
+    st.subheader("Размер и тип экрана")
+    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
+    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
+    screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
 with col2:
-    margin = st.selectbox("Запас по питанию", ["15%", "30%"], index=1)
-    margin_factor = 1.15 if margin=="15%" else 1.30
+    st.subheader("Монтаж и шаг пикселя")
+    mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
+
+    # Фильтрация шагов пикселя
+    if screen_type == "Indoor":
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
+    else:
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
+
+    tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
 
 with col3:
-    reserve = st.checkbox("Резервные модули (5%)", value=False)
+    st.subheader("Частота и система")
+    refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
+    system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"], index=0)
 
-# =========================
-# CONTROL
-# =========================
+    # Фильтрация процессоров
+    if system_type == "Синхронный":
+        vc_processors = ["VC2", "VC4", "VC6", "VC10", "VC16", "VC24"]
+        mctrl_processors = ["MCTRL300", "MCTRL600", "MCTRL700", "MCTRL4K", "MCTRL R5"]
+        vx_processors = ["VX400", "VX600 Pro", "VX1000 Pro", "VX2000 Pro", "VX16S"]
+        available_processors = vc_processors + mctrl_processors + vx_processors
+    else:
+        available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
+    processor = st.selectbox("Процессор/плеер", available_processors, index=0)
 
-st.divider()
-st.subheader("🎛 Управление Novastar")
+    # Динамическая проверка портов (видно сразу)
+    real_width = math.ceil(width_mm / 320) * 320
+    real_height = math.ceil(height_mm / 160) * 160
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    required_ports = math.ceil(total_px / 650000)
+    available_ports = PROCESSOR_PORTS.get(processor, 1)
+    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
 
-col4, col5 = st.columns(2)
+    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
+    status_color = "green" if required_ports <= available_ports else "red"
 
-with col4:
-    card_model = st.selectbox("Принимающая карта", list(NOVASTAR_CARDS.keys()))
-    modules_per_card = st.selectbox("Модулей на карту", [8,10,12,16], index=0)
+    st.markdown(f"""
+    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
+        <strong>Проверка портов для выбранного процессора:</strong><br>
+        Доступно: <strong>{available_ports}</strong><br>
+        Необходимо: <strong>{required_ports}</strong><br>
+        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
+        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
+            {status_text}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-with col5:
-    system_type = st.selectbox("Тип системы", ["Синхронная", "Асинхронная"])
-    processor = st.text_input("Процессор / плеер", "MCTRL4K" if system_type=="Синхронная" else "TB3")
+    if load_per_port > 90 and required_ports <= available_ports:
+        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
 
-# =========================
-# CALCULATION
-# =========================
+# Магнит для монолитного
+magnet_size = "13 мм"
+if mount_type == "Монолитный":
+    magnet_size = st.selectbox("Размер магнита", ["10 мм", "13 мм", "17 мм"], index=1)
 
-spec = SPECS[screen_type]
+# Датчик для outdoor
+sensor = "Нет"
+if screen_type == "Outdoor":
+    sensor = st.radio("Датчик яркости и температуры", ["Нет", "Есть (NSO60 или аналог)"], index=1)
 
-module_max_w = spec["max_w"]
-module_weight = spec["weight"]
-module_current = spec["current"]
+# Карта
+receiving_card = st.selectbox("Принимающая карта (Novastar)", list(CARD_MAX_PIXELS.keys()), index=5)
 
-total_power_max = modules * module_max_w * margin_factor
-total_power_avg = modules * spec["avg_w"]
+# Ориентиры
+modules_per_card = st.selectbox("Модулей на карту", [8, 10, 12, 16], index=0)  # дефолт 8
+modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=2)  # дефолт 8
 
-psu_count = max(
-    math.ceil(total_power_max / psu_power),
-    math.ceil(modules / psu_modules)
-)
+# Запас по питанию
+power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
 
-if reserve:
-    reserve_modules = math.ceil(modules * 0.05)
-else:
-    reserve_modules = 0
+# Мощность БП
+psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=0)  # дефолт 200
 
-total_modules = modules + reserve_modules
+# Сеть
+power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
 
-# Pixels
-px_w = int(MODULE_W / pitch)
-px_h = int(MODULE_H / pitch)
-res_w = modules_x * px_w
-res_h = modules_y * px_h
-total_pixels = res_w * res_h
+# Резерв
+reserve_enabled = st.checkbox("Включить резервные элементы?", value=True)
+reserve_modules_percent = 5
+reserve_modules_custom = 0
+reserve_psu_cards = False
+reserve_patch = False
+if reserve_enabled:
+    reserve_modules_choice = st.radio("Резерв модулей", ["3%", "5%", "10%", "Свой"], index=1)
+    if reserve_modules_choice == "Свой":
+        reserve_modules_custom = st.number_input("Свой резерв модулей (шт.)", value=0)
+    reserve_psu_cards = st.checkbox("+1 к БП и картам", value=True)
+    reserve_patch = st.checkbox("Резервные патч-корды (×2)", value=False)
 
-card_px = NOVASTAR_CARDS[card_model][0] * NOVASTAR_CARDS[card_model][1]
-cards_by_pixels = math.ceil(total_pixels / card_px)
-cards_by_modules = math.ceil(modules / modules_per_card)
-cards = max(cards_by_pixels, cards_by_modules)
+# Кнопка расчёта
+if st.button("Рассчитать", type="primary", use_container_width=True):
+    # Основные расчёты
+    modules_w = math.ceil(width_mm / 320)
+    modules_h = math.ceil(height_mm / 160)
+    real_width = modules_w * 320
+    real_height = modules_h * 160
+    total_modules = modules_w * modules_h
 
-# Processor ports
-ports = math.ceil(total_pixels / 650000)
-port_load = (total_pixels / (ports * 650000)) * 100
+    # Резерв модулей
+    reserve_modules = math.ceil(total_modules * reserve_modules_percent / 100) if reserve_modules_choice != "Свой" else reserve_modules_custom
+    total_modules_order = total_modules + reserve_modules
 
-# Weight
-area = (modules_x * 0.32) * (modules_y * 0.16)
-weight_modules = modules * module_weight
-total_weight = weight_modules * 1.05
+    # Потребление
+    avg_power_module = 8.0 if screen_type == "Indoor" else 15.0
+    max_power_module = 24.0 if screen_type == "Indoor" else 45.0
+    avg_power_screen = total_modules * avg_power_module / 1000
+    peak_power_screen = total_modules * max_power_module / 1000
+    power_with_reserve = peak_power_screen * (1 + power_reserve / 100)
 
-# =========================
-# OUTPUT
-# =========================
+    # БП
+    psu_power_kw = psu_power / 1000
+    num_psu = math.ceil(power_with_reserve / psu_power_kw)
+    num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
 
-st.divider()
-st.subheader("📊 Результаты расчёта")
+    # Карты
+    max_pixels_card = CARD_MAX_PIXELS[receiving_card]
+    num_cards = math.ceil(total_modules / modules_per_card)
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    num_cards_pix = math.ceil(total_px / max_pixels_card)
+    num_cards = max(num_cards, num_cards_pix)
+    num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
-c1, c2, c3, c4 = st.columns(4)
+    # Пластины = кол-во БП
+    num_plates = num_psu_reserve
 
-with c1:
-    st.metric("Модули", f"{total_modules} шт")
-    st.metric("Площадь", f"{area:.2f} м²")
+    # Винты к профилям
+    vinths = num_plates * 4
+    reserve_vinths = math.ceil(vinths * 0.1)
 
-with c2:
-    st.metric("Разрешение", f"{res_w} × {res_h}")
-    st.metric("Пикселей", f"{total_pixels:,}")
+    # Кабель питания карт от БП
+    num_power_cables = num_cards_reserve
+    total_power_cable_length = num_power_cables * 1.0
+    reserve_power_cables = math.ceil(num_power_cables * 0.1)
 
-with c3:
-    st.metric("Пиковая мощность", f"{total_power_max/1000:.2f} кВт")
-    st.metric("Средняя мощность", f"{total_power_avg/1000:.2f} кВт")
+    # Расчёт сети
+    if power_phase == "Одна фаза (220 В)":
+        voltage = 220
+    else:
+        voltage = 380 * math.sqrt(3)
+    current = power_with_reserve * 1000 / voltage
+    cable_section = "3×16 мм²" if current < 60 else "3×25 мм²" if current < 100 else "3×35 мм²"
+    breaker = math.ceil(current * 1.25)
 
-with c4:
-    st.metric("БП", f"{psu_count} шт")
-    st.metric("Карты", f"{cards} шт")
+    # Каркас
+    vert_profiles = modules_w + 1
+    vert_length = real_height - 40
+    horiz_profiles = 2 if real_height <= 3000 else 3
+    horiz_length = real_width - 60
+    total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
 
-# Status
-if port_load > 100:
-    st.error("❌ Недостаточно портов процессора!")
-elif port_load > 90:
-    st.warning(f"⚠ Нагрузка порта {port_load:.1f}%")
-else:
-    st.success(f"✅ Нагрузка порта {port_load:.1f}%")
+    # Крепёж (винты M6 + заклёпки M6 — 2/3 шт. на вертикальную линию + запас 3%)
+    fasteners_m6 = int(horiz_profiles * vert_profiles * (2/3))
+    reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
 
-# =========================
-# PDF EXPORT
-# =========================
+    # Магниты
+    magnets = math.ceil(total_modules * 4 / 500) * 500
 
-def generate_pdf():
-    filename = f"LED_Raschet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-    doc = SimpleDocTemplate(filename, pagesize=A4)
+    # Коммутация
+    num_cables = num_psu_reserve - 1
+    nvi = num_cables * 6
+    reserve_nvi = math.ceil(nvi * 0.1)
+    patch_cords = num_cards_reserve * (2 if reserve_patch else 1)
 
-    styles = getSampleStyleSheet()
-    story = []
+    # Вес
+    module_weight = 0.37 if screen_type == "Indoor" else 0.5
+    weight_modules = total_modules_order * module_weight
+    weight_carcas = total_profile_length * 2 if mount_type == "Монолитный" else 0
+    weight_extra = (weight_modules + weight_carcas) * 0.05
+    total_weight = weight_modules + weight_carcas + weight_extra
 
-    story.append(Paragraph("ПРОФЕССИОНАЛЬНЫЙ РАСЧЁТ LED ЭКРАНА QIANGLI 320×160", styles["Title"]))
-    story.append(Spacer(1,20))
+    # Упаковка
+    num_boxes = math.ceil(total_modules_order / 40)
+    box_weight = num_boxes * 22
+    box_volume = num_boxes * 0.06
 
-    data = [
-        ["Параметр", "Значение"],
-        ["Тип экрана", screen_type],
-        ["Размер", f"{modules_x*320} × {modules_y*160} мм"],
-        ["Разрешение", f"{res_w} × {res_h} px"],
-        ["Площадь", f"{area:.2f} м²"],
-        ["Модули", f"{total_modules} шт"],
-        ["Шаг", f"P{pitch}"],
-        ["Частота", f"{refresh} Hz"],
-        ["Яркость", spec["brightness"]],
-        ["Пиковая мощность", f"{total_power_max/1000:.2f} кВт"],
-        ["БП", f"{psu_count} шт × {psu_power} Вт"],
-        ["Карты Novastar", f"{cards} шт ({card_model})"],
-        ["Процессор", processor],
-        ["Вес", f"{total_weight:.1f} кг"],
-    ]
+    # Вывод отчёта
+    st.success("Расчёт готов!")
+    st.markdown("### Финальный отчёт")
 
-    table = Table(data, repeatRows=1)
-    table.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),colors.HexColor("#003366")),
-        ("TEXTCOLOR",(0,0),(-1,0),colors.white),
-        ("GRID",(0,0),(-1,-1),1,colors.grey),
-        ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),
-        ("BACKGROUND",(0,1),(-1,-1),colors.whitesmoke),
-        ("LEFTPADDING",(0,0),(-1,-1),6),
-        ("RIGHTPADDING",(0,0),(-1,-1),6),
-        ("TOPPADDING",(0,0),(-1,-1),6),
-        ("BOTTOMPADDING",(0,0),(-1,-1),6),
-    ]))
+    with st.expander("Характеристики экрана", expanded=True):
+        st.markdown(f"""
+        - **Разрешение**: {math.floor(real_width / pixel_pitch)} × {math.floor(real_height / pixel_pitch)} px
+        - **Площадь**: {real_width * real_height / 1_000_000:.2f} м²
+        - **Частота обновления**: {refresh_rate} Hz
+        - **Технология**: {tech}
+        - **Яркость**: {1200 if screen_type == "Indoor" else 6500} нит
+        - **Датчик яркости и температуры**: {sensor}
+        """)
 
-    story.append(table)
-    doc.build(story)
-    return filename
+    with st.expander("Модули", expanded=True):
+        st.markdown(f"""
+        - **По горизонтали**: {modules_w} шт.
+        - **По вертикали**: {modules_h} шт.
+        - **Основное количество**: {total_modules} шт.
+        - **Резерв**: {reserve_modules} шт.
+        - **Итого для заказа**: {total_modules_order} шт.
+        """)
 
-st.divider()
+    with st.expander("Принимающие карты", expanded=True):
+        st.markdown(f"""
+        - **Модель**: {receiving_card}
+        - **Количество**: {num_cards} шт. + 1 резерв = {num_cards_reserve} шт.
+        """)
 
-if st.button("📄 Сформировать PDF отчёт"):
-    pdf_file = generate_pdf()
-    with open(pdf_file, "rb") as f:
-        st.download_button("⬇ Скачать PDF", f, file_name=pdf_file)
+    with st.expander("Блоки питания", expanded=True):
+        st.markdown(f"""
+        - **Мощность**: {psu_power} Вт
+        - **Пиковое потребление**: {peak_power_screen:.1f} кВт
+        - **С запасом**: {power_with_reserve:.1f} кВт
+        - **Количество**: {num_psu} шт. + 1 резерв = {num_psu_reserve} шт.
+        """)
+
+    with st.expander("Процессор/плеер", expanded=True):
+        st.markdown(f"""
+        - **Модель**: {processor}
+        - **Доступно портов**: {PROCESSOR_PORTS.get(processor, 1)}
+        - **Необходимое портов**: {math.ceil(total_px / 650000)}
+        - **Нагрузка на порт**: {(total_px / (PROCESSOR_PORTS.get(processor, 1) * 650000)) * 100:.1f}%
+        """)
+
+    with st.expander("Сеть", expanded=True):
+        st.markdown(f"""
+        - **Тип**: {power_phase}
+        - **Ток**: {current:.1f} А (с запасом)
+        - **Кабель ВВГ**: {cable_section}
+        - **Автомат**: {breaker} А (тип C)
+        """)
+
+    with st.expander("Каркас и крепёж (монолитный)", expanded=True):
+        st.markdown(f"""
+        - **Вертикальные профили**: {vert_profiles} шт., длина на отрез {vert_length} мм, общая {vert_profiles * vert_length / 1000:.2f} м
+        - **Горизонтальные профили**: {horiz_profiles} шт., длина на отрез {horiz_length} мм, общая {horiz_profiles * horiz_length / 1000:.2f} м
+        - **Винты M6 + резьбовые заклёпки M6**: {fasteners_m6} шт. + {reserve_fasteners} шт. (запас 3%)
+        - **Магниты {magnet_size}**: {magnets} шт. (округлено до 500 шт.)
+        - **Металлические пластины**: {num_plates} шт. (по количеству БП)
+        - **Винты 4×16 со сверлом к профилям**: {vinths} шт. + {reserve_vinths} шт. (запас 10%)
+        """)
+
+    with st.expander("Коммутация", expanded=True):
+        st.markdown(f"""
+        - **Силовые кабели 220 В**: {num_cables} шт., общая {num_cables * 0.8:.1f} м
+        - **Наконечники НВИ**: {nvi} шт. + {reserve_nvi} шт. (запас 10%)
+        - **Патч-корды RJ45**: {patch_cords} шт.
+        - **Кабель питания приёмной карты от БП**: {num_power_cables} шт., общая {total_power_cable_length:.1f} м + {reserve_power_cables} шт. (запас 10%)
+        """)
+
+    with st.expander("Вес экрана", expanded=True):
+        st.markdown(f"""
+        - **Вес модулей**: {weight_modules:.1f} кг
+        - **Вес каркаса**: {weight_carcas:.1f} кг
+        - **Общий вес**: {total_weight:.1f} кг
+        """)
+
+    with st.expander("Упаковка и логистика", expanded=True):
+        st.markdown(f"""
+        - **Количество коробок**: {num_boxes} шт.
+        - **Общий вес коробок**: {box_weight} кг
+        - **Общий объём коробок**: {box_volume:.2f} м³
+        """)
+
+    # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
+    if mount_type == "Монолитный":
+        st.subheader("Схема монолитного монтажа (вид сверху)")
+        html_scheme = """
+        <div style="font-family: monospace; background: #1a1a2e; color: #e0e0ff; padding: 20px; border-radius: 12px; border: 1px solid #4a4a8a; overflow-x: auto;">
+            <p style="color: #7f5af0; font-weight: bold; text-align: center;">Схема монолитного экрана</p>
+            <pre style="margin: 0; white-space: pre;">
+┌""" + "─" * (modules_w * 6) + """┐
+"""
+        for row in range(modules_h):
+            line = "│"
+            for col in range(modules_w):
+                color = "#00ff9d" if (row + col) % 2 == 0 else "#ff6bcb"
+                line += f'<span style="color:{color};"> ███ </span>'
+            line += "│\n"
+            html_scheme += line + "├" + "─" * (modules_w * 6) + "┤\n"
+
+        html_scheme += """└""" + "─" * (modules_w * 6) + """┘
+<span style="color:#00ff9d;">███</span> — модуль установлен
+            </pre>
+        </div>
+        """
+        st.markdown(html_scheme, unsafe_allow_html=True)
