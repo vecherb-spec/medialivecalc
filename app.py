@@ -1,5 +1,9 @@
 import streamlit as st
 import math
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from io import BytesIO
+from datetime import datetime
 
 # Конфигурация страницы
 st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
@@ -248,6 +252,30 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     box_weight = num_boxes * 22
     box_volume = num_boxes * 0.06
 
+    # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
+    if mount_type == "Монолитный":
+        st.subheader("Схема монолитного монтажа (вид сверху)")
+        html_scheme = """
+        <div style="font-family: monospace; background: #1a1a2e; color: #e0e0ff; padding: 20px; border-radius: 12px; border: 1px solid #4a4a8a; overflow-x: auto;">
+            <p style="color: #7f5af0; font-weight: bold; text-align: center;">Схема монолитного экрана</p>
+            <pre style="margin: 0; white-space: pre;">
+┌""" + "─" * (modules_w * 6) + """┐
+"""
+        for row in range(modules_h):
+            line = "│"
+            for col in range(modules_w):
+                color = "#00ff9d" if (row + col) % 2 == 0 else "#ff6bcb"
+                line += f'<span style="color:{color};"> ███ </span>'
+            line += "│\n"
+            html_scheme += line + "├" + "─" * (modules_w * 6) + "┤\n"
+
+        html_scheme += """└""" + "─" * (modules_w * 6) + """┘
+<span style="color:#00ff9d;">███</span> — модуль установлен
+            </pre>
+        </div>
+        """
+        st.markdown(html_scheme, unsafe_allow_html=True)
+
     # Вывод отчёта
     st.success("Расчёт готов!")
     st.markdown("### Финальный отчёт")
@@ -354,3 +382,56 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         </div>
         """
         st.markdown(html_scheme, unsafe_allow_html=True)
+
+    # PDF-отчёт
+    pdf_buffer = BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=A4)
+    width, height = A4
+
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(100, height - 80, "Расчёт LED-экрана MediaLive")
+    c.setFont("Helvetica", 12)
+    c.drawString(100, height - 110, f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(100, height - 150, "Характеристики экрана")
+    c.setFont("Helvetica", 10)
+    c.drawString(100, height - 170, f"Размер: {real_width} × {real_height} мм")
+    c.drawString(100, height - 185, f"Площадь: {real_width * real_height / 1_000_000:.2f} м²")
+    c.drawString(100, height - 200, f"Частота обновления: {refresh_rate} Hz")
+    c.drawString(100, height - 215, f"Технология: {tech}")
+    c.drawString(100, height - 230, f"Яркость: {1200 if screen_type == 'Indoor' else 6500} нит")
+    c.drawString(100, height - 245, f"Датчик яркости и температуры: {sensor}")
+
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(100, height - 275, "Модули")
+    c.setFont("Helvetica", 10)
+    c.drawString(100, height - 295, f"По горизонтали: {modules_w} шт.")
+    c.drawString(100, height - 310, f"По вертикали: {modules_h} шт.")
+    c.drawString(100, height - 325, f"Итого для заказа: {total_modules_order} шт.")
+
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(100, height - 355, "Блоки питания")
+    c.setFont("Helvetica", 10)
+    c.drawString(100, height - 375, f"Количество: {num_psu_reserve} шт. ({psu_power} Вт)")
+
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(100, height - 405, "Вес экрана")
+    c.setFont("Helvetica", 10)
+    c.drawString(100, height - 425, f"Общий вес: {total_weight:.1f} кг")
+
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(100, height - 455, "Упаковка")
+    c.setFont("Helvetica", 10)
+    c.drawString(100, height - 475, f"Коробок: {num_boxes} шт.")
+    c.drawString(100, height - 490, f"Общий объём: {box_volume:.2f} м³")
+
+    c.save()
+    pdf_buffer.seek(0)
+
+    st.download_button(
+        label="Скачать PDF-отчёт",
+        data=pdf_buffer,
+        file_name=f"LED_Raschet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mime="application/pdf"
+    )
