@@ -16,9 +16,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🖥️ Калькулятор LED-экранов MediaLive")
-st.markdown("Профессиональный расчёт экранов Qiangli 320×160 мм — быстро и точно")
+st.markdown("Расчёт комплектующих для экранов Qiangli 320×160 мм — быстро и точно")
 
-# Данные процессоров и портов (исправлено)
+# Данные процессоров и портов
 PROCESSOR_PORTS = {
     "VX400": 4,
     "VX600 Pro": 6,
@@ -106,7 +106,7 @@ receiving_card = st.selectbox("Принимающая карта (Novastar)", li
 modules_per_card = st.selectbox("Модулей на карту", [8, 10, 12, 16], index=0)  # дефолт 8
 modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=2)  # дефолт 8
 
-# Запас по питанию (15% или 30%)
+# Запас по питанию
 power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
 
 # Мощность БП
@@ -274,12 +274,23 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         """)
 
     with st.expander("Процессор/плеер", expanded=True):
+        available_ports = PROCESSOR_PORTS.get(processor, 1)
+        required_ports = math.ceil(total_px / 650000)
+        load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
+        port_status = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
+
         st.markdown(f"""
         - **Модель**: {processor}
-        - **Доступно портов**: {PROCESSOR_PORTS.get(processor, 1)}
-        - **Необходимое портов**: {math.ceil(total_px / 650000)}
-        - **Нагрузка на порт**: {(total_px / (PROCESSOR_PORTS.get(processor, 1) * 650000)) * 100:.1f}%
+        - **Доступно портов**: {available_ports}
+        - **Необходимое портов**: {required_ports} (при 650 000 px/порт)
+        - **Нагрузка на порт**: {load_per_port:.1f}%
+        - **Статус**: {port_status}
         """)
+
+        if load_per_port > 90:
+            st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим количеством портов или добавить сплиттер.")
+        if required_ports > available_ports:
+            st.error("❌ Недостаточно портов! Выберите модель с большим количеством портов или добавьте сплиттер.")
 
     with st.expander("Сеть", expanded=True):
         st.markdown(f"""
@@ -318,3 +329,27 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Общий вес коробок**: {box_weight} кг
         - **Общий объём коробок**: {box_volume:.2f} м³
         """)
+
+    # Схема монтажа (HTML, вариант 2)
+    if mount_type == "Монолитный":
+        st.subheader("Схема монолитного монтажа (вид сверху)")
+        html_scheme = """
+        <div style="font-family: monospace; background: #1a1a2e; color: #e0e0ff; padding: 20px; border-radius: 12px; border: 1px solid #4a4a8a; overflow-x: auto;">
+            <p style="color: #7f5af0; font-weight: bold; text-align: center;">Схема монолитного экрана</p>
+            <pre style="margin: 0; white-space: pre;">
+┌""" + "─" * (modules_w * 6) + """┐
+"""
+        for row in range(modules_h):
+            line = "│"
+            for col in range(modules_w):
+                color = "#00ff9d" if (row + col) % 2 == 0 else "#ff6bcb"
+                line += f'<span style="color:{color};"> ███ </span>'
+            line += "│\n"
+            html_scheme += line + "├" + "─" * (modules_w * 6) + "┤\n"
+
+        html_scheme += """└""" + "─" * (modules_w * 6) + """┘
+<span style="color:#00ff9d;">███</span> — модуль установлен
+            </pre>
+        </div>
+        """
+        st.markdown(html_scheme, unsafe_allow_html=True)
