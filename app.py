@@ -99,32 +99,6 @@ with col3:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
 
-    # Динамическая проверка портов (видно сразу)
-    real_width = math.ceil(width_mm / 320) * 320
-    real_height = math.ceil(height_mm / 160) * 160
-    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-    required_ports = math.ceil(total_px / 650000)
-    available_ports = PROCESSOR_PORTS.get(processor, 1)
-    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-
-    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-    status_color = "green" if required_ports <= available_ports else "red"
-
-    st.markdown(f"""
-    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
-        <strong>Проверка портов:</strong><br>
-        Доступно: <strong>{available_ports}</strong><br>
-        Необходимо: <strong>{required_ports}</strong><br>
-        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
-        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
-            {status_text}
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if load_per_port > 90 and required_ports <= available_ports:
-        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
-
 # Магнит для монолитного
 magnet_size = "13 мм"
 if mount_type == "Монолитный":
@@ -145,8 +119,8 @@ modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=
 # Запас по питанию
 power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
 
-# Мощность БП
-psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=2)
+# Мощность БП — дефолт 200 Вт
+psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=0)
 
 # Сеть
 power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
