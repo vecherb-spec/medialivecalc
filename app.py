@@ -119,8 +119,8 @@ modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=
 # Запас по питанию
 power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
 
-# Мощность БП — дефолт 200 Вт
-psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=0)
+# Мощность БП
+psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=2)
 
 # Сеть
 power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
