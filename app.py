@@ -59,6 +59,10 @@ CARD_MAX_PIXELS = {
     "A4s Plus": 256*256
 }
 
+# Шаги пикселя по типу экрана
+INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
+OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
+
 # Ввод параметров
 col1, col2, col3 = st.columns(3)
 
@@ -71,7 +75,13 @@ with col1:
 with col2:
     st.subheader("Монтаж и шаг пикселя")
     mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
-    pixel_pitch = st.selectbox("Шаг пикселя (мм)", [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0, 5.0, 6.67, 8.0, 10.0], index=8)
+
+    # Фильтрация шагов пикселя
+    if screen_type == "Indoor":
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
+    else:
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
+
     tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
 
 with col3:
@@ -88,6 +98,32 @@ with col3:
     else:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
+
+    # Динамическая проверка портов (видно сразу)
+    real_width = math.ceil(width_mm / 320) * 320
+    real_height = math.ceil(height_mm / 160) * 160
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    required_ports = math.ceil(total_px / 650000)
+    available_ports = PROCESSOR_PORTS.get(processor, 1)
+    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
+
+    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
+    status_color = "green" if required_ports <= available_ports else "red"
+
+    st.markdown(f"""
+    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
+        <strong>Проверка портов:</strong><br>
+        Доступно: <strong>{available_ports}</strong><br>
+        Необходимо: <strong>{required_ports}</strong><br>
+        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
+        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
+            {status_text}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if load_per_port > 90 and required_ports <= available_ports:
+        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
 
 # Магнит для монолитного
 magnet_size = "13 мм"
@@ -274,23 +310,12 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         """)
 
     with st.expander("Процессор/плеер", expanded=True):
-        available_ports = PROCESSOR_PORTS.get(processor, 1)
-        required_ports = math.ceil(total_px / 650000)
-        load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-        port_status = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-
         st.markdown(f"""
         - **Модель**: {processor}
-        - **Доступно портов**: {available_ports}
-        - **Необходимое портов**: {required_ports} (при 650 000 px/порт)
-        - **Нагрузка на порт**: {load_per_port:.1f}%
-        - **Статус**: {port_status}
+        - **Доступно портов**: {PROCESSOR_PORTS.get(processor, 1)}
+        - **Необходимое портов**: {math.ceil(total_px / 650000)}
+        - **Нагрузка на порт**: {(total_px / (PROCESSOR_PORTS.get(processor, 1) * 650000)) * 100:.1f}%
         """)
-
-        if load_per_port > 90:
-            st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим количеством портов или добавить сплиттер.")
-        if required_ports > available_ports:
-            st.error("❌ Недостаточно портов! Выберите модель с большим количеством портов или добавьте сплиттер.")
 
     with st.expander("Сеть", expanded=True):
         st.markdown(f"""
@@ -329,27 +354,3 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Общий вес коробок**: {box_weight} кг
         - **Общий объём коробок**: {box_volume:.2f} м³
         """)
-
-    # Схема монтажа (HTML, вариант 2)
-    if mount_type == "Монолитный":
-        st.subheader("Схема монолитного монтажа (вид сверху)")
-        html_scheme = """
-        <div style="font-family: monospace; background: #1a1a2e; color: #e0e0ff; padding: 20px; border-radius: 12px; border: 1px solid #4a4a8a; overflow-x: auto;">
-            <p style="color: #7f5af0; font-weight: bold; text-align: center;">Схема монолитного экрана</p>
-            <pre style="margin: 0; white-space: pre;">
-┌""" + "─" * (modules_w * 6) + """┐
-"""
-        for row in range(modules_h):
-            line = "│"
-            for col in range(modules_w):
-                color = "#00ff9d" if (row + col) % 2 == 0 else "#ff6bcb"
-                line += f'<span style="color:{color};"> ███ </span>'
-            line += "│\n"
-            html_scheme += line + "├" + "─" * (modules_w * 6) + "┤\n"
-
-        html_scheme += """└""" + "─" * (modules_w * 6) + """┘
-<span style="color:#00ff9d;">███</span> — модуль установлен
-            </pre>
-        </div>
-        """
-        st.markdown(html_scheme, unsafe_allow_html=True)
