@@ -1,9 +1,5 @@
 import streamlit as st
 import math
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from io import BytesIO
-from datetime import datetime
 
 # Конфигурация страницы
 st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
@@ -229,9 +225,11 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     horiz_length = real_width - 60
     total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
 
-    # Крепёж
-    fasteners_m6 = horiz_profiles * vert_profiles
+    # Крепёж (винты M6 + заклёпки M6 — 2/3 шт. на вертикальную линию + запас 3%)
+    fasteners_m6 = int(horiz_profiles * vert_profiles * (2/3))
     reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
+
+    # Магниты
     magnets = math.ceil(total_modules * 4 / 500) * 500
 
     # Коммутация
@@ -333,6 +331,8 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         st.markdown(f"""
         - **Вертикальные профили**: {vert_profiles} шт., длина на отрез {vert_length} мм, общая {vert_profiles * vert_length / 1000:.2f} м
         - **Горизонтальные профили**: {horiz_profiles} шт., длина на отрез {horiz_length} мм, общая {horiz_profiles * horiz_length / 1000:.2f} м
+        - **Винты M6 + резьбовые заклёпки M6**: {fasteners_m6} шт. + {reserve_fasteners} шт. (запас 3%)
+        - **Магниты {magnet_size}**: {magnets} шт. (округлено до 500 шт.)
         - **Металлические пластины**: {num_plates} шт. (по количеству БП)
         - **Винты 4×16 со сверлом к профилям**: {vinths} шт. + {reserve_vinths} шт. (запас 10%)
         """)
@@ -358,84 +358,3 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Общий вес коробок**: {box_weight} кг
         - **Общий объём коробок**: {box_volume:.2f} м³
         """)
-
-    # PDF-отчёт
-    def generate_pdf_report():
-        buffer = BytesIO()
-        c = canvas.Canvas(buffer, pagesize=A4)
-        width, height = A4
-
-        # Заголовок
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(100, height - 80, "Расчёт LED-экрана MediaLive")
-        c.setFont("Helvetica", 12)
-        c.drawString(100, height - 110, f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-        y = height - 150
-
-        # Характеристики экрана
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(100, y, "Характеристики экрана")
-        y -= 30
-        c.setFont("Helvetica", 10)
-        c.drawString(120, y, f"Размер: {real_width} × {real_height} мм")
-        y -= 15
-        c.drawString(120, y, f"Площадь: {real_width * real_height / 1_000_000:.2f} м²")
-        y -= 15
-        c.drawString(120, y, f"Частота обновления: {refresh_rate} Hz")
-        y -= 15
-        c.drawString(120, y, f"Технология: {tech}")
-        y -= 15
-        c.drawString(120, y, f"Яркость: {1200 if screen_type == 'Indoor' else 6500} нит")
-        y -= 15
-        c.drawString(120, y, f"Датчик яркости и температуры: {sensor}")
-
-        # Модули
-        y -= 30
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(100, y, "Модули")
-        y -= 30
-        c.setFont("Helvetica", 10)
-        c.drawString(120, y, f"По горизонтали: {modules_w} шт.")
-        y -= 15
-        c.drawString(120, y, f"По вертикали: {modules_h} шт.")
-        y -= 15
-        c.drawString(120, y, f"Итого для заказа: {total_modules_order} шт.")
-
-        # Блоки питания
-        y -= 30
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(100, y, "Блоки питания")
-        y -= 30
-        c.setFont("Helvetica", 10)
-        c.drawString(120, y, f"Количество: {num_psu_reserve} шт. ({psu_power} Вт)")
-
-        # Вес экрана
-        y -= 30
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(100, y, "Вес экрана")
-        y -= 30
-        c.setFont("Helvetica", 10)
-        c.drawString(120, y, f"Общий вес: {total_weight:.1f} кг")
-
-        # Упаковка
-        y -= 30
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(100, y, "Упаковка")
-        y -= 30
-        c.setFont("Helvetica", 10)
-        c.drawString(120, y, f"Коробок: {num_boxes} шт.")
-        c.drawString(120, y - 15, f"Общий объём: {box_volume:.2f} м³")
-
-        c.save()
-        buffer.seek(0)
-        return buffer
-
-    # Кнопка скачивания PDF
-    pdf_buffer = generate_pdf_report()
-    st.download_button(
-        label="Скачать PDF-отчёт",
-        data=pdf_buffer,
-        file_name=f"LED_Raschet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-        mime="application/pdf"
-    )
