@@ -84,6 +84,39 @@ with col2:
 
     tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
 
+    # Выбор кабинета — только если "В кабинетах"
+    if mount_type == "В кабинетах":
+        st.subheader("Выбор кабинета Qiangli")
+        cabinet_options = [
+            "QM Series (640×480 мм, indoor, ~20 кг)",
+            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
+            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
+            "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
+            "Custom (введите размер и вес вручную)"
+        ]
+        cabinet_model = st.selectbox("Модель кабинета", cabinet_options, index=0)
+
+        # Размеры и вес
+        cabinet_data = {
+            "QM Series (640×480 мм, indoor, ~20 кг)": (640, 480, 20.0),
+            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)": (960, 960, 40.0),
+            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)": (500, 500, 13.5),
+            "QS Series (960×960 мм, outdoor fixed, ~45 кг)": (960, 960, 45.0),
+            "Custom (введите размер и вес вручную)": (None, None, None)
+        }
+
+        selected_data = cabinet_data.get(cabinet_model)
+        if selected_data[0] is None:  # Custom
+            col_custom1, col_custom2, col_custom3 = st.columns(3)
+            with col_custom1:
+                cabinet_width = st.number_input("Ширина кабинета (мм)", min_value=320, value=640)
+            with col_custom2:
+                cabinet_height = st.number_input("Высота кабинета (мм)", min_value=160, value=480)
+            with col_custom3:
+                cabinet_weight_per = st.number_input("Вес одного кабинета (кг)", min_value=1.0, value=20.0, step=0.5)
+        else:
+            cabinet_width, cabinet_height, cabinet_weight_per = selected_data
+
 with col3:
     st.subheader("Частота и система")
     refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
@@ -225,11 +258,9 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     horiz_length = real_width - 60
     total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
 
-    # Крепёж (винты M6 + заклёпки M6 — 2/3 шт. на вертикальную линию + запас 3%)
-    fasteners_m6 = int(horiz_profiles * vert_profiles * (2/3))
+    # Крепёж
+    fasteners_m6 = horiz_profiles * vert_profiles
     reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
-
-    # Магниты
     magnets = math.ceil(total_modules * 4 / 500) * 500
 
     # Коммутация
@@ -249,6 +280,13 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     num_boxes = math.ceil(total_modules_order / 40)
     box_weight = num_boxes * 22
     box_volume = num_boxes * 0.06
+
+    # Кабинеты (для "В кабинетах")
+    if mount_type == "В кабинетах":
+        cabinets_w = math.ceil(real_width / cabinet_width)
+        cabinets_h = math.ceil(real_height / cabinet_height)
+        total_cabinets = cabinets_w * cabinets_h
+        total_cabinet_weight = total_cabinets * cabinet_weight_per
 
     # Вывод отчёта
     st.success("Расчёт готов!")
@@ -334,6 +372,20 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Общий вес коробок**: {box_weight} кг
         - **Общий объём коробок**: {box_volume:.2f} м³
         """)
+
+    # Кабинеты (для "В кабинетах")
+    if mount_type == "В кабинетах":
+        cabinets_w = math.ceil(real_width / cabinet_width)
+        cabinets_h = math.ceil(real_height / cabinet_height)
+        total_cabinets = cabinets_w * cabinets_h
+        total_cabinet_weight = total_cabinets * cabinet_weight_per
+
+        st.markdown("### Кабинеты")
+        st.write(f"- **Модель**: {cabinet_model}")
+        st.write(f"- **Размер одного кабинета**: {cabinet_width} × {cabinet_height} мм")
+        st.write(f"- **Количество**: {total_cabinets} шт. ({cabinets_w} × {cabinets_h})")
+        st.write(f"- **Вес одного кабинета**: {cabinet_weight_per:.1f} кг")
+        st.write(f"- **Общий вес кабинетов**: {total_cabinet_weight:.1f} кг")
 
     # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
     if mount_type == "Монолитный":
