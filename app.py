@@ -225,11 +225,9 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     horiz_length = real_width - 60
     total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
 
-    # Крепёж (винты M6 + заклёпки M6 — 2/3 шт. на вертикальную линию + запас 3%)
-    fasteners_m6 = int(horiz_profiles * vert_profiles * (2/3))
+    # Крепёж
+    fasteners_m6 = horiz_profiles * vert_profiles
     reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
-
-    # Магниты
     magnets = math.ceil(total_modules * 4 / 500) * 500
 
     # Коммутация
@@ -249,30 +247,6 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     num_boxes = math.ceil(total_modules_order / 40)
     box_weight = num_boxes * 22
     box_volume = num_boxes * 0.06
-
-    # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
-    if mount_type == "Монолитный":
-        st.subheader("Схема монолитного монтажа (вид сверху)")
-        html_scheme = """
-        <div style="font-family: monospace; background: #1a1a2e; color: #e0e0ff; padding: 20px; border-radius: 12px; border: 1px solid #4a4a8a; overflow-x: auto;">
-            <p style="color: #7f5af0; font-weight: bold; text-align: center;">Схема монолитного экрана</p>
-            <pre style="margin: 0; white-space: pre;">
-┌""" + "─" * (modules_w * 6) + """┐
-"""
-        for row in range(modules_h):
-            line = "│"
-            for col in range(modules_w):
-                color = "#00ff9d" if (row + col) % 2 == 0 else "#ff6bcb"
-                line += f'<span style="color:{color};"> ███ </span>'
-            line += "│\n"
-            html_scheme += line + "├" + "─" * (modules_w * 6) + "┤\n"
-
-        html_scheme += """└""" + "─" * (modules_w * 6) + """┘
-<span style="color:#00ff9d;">███</span> — модуль установлен
-            </pre>
-        </div>
-        """
-        st.markdown(html_scheme, unsafe_allow_html=True)
 
     # Вывод отчёта
     st.success("Расчёт готов!")
@@ -331,8 +305,6 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         st.markdown(f"""
         - **Вертикальные профили**: {vert_profiles} шт., длина на отрез {vert_length} мм, общая {vert_profiles * vert_length / 1000:.2f} м
         - **Горизонтальные профили**: {horiz_profiles} шт., длина на отрез {horiz_length} мм, общая {horiz_profiles * horiz_length / 1000:.2f} м
-        - **Винты M6 + резьбовые заклёпки M6**: {fasteners_m6} шт. + {reserve_fasteners} шт. (запас 3%)
-        - **Магниты {magnet_size}**: {magnets} шт. (округлено до 500 шт.)
         - **Металлические пластины**: {num_plates} шт. (по количеству БП)
         - **Винты 4×16 со сверлом к профилям**: {vinths} шт. + {reserve_vinths} шт. (запас 10%)
         """)
