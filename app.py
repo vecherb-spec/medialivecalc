@@ -226,7 +226,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
 
     # Крепёж (винты M6 + заклёпки M6 — 2/3 шт. на вертикальную линию + запас 3%)
-    fasteners_m6 = int(horiz_profiles * vert_profiles * (2/3))  # 2/3 шт. на вертикальную
+    fasteners_m6 = int(horiz_profiles * vert_profiles * (2/3))
     reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
 
     # Магниты
@@ -250,7 +250,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     box_weight = num_boxes * 22
     box_volume = num_boxes * 0.06
 
-    # Схема монтажа (HTML, вариант 2)
+    # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
     if mount_type == "Монолитный":
         st.subheader("Схема монолитного монтажа (вид сверху)")
         html_scheme = """
@@ -312,23 +312,12 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         """)
 
     with st.expander("Процессор/плеер", expanded=True):
-        available_ports = PROCESSOR_PORTS.get(processor, 1)
-        required_ports = math.ceil(total_px / 650000)
-        load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-        port_status = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-
         st.markdown(f"""
         - **Модель**: {processor}
-        - **Доступно портов**: {available_ports}
-        - **Необходимое портов**: {required_ports} (при 650 000 px/порт)
-        - **Нагрузка на порт**: {load_per_port:.1f}%
-        - **Статус**: {port_status}
+        - **Доступно портов**: {PROCESSOR_PORTS.get(processor, 1)}
+        - **Необходимое портов**: {math.ceil(total_px / 650000)}
+        - **Нагрузка на порт**: {(total_px / (PROCESSOR_PORTS.get(processor, 1) * 650000)) * 100:.1f}%
         """)
-
-        if load_per_port > 90 and required_ports <= available_ports:
-            st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
-        if required_ports > available_ports:
-            st.error("❌ Недостаточно портов! Выберите модель с большим количеством портов или добавьте сплиттер.")
 
     with st.expander("Сеть", expanded=True):
         st.markdown(f"""
@@ -370,7 +359,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Общий объём коробок**: {box_volume:.2f} м³
         """)
 
-    # Схема монтажа (HTML, вариант 2)
+    # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
     if mount_type == "Монолитный":
         st.subheader("Схема монолитного монтажа (вид сверху)")
         html_scheme = """
