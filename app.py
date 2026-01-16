@@ -384,54 +384,77 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         st.markdown(html_scheme, unsafe_allow_html=True)
 
     # PDF-отчёт
-    pdf_buffer = BytesIO()
-    c = canvas.Canvas(pdf_buffer, pagesize=A4)
+    def generate_pdf_report():
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
+    # Шрифт с поддержкой кириллицы (Helvetica по умолчанию поддерживает, но можно добавить)
     c.setFont("Helvetica-Bold", 16)
     c.drawString(100, height - 80, "Расчёт LED-экрана MediaLive")
     c.setFont("Helvetica", 12)
     c.drawString(100, height - 110, f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, height - 150, "Характеристики экрана")
-    c.setFont("Helvetica", 10)
-    c.drawString(100, height - 170, f"Размер: {real_width} × {real_height} мм")
-    c.drawString(100, height - 185, f"Площадь: {real_width * real_height / 1_000_000:.2f} м²")
-    c.drawString(100, height - 200, f"Частота обновления: {refresh_rate} Hz")
-    c.drawString(100, height - 215, f"Технология: {tech}")
-    c.drawString(100, height - 230, f"Яркость: {1200 if screen_type == 'Indoor' else 6500} нит")
-    c.drawString(100, height - 245, f"Датчик яркости и температуры: {sensor}")
+    y = height - 150
 
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, height - 275, "Модули")
+    c.drawString(100, y, "Характеристики экрана")
+    y -= 30
     c.setFont("Helvetica", 10)
-    c.drawString(100, height - 295, f"По горизонтали: {modules_w} шт.")
-    c.drawString(100, height - 310, f"По вертикали: {modules_h} шт.")
-    c.drawString(100, height - 325, f"Итого для заказа: {total_modules_order} шт.")
+    c.drawString(120, y, f"Размер: {real_width} × {real_height} мм")
+    y -= 15
+    c.drawString(120, y, f"Площадь: {real_width * real_height / 1_000_000:.2f} м²")
+    y -= 15
+    c.drawString(120, y, f"Частота обновления: {refresh_rate} Hz")
+    y -= 15
+    c.drawString(120, y, f"Технология: {tech}")
+    y -= 15
+    c.drawString(120, y, f"Яркость: {1200 if screen_type == 'Indoor' else 6500} нит")
+    y -= 15
+    c.drawString(120, y, f"Датчик яркости и температуры: {sensor}")
 
+    y -= 30
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, height - 355, "Блоки питания")
+    c.drawString(100, y, "Модули")
+    y -= 30
     c.setFont("Helvetica", 10)
-    c.drawString(100, height - 375, f"Количество: {num_psu_reserve} шт. ({psu_power} Вт)")
+    c.drawString(120, y, f"По горизонтали: {modules_w} шт.")
+    y -= 15
+    c.drawString(120, y, f"По вертикали: {modules_h} шт.")
+    y -= 15
+    c.drawString(120, y, f"Итого для заказа: {total_modules_order} шт.")
 
+    y -= 30
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, height - 405, "Вес экрана")
+    c.drawString(100, y, "Блоки питания")
+    y -= 30
     c.setFont("Helvetica", 10)
-    c.drawString(100, height - 425, f"Общий вес: {total_weight:.1f} кг")
+    c.drawString(120, y, f"Количество: {num_psu_reserve} шт. ({psu_power} Вт)")
 
+    y -= 30
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, height - 455, "Упаковка")
+    c.drawString(100, y, "Вес экрана")
+    y -= 30
     c.setFont("Helvetica", 10)
-    c.drawString(100, height - 475, f"Коробок: {num_boxes} шт.")
-    c.drawString(100, height - 490, f"Общий объём: {box_volume:.2f} м³")
+    c.drawString(120, y, f"Общий вес: {total_weight:.1f} кг")
+
+    y -= 30
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(100, y, "Упаковка")
+    y -= 30
+    c.setFont("Helvetica", 10)
+    c.drawString(120, y, f"Коробок: {num_boxes} шт.")
+    c.drawString(120, y - 15, f"Общий объём: {box_volume:.2f} м³")
 
     c.save()
-    pdf_buffer.seek(0)
+    buffer.seek(0)
+    return buffer
 
-    st.download_button(
-        label="Скачать PDF-отчёт",
-        data=pdf_buffer,
-        file_name=f"LED_Raschet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-        mime="application/pdf"
-    )
+# Кнопка скачивания PDF (после расчёта)
+pdf_buffer = generate_pdf_report()
+st.download_button(
+    label="Скачать PDF-отчёт (красивый и краткий)",
+    data=pdf_buffer,
+    file_name=f"LED_Raschet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+    mime="application/pdf"
+)
