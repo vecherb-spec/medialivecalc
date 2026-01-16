@@ -2,7 +2,7 @@ import streamlit as st
 import math
 
 # Конфигурация страницы
-st.set_page_config(page_title="MediaLive LED Calculator", layout="wide", page_icon="🖥️")
+st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
 
 # Красивый дизайн
 st.markdown("""
@@ -15,10 +15,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🖥️ MediaLive LED Calculator")
-st.markdown("Профессиональный расчёт экранов Qiangli 320×160 мм — быстро, красиво, точно")
+st.title("🖥️ Калькулятор LED-экранов MediaLive")
+st.markdown("Расчёт комплектующих для экранов Qiangli 320×160 мм — быстро и точно")
 
-# Данные процессоров и портов (исправлено: VX400 = 4 порта)
+# Данные процессоров и портов
 PROCESSOR_PORTS = {
     "VX400": 4,
     "VX600 Pro": 6,
@@ -63,13 +63,13 @@ CARD_MAX_PIXELS = {
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.subheader("Размер и тип")
-    width_mm = st.number_input("Ширина (мм)", min_value=320, step=320, value=3840)
-    height_mm = st.number_input("Высота (мм)", min_value=160, step=160, value=2880)
+    st.subheader("Размер и тип экрана")
+    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
+    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
 with col2:
-    st.subheader("Монтаж и шаг")
+    st.subheader("Монтаж и шаг пикселя")
     mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
     pixel_pitch = st.selectbox("Шаг пикселя (мм)", [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0, 5.0, 6.67, 8.0, 10.0], index=8)
     tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
@@ -77,10 +77,10 @@ with col2:
 with col3:
     st.subheader("Частота и система")
     refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
-    system_type = st.radio("Тип системы", ["Synchronous", "Asynchronous"], index=0)
+    system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"], index=0)
 
     # Фильтрация процессоров
-    if system_type == "Synchronous":
+    if system_type == "Синхронный":
         available_processors = [p for p in PROCESSOR_PORTS if p not in ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]]
     else:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
@@ -100,20 +100,20 @@ if screen_type == "Outdoor":
 receiving_card = st.selectbox("Принимающая карта (Novastar)", list(CARD_MAX_PIXELS.keys()), index=5)
 
 # Ориентиры
-modules_per_card = st.selectbox("Модулей на карту", [8, 10, 12, 16], index=2)
-modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=3)
+modules_per_card = st.selectbox("Модулей на карту", [8, 10, 12, 16], index=0)  # дефолт 8
+modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=2)  # дефолт 8
 
 # Запас по питанию
-power_reserve = st.number_input("Запас по питанию (%)", value=30)
+power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
 
 # Мощность БП
 psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=2)
 
 # Сеть
-power_phase = st.radio("Сеть", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
+power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
 
 # Резерв
-reserve_enabled = st.checkbox("Резервные элементы?", value=True)
+reserve_enabled = st.checkbox("Включить резервные элементы?", value=True)
 reserve_modules_percent = 5
 reserve_modules_custom = 0
 reserve_psu_cards = False
@@ -170,7 +170,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     total_power_cable_length = num_power_cables * 1.0
     reserve_power_cables = math.ceil(num_power_cables * 0.1)
 
-    # Расчёт сети (ток, кабель, автомат)
+    # Расчёт сети
     if power_phase == "Одна фаза (220 В)":
         voltage = 220
     else:
