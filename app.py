@@ -150,7 +150,7 @@ modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=
 power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
 
 # Мощность БП
-psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=2)
+psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=0)  # дефолт 200
 
 # Сеть
 power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
@@ -385,76 +385,81 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
 
     # PDF-отчёт
     def generate_pdf_report():
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
 
-    # Шрифт с поддержкой кириллицы (Helvetica по умолчанию поддерживает, но можно добавить)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(100, height - 80, "Расчёт LED-экрана MediaLive")
-    c.setFont("Helvetica", 12)
-    c.drawString(100, height - 110, f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        # Заголовок
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(100, height - 80, "Расчёт LED-экрана MediaLive")
+        c.setFont("Helvetica", 12)
+        c.drawString(100, height - 110, f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    y = height - 150
+        y = height - 150
 
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, y, "Характеристики экрана")
-    y -= 30
-    c.setFont("Helvetica", 10)
-    c.drawString(120, y, f"Размер: {real_width} × {real_height} мм")
-    y -= 15
-    c.drawString(120, y, f"Площадь: {real_width * real_height / 1_000_000:.2f} м²")
-    y -= 15
-    c.drawString(120, y, f"Частота обновления: {refresh_rate} Hz")
-    y -= 15
-    c.drawString(120, y, f"Технология: {tech}")
-    y -= 15
-    c.drawString(120, y, f"Яркость: {1200 if screen_type == 'Indoor' else 6500} нит")
-    y -= 15
-    c.drawString(120, y, f"Датчик яркости и температуры: {sensor}")
+        # Характеристики экрана
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Характеристики экрана")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"Размер: {real_width} × {real_height} мм")
+        y -= 15
+        c.drawString(120, y, f"Площадь: {real_width * real_height / 1_000_000:.2f} м²")
+        y -= 15
+        c.drawString(120, y, f"Частота обновления: {refresh_rate} Hz")
+        y -= 15
+        c.drawString(120, y, f"Технология: {tech}")
+        y -= 15
+        c.drawString(120, y, f"Яркость: {1200 if screen_type == 'Indoor' else 6500} нит")
+        y -= 15
+        c.drawString(120, y, f"Датчик яркости и температуры: {sensor}")
 
-    y -= 30
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, y, "Модули")
-    y -= 30
-    c.setFont("Helvetica", 10)
-    c.drawString(120, y, f"По горизонтали: {modules_w} шт.")
-    y -= 15
-    c.drawString(120, y, f"По вертикали: {modules_h} шт.")
-    y -= 15
-    c.drawString(120, y, f"Итого для заказа: {total_modules_order} шт.")
+        # Модули
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Модули")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"По горизонтали: {modules_w} шт.")
+        y -= 15
+        c.drawString(120, y, f"По вертикали: {modules_h} шт.")
+        y -= 15
+        c.drawString(120, y, f"Итого для заказа: {total_modules_order} шт.")
 
-    y -= 30
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, y, "Блоки питания")
-    y -= 30
-    c.setFont("Helvetica", 10)
-    c.drawString(120, y, f"Количество: {num_psu_reserve} шт. ({psu_power} Вт)")
+        # Блоки питания
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Блоки питания")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"Количество: {num_psu_reserve} шт. ({psu_power} Вт)")
 
-    y -= 30
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, y, "Вес экрана")
-    y -= 30
-    c.setFont("Helvetica", 10)
-    c.drawString(120, y, f"Общий вес: {total_weight:.1f} кг")
+        # Вес экрана
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Вес экрана")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"Общий вес: {total_weight:.1f} кг")
 
-    y -= 30
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(100, y, "Упаковка")
-    y -= 30
-    c.setFont("Helvetica", 10)
-    c.drawString(120, y, f"Коробок: {num_boxes} шт.")
-    c.drawString(120, y - 15, f"Общий объём: {box_volume:.2f} м³")
+        # Упаковка
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Упаковка")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"Коробок: {num_boxes} шт.")
+        c.drawString(120, y - 15, f"Общий объём: {box_volume:.2f} м³")
 
-    c.save()
-    buffer.seek(0)
-    return buffer
+        c.save()
+        buffer.seek(0)
+        return buffer
 
-# Кнопка скачивания PDF (после расчёта)
-pdf_buffer = generate_pdf_report()
-st.download_button(
-    label="Скачать PDF-отчёт (красивый и краткий)",
-    data=pdf_buffer,
-    file_name=f"LED_Raschet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-    mime="application/pdf"
-)
+    # Кнопка скачивания PDF
+    pdf_buffer = generate_pdf_report()
+    st.download_button(
+        label="Скачать PDF-отчёт",
+        data=pdf_buffer,
+        file_name=f"LED_Raschet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mime="application/pdf"
+    )
