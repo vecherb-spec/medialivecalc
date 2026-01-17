@@ -69,42 +69,61 @@ if "width_mm" not in st.session_state:
 if "height_mm" not in st.session_state:
     st.session_state.height_mm = 2240
 
+# Функции пересчёта
+def fit_16_9():
+    ideal = st.session_state.width_mm / 1.7777777777777777
+    lower = math.floor(ideal / 160) * 160
+    upper = math.ceil(ideal / 160) * 160
+    st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
+
+def fit_4_3():
+    ideal = st.session_state.width_mm / 1.3333333333333333
+    lower = math.floor(ideal / 160) * 160
+    upper = math.ceil(ideal / 160) * 160
+    st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
+
 # Ввод параметров
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Размер и тип экрана")
 
-    # Просто два поля ввода — без автоматического пересчёта в коде
     width_mm = st.number_input(
         "Ширина экрана (мм)",
         min_value=320,
         step=320,
-        value=3840
+        value=st.session_state.width_mm,
+        key="width_input"
     )
+    st.session_state.width_mm = width_mm
+
+    # Кнопки подгонки в форме (самый надёжный способ)
+    with st.form(key="fit_form"):
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.form_submit_button("Подогнать под 16:9", type="primary"):
+                fit_16_9()
+                st.rerun()
+        with col_btn2:
+            if st.form_submit_button("Подогнать под 4:3", type="primary"):
+                fit_4_3()
+                st.rerun()
 
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=2240
+        value=st.session_state.height_mm,
+        key="height_input"
     )
+    st.session_state.height_mm = height_mm
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
-    # Показываем подсказку — как правильно подобрать высоту вручную
-    st.info(f"""
-    **Как подогнать под 16:9 быстро:**
-    1. Введи нужную ширину
-    2. Посчитай высоту по формуле: ширина ÷ 1.7778
-    3. Округли до ближайшего числа, кратного 160
-    4. Введи полученное значение в поле высоты
-    """)
 with col2:
     st.subheader("Монтаж и шаг пикселя")
     mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
 
-    # Фильтрация шагов пикселя
     if screen_type == "Indoor":
         pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
     else:
@@ -112,7 +131,6 @@ with col2:
 
     tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
 
-    # Выбор кабинета
     cabinet_model = None
     cabinet_width = 640
     cabinet_height = 480
