@@ -75,34 +75,31 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.subheader("Размер и тип экрана")
 
-    # Поле ширины с отдельным ключом
+    # Поле ширины
     width_mm = st.number_input(
         "Ширина экрана (мм)",
         min_value=320,
         step=320,
-        value=st.session_state.get("width_mm", 3840),
-        key="width_input_unique"  # уникальный ключ — важно!
+        value=st.session_state.get("width_mm", 3840)
     )
 
-    # Сохраняем ширину и проверяем изменение
-    if "previous_width" not in st.session_state:
-        st.session_state.previous_width = width_mm
+    # Автоматический пересчёт высоты при изменении ширины
+    ideal_height = width_mm / 1.7777777777777777  # точная 16:9
+    new_height = round(ideal_height / 160) * 160
+    new_height = max(160, new_height)  # минимум 160 мм
 
-    if width_mm != st.session_state.previous_width:
-        # Пересчёт высоты по 16:9
-        ideal_height = width_mm / 1.7777777777777777
-        new_height = round(ideal_height / 160) * 160
-        st.session_state.height_mm = max(160, new_height)
-        st.session_state.previous_width = width_mm
-        st.rerun()  # обновление страницы
+    # Если высота изменилась — сохраняем и обновляем страницу
+    if new_height != st.session_state.get("height_mm", 2240):
+        st.session_state.height_mm = new_height
+        st.session_state.width_mm = width_mm
+        st.rerun()
 
-    # Поле высоты (обновляется автоматически)
+    # Поле высоты
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2240),
-        key="height_input_unique"
+        value=st.session_state.get("height_mm", 2240)
     )
     st.session_state.height_mm = height_mm
 
