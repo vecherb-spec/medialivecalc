@@ -63,13 +63,32 @@ CARD_MAX_PIXELS = {
 INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
 OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 
+# Сессионное состояние для ширины и высоты (чтобы автоматически обновлять высоту)
+if "width_mm" not in st.session_state:
+    st.session_state.width_mm = 3840
+if "height_mm" not in st.session_state:
+    st.session_state.height_mm = 2160  # начальное значение 16:9 (3840×2160)
+
+# Функция автоматического подбора высоты по 16:9 (кратно 160 мм)
+def update_height():
+    ideal_height = (st.session_state.width_mm * 9) / 16
+    new_height = round(ideal_height / 160) * 160  # ближайшее кратное 160
+    st.session_state.height_mm = new_height
+
 # Ввод параметров
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Размер и тип экрана")
-    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
-    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
+    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=st.session_state.width_mm, key="width_input")
+    st.session_state.width_mm = width_mm
+
+    # Автоматическое обновление высоты при изменении ширины
+    update_height()  # вызываем каждый раз при изменении ширины
+
+    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=st.session_state.height_mm, key="height_input")
+    st.session_state.height_mm = height_mm
+
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
 with col2:
@@ -85,6 +104,10 @@ with col2:
     tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
 
     # Выбор кабинета — только если "В кабинетах"
+    cabinet_model = None
+    cabinet_width = 640
+    cabinet_height = 480
+    cabinet_weight_per = 20.0
     if mount_type == "В кабинетах":
         st.subheader("Выбор кабинета Qiangli")
         cabinet_options = [
@@ -96,7 +119,6 @@ with col2:
         ]
         cabinet_model = st.selectbox("Модель кабинета", cabinet_options, index=0)
 
-        # Размеры и вес
         cabinet_data = {
             "QM Series (640×480 мм, indoor, ~20 кг)": (640, 480, 20.0),
             "MG Series (960×960 мм, outdoor/indoor, ~40 кг)": (960, 960, 40.0),
@@ -132,32 +154,7 @@ with col3:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
 
-    # Динамическая проверка портов (видно сразу)
-    real_width = math.ceil(width_mm / 320) * 320
-    real_height = math.ceil(height_mm / 160) * 160
-    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-    required_ports = math.ceil(total_px / 650000)
-    available_ports = PROCESSOR_PORTS.get(processor, 1)
-    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-
-    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-    status_color = "green" if required_ports <= available_ports else "red"
-
-    st.markdown(f"""
-    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
-        <strong>Проверка портов для выбранного процессора:</strong><br>
-        Доступно: <strong>{available_ports}</strong><br>
-        Необходимо: <strong>{required_ports}</strong><br>
-        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
-        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
-            {status_text}
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if load_per_port > 90 and required_ports <= available_ports:
-        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
-
+# Остальные поля (магнит, датчик, карта, ориентиры, запас, БП, сеть, резерв)
 # Магнит для монолитного
 magnet_size = "13 мм"
 if mount_type == "Монолитный":
@@ -184,16 +181,17 @@ psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=
 # Сеть
 power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
 
-# Резерв
+# Резерв (исправлено: всегда определены дефолтные значения)
 reserve_enabled = st.checkbox("Включить резервные элементы?", value=True)
 reserve_modules_percent = 5
 reserve_modules_custom = 0
+reserve_modules_choice = "5%"  # дефолтное значение
 reserve_psu_cards = False
 reserve_patch = False
 if reserve_enabled:
     reserve_modules_choice = st.radio("Резерв модулей", ["3%", "5%", "10%", "Свой"], index=1)
     if reserve_modules_choice == "Свой":
-        reserve_modules_custom = st.number_input("Свой резерв модулей (шт.)", value=0)
+        reserve_modules_custom = st.number_input("Свой резерв модулей (шт.)", min_value=0, value=0)
     reserve_psu_cards = st.checkbox("+1 к БП и картам", value=True)
     reserve_patch = st.checkbox("Резервные патч-корды (×2)", value=False)
 
@@ -281,7 +279,9 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     box_weight = num_boxes * 22
     box_volume = num_boxes * 0.06
 
-    # Кабинеты (для "В кабинетах")
+    # Кабинеты (если "В кабинетах")
+    total_cabinets = 0
+    total_cabinet_weight = 0.0
     if mount_type == "В кабинетах":
         cabinets_w = math.ceil(real_width / cabinet_width)
         cabinets_h = math.ceil(real_height / cabinet_height)
@@ -310,6 +310,16 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Резерв**: {reserve_modules} шт.
         - **Итого для заказа**: {total_modules_order} шт.
         """)
+
+    if mount_type == "В кабинетах":
+        with st.expander("Кабинеты", expanded=True):
+            st.markdown(f"""
+            - **Модель**: {cabinet_model}
+            - **Размер одного**: {cabinet_width} × {cabinet_height} мм
+            - **Количество**: {total_cabinets} шт. ({cabinets_w} × {cabinets_h})
+            - **Вес одного**: {cabinet_weight_per:.1f} кг
+            - **Общий вес**: {total_cabinet_weight:.1f} кг
+            """)
 
     with st.expander("Принимающие карты", expanded=True):
         st.markdown(f"""
@@ -372,20 +382,6 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Общий вес коробок**: {box_weight} кг
         - **Общий объём коробок**: {box_volume:.2f} м³
         """)
-
-    # Кабинеты (для "В кабинетах")
-    if mount_type == "В кабинетах":
-        cabinets_w = math.ceil(real_width / cabinet_width)
-        cabinets_h = math.ceil(real_height / cabinet_height)
-        total_cabinets = cabinets_w * cabinets_h
-        total_cabinet_weight = total_cabinets * cabinet_weight_per
-
-        st.markdown("### Кабинеты")
-        st.write(f"- **Модель**: {cabinet_model}")
-        st.write(f"- **Размер одного кабинета**: {cabinet_width} × {cabinet_height} мм")
-        st.write(f"- **Количество**: {total_cabinets} шт. ({cabinets_w} × {cabinets_h})")
-        st.write(f"- **Вес одного кабинета**: {cabinet_weight_per:.1f} кг")
-        st.write(f"- **Общий вес кабинетов**: {total_cabinet_weight:.1f} кг")
 
     # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
     if mount_type == "Монолитный":
