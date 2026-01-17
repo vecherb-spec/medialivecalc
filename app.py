@@ -64,7 +64,7 @@ INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
 OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 
 # Ввод параметров
-col1, col2 = st.columns([2, 1])
+col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Размер и тип экрана")
@@ -72,7 +72,17 @@ with col1:
     height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
+with col2:
+    st.subheader("Монтаж и шаг пикселя")
     mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
+
+    # Фильтрация шагов пикселя
+    if screen_type == "Indoor":
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
+    else:
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
+
+    tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
 
     # Выбор кабинета — только если "В кабинетах"
     if mount_type == "В кабинетах":
@@ -86,6 +96,7 @@ with col1:
         ]
         cabinet_model = st.selectbox("Модель кабинета", cabinet_options, index=0)
 
+        # Размеры и вес
         cabinet_data = {
             "QM Series (640×480 мм, indoor, ~20 кг)": (640, 480, 20.0),
             "MG Series (960×960 мм, outdoor/indoor, ~40 кг)": (960, 960, 40.0),
@@ -106,14 +117,12 @@ with col1:
         else:
             cabinet_width, cabinet_height, cabinet_weight_per = selected_data
 
-with col2:
-    st.subheader("Дополнительно")
-    pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES if screen_type == "Indoor" else OUTDOOR_PITCHES, index=8)
-    tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
+with col3:
+    st.subheader("Частота и система")
     refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
-
     system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"], index=0)
 
+    # Фильтрация процессоров
     if system_type == "Синхронный":
         vc_processors = ["VC2", "VC4", "VC6", "VC10", "VC16", "VC24"]
         mctrl_processors = ["MCTRL300", "MCTRL600", "MCTRL700", "MCTRL4K", "MCTRL R5"]
@@ -123,31 +132,70 @@ with col2:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
 
-# Динамическая проверка портов
-real_width = math.ceil(width_mm / 320) * 320
-real_height = math.ceil(height_mm / 160) * 160
-total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-required_ports = math.ceil(total_px / 650000)
-available_ports = PROCESSOR_PORTS.get(processor, 1)
-load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
+    # Динамическая проверка портов (видно сразу)
+    real_width = math.ceil(width_mm / 320) * 320
+    real_height = math.ceil(height_mm / 160) * 160
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    required_ports = math.ceil(total_px / 650000)
+    available_ports = PROCESSOR_PORTS.get(processor, 1)
+    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
 
-status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-status_color = "green" if required_ports <= available_ports else "red"
+    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
+    status_color = "green" if required_ports <= available_ports else "red"
 
-st.markdown(f"""
-<div style="padding: 15px; border-radius: 12px; background: rgba(255,255,255,0.05); margin: 20px 0;">
-    <strong>Проверка портов процессора:</strong><br>
-    Доступно: <strong>{available_ports}</strong><br>
-    Необходимо: <strong>{required_ports}</strong><br>
-    Нагрузка: <strong>{load_per_port:.1f}%</strong><br>
-    <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
-        {status_text}
-    </span>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
+        <strong>Проверка портов для выбранного процессора:</strong><br>
+        Доступно: <strong>{available_ports}</strong><br>
+        Необходимо: <strong>{required_ports}</strong><br>
+        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
+        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
+            {status_text}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-if load_per_port > 90 and required_ports <= available_ports:
-    st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать модель с большим запасом.")
+    if load_per_port > 90 and required_ports <= available_ports:
+        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
+
+# Магнит для монолитного
+magnet_size = "13 мм"
+if mount_type == "Монолитный":
+    magnet_size = st.selectbox("Размер магнита", ["10 мм", "13 мм", "17 мм"], index=1)
+
+# Датчик для outdoor
+sensor = "Нет"
+if screen_type == "Outdoor":
+    sensor = st.radio("Датчик яркости и температуры", ["Нет", "Есть (NSO60 или аналог)"], index=1)
+
+# Карта
+receiving_card = st.selectbox("Принимающая карта (Novastar)", list(CARD_MAX_PIXELS.keys()), index=5)
+
+# Ориентиры
+modules_per_card = st.selectbox("Модулей на карту", [8, 10, 12, 16], index=0)  # дефолт 8
+modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10], index=2)  # дефолт 8
+
+# Запас по питанию
+power_reserve = st.radio("Запас по питанию", [15, 30], index=1)
+
+# Мощность БП
+psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=0)  # дефолт 200
+
+# Сеть
+power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
+
+# Резерв
+reserve_enabled = st.checkbox("Включить резервные элементы?", value=True)
+reserve_modules_percent = 5
+reserve_modules_custom = 0
+reserve_psu_cards = False
+reserve_patch = False
+if reserve_enabled:
+    reserve_modules_choice = st.radio("Резерв модулей", ["3%", "5%", "10%", "Свой"], index=1)
+    if reserve_modules_choice == "Свой":
+        reserve_modules_custom = st.number_input("Свой резерв модулей (шт.)", value=0)
+    reserve_psu_cards = st.checkbox("+1 к БП и картам", value=True)
+    reserve_patch = st.checkbox("Резервные патч-корды (×2)", value=False)
 
 # Кнопка расчёта
 if st.button("Рассчитать", type="primary", use_container_width=True):
@@ -182,7 +230,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     num_cards = max(num_cards, num_cards_pix)
     num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
-    # Пластины
+    # Пластины = кол-во БП
     num_plates = num_psu_reserve
 
     # Винты к профилям
@@ -194,7 +242,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     total_power_cable_length = num_power_cables * 1.0
     reserve_power_cables = math.ceil(num_power_cables * 0.1)
 
-    # Сеть
+    # Расчёт сети
     if power_phase == "Одна фаза (220 В)":
         voltage = 220
     else:
@@ -233,7 +281,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     box_weight = num_boxes * 22
     box_volume = num_boxes * 0.06
 
-    # Кабинеты (если "В кабинетах")
+    # Кабинеты (для "В кабинетах")
     if mount_type == "В кабинетах":
         cabinets_w = math.ceil(real_width / cabinet_width)
         cabinets_h = math.ceil(real_height / cabinet_height)
@@ -263,19 +311,83 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         - **Итого для заказа**: {total_modules_order} шт.
         """)
 
+    with st.expander("Принимающие карты", expanded=True):
+        st.markdown(f"""
+        - **Модель**: {receiving_card}
+        - **Количество**: {num_cards} шт. + 1 резерв = {num_cards_reserve} шт.
+        """)
+
+    with st.expander("Блоки питания", expanded=True):
+        st.markdown(f"""
+        - **Мощность**: {psu_power} Вт
+        - **Пиковое потребление**: {peak_power_screen:.1f} кВт
+        - **С запасом**: {power_with_reserve:.1f} кВт
+        - **Количество**: {num_psu} шт. + 1 резерв = {num_psu_reserve} шт.
+        """)
+
+    with st.expander("Процессор/плеер", expanded=True):
+        st.markdown(f"""
+        - **Модель**: {processor}
+        - **Доступно портов**: {PROCESSOR_PORTS.get(processor, 1)}
+        - **Необходимое портов**: {math.ceil(total_px / 650000)}
+        - **Нагрузка на порт**: {(total_px / (PROCESSOR_PORTS.get(processor, 1) * 650000)) * 100:.1f}%
+        """)
+
+    with st.expander("Сеть", expanded=True):
+        st.markdown(f"""
+        - **Тип**: {power_phase}
+        - **Ток**: {current:.1f} А (с запасом)
+        - **Кабель ВВГ**: {cable_section}
+        - **Автомат**: {breaker} А (тип C)
+        """)
+
+    with st.expander("Каркас и крепёж (монолитный)", expanded=True):
+        st.markdown(f"""
+        - **Вертикальные профили**: {vert_profiles} шт., длина на отрез {vert_length} мм, общая {vert_profiles * vert_length / 1000:.2f} м
+        - **Горизонтальные профили**: {horiz_profiles} шт., длина на отрез {horiz_length} мм, общая {horiz_profiles * horiz_length / 1000:.2f} м
+        - **Винты M6 + резьбовые заклёпки M6**: {fasteners_m6} шт. + {reserve_fasteners} шт. (запас 3%)
+        - **Магниты {magnet_size}**: {magnets} шт. (округлено до 500 шт.)
+        - **Металлические пластины**: {num_plates} шт. (по количеству БП)
+        - **Винты 4×16 со сверлом к профилям**: {vinths} шт. + {reserve_vinths} шт. (запас 10%)
+        """)
+
+    with st.expander("Коммутация", expanded=True):
+        st.markdown(f"""
+        - **Силовые кабели 220 В**: {num_cables} шт., общая {num_cables * 0.8:.1f} м
+        - **Наконечники НВИ**: {nvi} шт. + {reserve_nvi} шт. (запас 10%)
+        - **Патч-корды RJ45**: {patch_cords} шт.
+        - **Кабель питания приёмной карты от БП**: {num_power_cables} шт., общая {total_power_cable_length:.1f} м + {reserve_power_cables} шт. (запас 10%)
+        """)
+
+    with st.expander("Вес экрана", expanded=True):
+        st.markdown(f"""
+        - **Вес модулей**: {weight_modules:.1f} кг
+        - **Вес каркаса**: {weight_carcas:.1f} кг
+        - **Общий вес**: {total_weight:.1f} кг
+        """)
+
+    with st.expander("Упаковка и логистика", expanded=True):
+        st.markdown(f"""
+        - **Количество коробок**: {num_boxes} шт.
+        - **Общий вес коробок**: {box_weight} кг
+        - **Общий объём коробок**: {box_volume:.2f} м³
+        """)
+
+    # Кабинеты (для "В кабинетах")
     if mount_type == "В кабинетах":
-        with st.expander("Кабинеты", expanded=True):
-            st.markdown(f"""
-            - **Модель**: {cabinet_model}
-            - **Размер одного**: {cabinet_width} × {cabinet_height} мм
-            - **Количество**: {total_cabinets} шт. ({cabinets_w} × {cabinets_h})
-            - **Вес одного**: {cabinet_weight_per:.1f} кг
-            - **Общий вес**: {total_cabinet_weight:.1f} кг
-            """)
+        cabinets_w = math.ceil(real_width / cabinet_width)
+        cabinets_h = math.ceil(real_height / cabinet_height)
+        total_cabinets = cabinets_w * cabinets_h
+        total_cabinet_weight = total_cabinets * cabinet_weight_per
 
-    # ... (добавь остальные expander'ы из твоего предыдущего кода: БП, процессор, сеть, каркас, коммутация, вес, упаковка)
+        st.markdown("### Кабинеты")
+        st.write(f"- **Модель**: {cabinet_model}")
+        st.write(f"- **Размер одного кабинета**: {cabinet_width} × {cabinet_height} мм")
+        st.write(f"- **Количество**: {total_cabinets} шт. ({cabinets_w} × {cabinets_h})")
+        st.write(f"- **Вес одного кабинета**: {cabinet_weight_per:.1f} кг")
+        st.write(f"- **Общий вес кабинетов**: {total_cabinet_weight:.1f} кг")
 
-    # Схема монтажа — только в конце
+    # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
     if mount_type == "Монолитный":
         st.subheader("Схема монолитного монтажа (вид сверху)")
         html_scheme = """
