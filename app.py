@@ -75,8 +75,8 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.subheader("Размер и тип экрана")
 
-    # Текущее значение ширины из сессии (если нет — дефолт)
-    current_width = st.session_state.get("width_mm", 3840)
+    # Текущее значение ширины из сессии
+    current_width = st.session_state.width_mm
 
     width_mm = st.number_input(
         "Ширина экрана (мм)",
@@ -86,20 +86,20 @@ with col1:
         key="width_input"
     )
 
-    # Если ширина изменилась — сразу пересчитываем высоту и обновляем страницу
+    # Автоматический пересчёт высоты при изменении ширины
     if width_mm != current_width:
         ideal_height = width_mm / 1.7777777777777777  # точная 16:9
         new_height = round(ideal_height / 160) * 160
-        st.session_state.height_mm = max(160, new_height)  # минимум 160 мм
+        st.session_state.height_mm = max(160, new_height)
         st.session_state.width_mm = width_mm
-        st.rerun()  # мгновенное обновление высоты
+        st.rerun()  # мгновенное обновление страницы
 
-    # Поле высоты (показывает актуальное значение из сессии)
+    # Высота (пользователь может изменить вручную)
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2240),
+        value=st.session_state.height_mm,
         key="height_input"
     )
     st.session_state.height_mm = height_mm
@@ -110,6 +110,7 @@ with col2:
     st.subheader("Монтаж и шаг пикселя")
     mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
 
+    # Фильтрация шагов пикселя
     if screen_type == "Indoor":
         pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
     else:
@@ -227,7 +228,7 @@ if reserve_enabled:
     reserve_psu_cards = st.checkbox("+1 к БП и картам", value=True)
     reserve_patch = st.checkbox("Резервные патч-корды (×2)", value=False)
 
-# Кнопка расчёта
+# Кнопка расчёта и весь расчёт + отчёт
 if st.button("Рассчитать", type="primary", use_container_width=True):
     # Основные расчёты
     modules_w = math.ceil(width_mm / 320)
