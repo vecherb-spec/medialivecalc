@@ -63,7 +63,7 @@ CARD_MAX_PIXELS = {
 INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
 OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 
-# Сессионное состояние для ширины и высоты
+# Сессионное состояние
 if "width_mm" not in st.session_state:
     st.session_state.width_mm = 3840
 if "height_mm" not in st.session_state:
@@ -78,7 +78,6 @@ def update_height():
         st.session_state.height_mm = lower
     else:
         st.session_state.height_mm = upper
-    st.rerun()  # обновление страницы
 
 # Ввод параметров
 col1, col2, col3 = st.columns(3)
@@ -94,9 +93,10 @@ with col1:
     )
     st.session_state.width_mm = width_mm
 
-    # Кнопка для автоподбора (теперь работает без "no-op")
+    # Кнопка для автоподбора (работает стабильно)
     if st.button("Автоподбор 16:9", key="autofit_button"):
         update_height()
+        st.rerun()  # обновление страницы после расчёта
 
     height_mm = st.number_input(
         "Высота экрана (мм)",
