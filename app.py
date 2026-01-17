@@ -80,28 +80,27 @@ with col1:
         "Ширина экрана (мм)",
         min_value=320,
         step=320,
-        value=st.session_state.get("width_mm", 3840)
+        value=st.session_state.get("width_mm", 3840),
+        key="width_input"
     )
+    st.session_state["width_mm"] = width_mm
 
-    # Автоматический пересчёт высоты при изменении ширины
-    ideal_height = width_mm / 1.7777777777777777  # точная 16:9
-    new_height = round(ideal_height / 160) * 160
-    new_height = max(160, new_height)  # минимум 160 мм
-
-    # Если высота изменилась — сохраняем и обновляем страницу
-    if new_height != st.session_state.get("height_mm", 2240):
-        st.session_state.height_mm = new_height
-        st.session_state.width_mm = width_mm
-        st.rerun()
+    # Кнопка подгонки высоты (самый стабильный способ)
+    if st.button("Подогнать высоту под 16:9", type="primary"):
+        ideal_height = width_mm / 1.7777777777777777
+        new_height = round(ideal_height / 160) * 160
+        st.session_state["height_mm"] = max(160, new_height)
+        st.rerun()  # обновление страницы
 
     # Поле высоты
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2240)
+        value=st.session_state.get("height_mm", 2240),
+        key="height_input"
     )
-    st.session_state.height_mm = height_mm
+    st.session_state["height_mm"] = height_mm
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
