@@ -84,8 +84,33 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Размер и тип экрана")
-    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
-    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
+    width_mm = st.number_input(
+        "Ширина экрана (мм)",
+        min_value=320,
+        step=320,
+        value=st.session_state.width_mm,
+        key="width_input"
+    )
+    st.session_state.width_mm = width_mm
+
+    # Кнопка автоподбора (теперь работает без ошибок)
+    col_width, col_button = st.columns([4, 1])
+    with col_width:
+        pass
+    with col_button:
+        if st.button("Автоподбор 16:9", key="autofit_button"):
+            update_height()
+            st.rerun()  # обновление страницы после расчёта
+
+    height_mm = st.number_input(
+        "Высота экрана (мм)",
+        min_value=160,
+        step=160,
+        value=st.session_state.height_mm,
+        key="height_input"
+    )
+    st.session_state.height_mm = height_mm
+
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
 with col2:
@@ -151,31 +176,31 @@ with col3:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
 
-# Динамическая проверка портов (видно сразу)
-real_width = math.ceil(width_mm / 320) * 320
-real_height = math.ceil(height_mm / 160) * 160
-total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-required_ports = math.ceil(total_px / 650000)
-available_ports = PROCESSOR_PORTS.get(processor, 1)
-load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
+    # Динамическая проверка портов (видно сразу)
+    real_width = math.ceil(width_mm / 320) * 320
+    real_height = math.ceil(height_mm / 160) * 160
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    required_ports = math.ceil(total_px / 650000)
+    available_ports = PROCESSOR_PORTS.get(processor, 1)
+    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
 
-status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-status_color = "green" if required_ports <= available_ports else "red"
+    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
+    status_color = "green" if required_ports <= available_ports else "red"
 
-st.markdown(f"""
-<div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
-    <strong>Проверка портов для выбранного процессора:</strong><br>
-    Доступно: <strong>{available_ports}</strong><br>
-    Необходимо: <strong>{required_ports}</strong><br>
-    Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
-    <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
-        {status_text}
-    </span>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
+        <strong>Проверка портов для выбранного процессора:</strong><br>
+        Доступно: <strong>{available_ports}</strong><br>
+        Необходимо: <strong>{required_ports}</strong><br>
+        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
+        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
+            {status_text}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-if load_per_port > 90 and required_ports <= available_ports:
-    st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
+    if load_per_port > 90 and required_ports <= available_ports:
+        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
 
 # Магнит для монолитного
 magnet_size = "13 мм"
