@@ -80,7 +80,7 @@ def update_height():
 col1, col2, col3 = st.columns(3)
 
 with col1:
-st.subheader("Размер и тип экрана")
+    st.subheader("Размер и тип экрана")
 
 # Поле ширины
 width_mm = st.number_input(
