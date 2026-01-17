@@ -63,13 +63,50 @@ CARD_MAX_PIXELS = {
 INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
 OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 
-# Ввод всех параметров (сначала определяем mount_type, чтобы потом использовать в условиях)
+# Сессионное состояние для ширины и высоты
+if "width_mm" not in st.session_state:
+    st.session_state.width_mm = 3840
+if "height_mm" not in st.session_state:
+    st.session_state.height_mm = 2240  # ближайшее к идеальной 2160.11
+
+# Функция пересчёта высоты по 16:9 (кратно 160 мм)
+def update_height():
+    ideal_height = st.session_state.width_mm / 1.7777777777777777  # точная 16:9
+    lower = math.floor(ideal_height / 160) * 160
+    upper = math.ceil(ideal_height / 160) * 160
+    if abs(ideal_height - lower) <= abs(ideal_height - upper):
+        st.session_state.height_mm = lower
+    else:
+        st.session_state.height_mm = upper
+    st.rerun()  # обновление страницы
+
+# Ввод параметров
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Размер и тип экрана")
-    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
-    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
+    width_mm = st.number_input(
+        "Ширина экрана (мм)",
+        min_value=320,
+        step=320,
+        value=st.session_state.width_mm,
+        key="width_input"
+    )
+    st.session_state.width_mm = width_mm
+
+    # Кнопка для автоподбора (теперь работает без "no-op")
+    if st.button("Автоподбор 16:9", key="autofit_button"):
+        update_height()
+
+    height_mm = st.number_input(
+        "Высота экрана (мм)",
+        min_value=160,
+        step=160,
+        value=st.session_state.height_mm,
+        key="height_input"
+    )
+    st.session_state.height_mm = height_mm
+
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
 with col2:
@@ -83,6 +120,42 @@ with col2:
         pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
 
     tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
+
+    # Выбор кабинета — только если "В кабинетах"
+    cabinet_model = None
+    cabinet_width = 640
+    cabinet_height = 480
+    cabinet_weight_per = 20.0
+    if mount_type == "В кабинетах":
+        st.subheader("Выбор кабинета Qiangli")
+        cabinet_options = [
+            "QM Series (640×480 мм, indoor, ~20 кг)",
+            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
+            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
+            "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
+            "Custom (введите размер и вес вручную)"
+        ]
+        cabinet_model = st.selectbox("Модель кабинета", cabinet_options, index=0)
+
+        cabinet_data = {
+            "QM Series (640×480 мм, indoor, ~20 кг)": (640, 480, 20.0),
+            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)": (960, 960, 40.0),
+            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)": (500, 500, 13.5),
+            "QS Series (960×960 мм, outdoor fixed, ~45 кг)": (960, 960, 45.0),
+            "Custom (введите размер и вес вручную)": (None, None, None)
+        }
+
+        selected_data = cabinet_data.get(cabinet_model)
+        if selected_data[0] is None:  # Custom
+            col_custom1, col_custom2, col_custom3 = st.columns(3)
+            with col_custom1:
+                cabinet_width = st.number_input("Ширина кабинета (мм)", min_value=320, value=640)
+            with col_custom2:
+                cabinet_height = st.number_input("Высота кабинета (мм)", min_value=160, value=480)
+            with col_custom3:
+                cabinet_weight_per = st.number_input("Вес одного кабинета (кг)", min_value=1.0, value=20.0, step=0.5)
+        else:
+            cabinet_width, cabinet_height, cabinet_weight_per = selected_data
 
 with col3:
     st.subheader("Частота и система")
@@ -99,33 +172,33 @@ with col3:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
 
-# Динамическая проверка портов (видно сразу)
-real_width = math.ceil(width_mm / 320) * 320
-real_height = math.ceil(height_mm / 160) * 160
-total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-required_ports = math.ceil(total_px / 650000)
-available_ports = PROCESSOR_PORTS.get(processor, 1)
-load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
+    # Динамическая проверка портов (видно сразу)
+    real_width = math.ceil(width_mm / 320) * 320
+    real_height = math.ceil(height_mm / 160) * 160
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    required_ports = math.ceil(total_px / 650000)
+    available_ports = PROCESSOR_PORTS.get(processor, 1)
+    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
 
-status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-status_color = "green" if required_ports <= available_ports else "red"
+    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
+    status_color = "green" if required_ports <= available_ports else "red"
 
-st.markdown(f"""
-<div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
-    <strong>Проверка портов для выбранного процессора:</strong><br>
-    Доступно: <strong>{available_ports}</strong><br>
-    Необходимо: <strong>{required_ports}</strong><br>
-    Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
-    <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
-        {status_text}
-    </span>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
+        <strong>Проверка портов для выбранного процессора:</strong><br>
+        Доступно: <strong>{available_ports}</strong><br>
+        Необходимо: <strong>{required_ports}</strong><br>
+        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
+        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
+            {status_text}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-if load_per_port > 90 and required_ports <= available_ports:
-    st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
+    if load_per_port > 90 and required_ports <= available_ports:
+        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
 
-# Магнит для монолитного (теперь после определения mount_type)
+# Магнит для монолитного
 magnet_size = "13 мм"
 if mount_type == "Монолитный":
     magnet_size = st.selectbox("Размер магнита", ["10 мм", "13 мм", "17 мм"], index=1)
