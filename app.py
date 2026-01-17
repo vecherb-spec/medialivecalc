@@ -93,10 +93,14 @@ with col1:
     )
     st.session_state.width_mm = width_mm
 
-    # Кнопка для автоподбора (работает стабильно)
-    if st.button("Автоподбор 16:9", key="autofit_button"):
-        update_height()
-        st.rerun()  # обновление страницы после расчёта
+    # Кнопка автоподбора (самый надёжный способ)
+    col_width, col_button = st.columns([4, 1])
+    with col_width:
+        pass  # место для поля ширины (уже выше)
+    with col_button:
+        if st.button("Автоподбор 16:9", key="autofit_button"):
+            update_height()
+            st.rerun()  # обновление страницы после расчёта
 
     height_mm = st.number_input(
         "Высота экрана (мм)",
@@ -109,7 +113,7 @@ with col1:
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
-# Остальной код (монтаж, шаг, кабинеты, частота, система, процессор и т.д.) — полностью сохранён
+# Остальной код (монтаж, шаг, кабинеты, частота, система, процессор, проверка портов и т.д.) — полностью сохранён
 with col2:
     st.subheader("Монтаж и шаг пикселя")
     mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
