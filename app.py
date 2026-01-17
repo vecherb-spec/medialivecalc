@@ -85,9 +85,9 @@ with col1:
     st.session_state.width_mm = width_mm
 
     # КНОПКА АВТОПОДБОРА — работает стабильно
-    if st.button("Автоподбор 16:9"):
+    if st.button("Автоподбор 16:9", key="autofit_button"):
         update_height()
-        st.rerun()  # обновление страницы после расчёта
+        st.rerun()
 
     height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=st.session_state.height_mm, key="height_input")
     st.session_state.height_mm = height_mm
@@ -219,13 +219,201 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     reserve_modules = math.ceil(total_modules * reserve_modules_percent / 100) if reserve_modules_choice != "Свой" else reserve_modules_custom
     total_modules_order = total_modules + reserve_modules
 
-    # ... (вставь сюда все свои расчёты: потребление, БП, карты, пластины, винты, кабели, сеть, каркас, крепёж, коммутация, вес, упаковка, кабинеты)
+    # Потребление
+    avg_power_module = 8.0 if screen_type == "Indoor" else 15.0
+    max_power_module = 24.0 if screen_type == "Indoor" else 45.0
+    avg_power_screen = total_modules * avg_power_module / 1000
+    peak_power_screen = total_modules * max_power_module / 1000
+    power_with_reserve = peak_power_screen * (1 + power_reserve / 100)
 
+    # БП
+    psu_power_kw = psu_power / 1000
+    num_psu = math.ceil(power_with_reserve / psu_power_kw)
+    num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
+
+    # Карты
+    max_pixels_card = CARD_MAX_PIXELS[receiving_card]
+    num_cards = math.ceil(total_modules / modules_per_card)
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    num_cards_pix = math.ceil(total_px / max_pixels_card)
+    num_cards = max(num_cards, num_cards_pix)
+    num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
+
+    # Пластины = кол-во БП
+    num_plates = num_psu_reserve
+
+    # Винты к профилям
+    vinths = num_plates * 4
+    reserve_vinths = math.ceil(vinths * 0.1)
+
+    # Кабель питания карт от БП
+    num_power_cables = num_cards_reserve
+    total_power_cable_length = num_power_cables * 1.0
+    reserve_power_cables = math.ceil(num_power_cables * 0.1)
+
+    # Расчёт сети
+    if power_phase == "Одна фаза (220 В)":
+        voltage = 220
+    else:
+        voltage = 380 * math.sqrt(3)
+    current = power_with_reserve * 1000 / voltage
+    cable_section = "3×16 мм²" if current < 60 else "3×25 мм²" if current < 100 else "3×35 мм²"
+    breaker = math.ceil(current * 1.25)
+
+    # Каркас
+    vert_profiles = modules_w + 1
+    vert_length = real_height - 40
+    horiz_profiles = 2 if real_height <= 3000 else 3
+    horiz_length = real_width - 60
+    total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
+
+    # Крепёж
+    fasteners_m6 = horiz_profiles * vert_profiles
+    reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
+    magnets = math.ceil(total_modules * 4 / 500) * 500
+
+    # Коммутация
+    num_cables = num_psu_reserve - 1
+    nvi = num_cables * 6
+    reserve_nvi = math.ceil(nvi * 0.1)
+    patch_cords = num_cards_reserve * (2 if reserve_patch else 1)
+
+    # Вес
+    module_weight = 0.37 if screen_type == "Indoor" else 0.5
+    weight_modules = total_modules_order * module_weight
+    weight_carcas = total_profile_length * 2 if mount_type == "Монолитный" else 0
+    weight_extra = (weight_modules + weight_carcas) * 0.05
+    total_weight = weight_modules + weight_carcas + weight_extra
+
+    # Упаковка
+    num_boxes = math.ceil(total_modules_order / 40)
+    box_weight = num_boxes * 22
+    box_volume = num_boxes * 0.06
+
+    # Кабинеты (для "В кабинетах")
+    total_cabinets = 0
+    total_cabinet_weight = 0.0
+    if mount_type == "В кабинетах":
+        cabinets_w = math.ceil(real_width / cabinet_width)
+        cabinets_h = math.ceil(real_height / cabinet_height)
+        total_cabinets = cabinets_w * cabinets_h
+        total_cabinet_weight = total_cabinets * cabinet_weight_per
+
+    # Вывод отчёта
     st.success("Расчёт готов!")
     st.markdown("### Финальный отчёт")
 
-    # ... (вставь сюда все expander'ы: характеристики, модули, кабинеты, карты, БП, процессор, сеть, каркас, коммутация, вес, упаковка)
+    with st.expander("Характеристики экрана", expanded=True):
+        st.markdown(f"""
+        - **Разрешение**: {math.floor(real_width / pixel_pitch)} × {math.floor(real_height / pixel_pitch)} px
+        - **Площадь**: {real_width * real_height / 1_000_000:.2f} м²
+        - **Частота обновления**: {refresh_rate} Hz
+        - **Технология**: {tech}
+        - **Яркость**: {1200 if screen_type == "Indoor" else 6500} нит
+        - **Датчик яркости и температуры**: {sensor}
+        """)
 
+    with st.expander("Модули", expanded=True):
+        st.markdown(f"""
+        - **По горизонтали**: {modules_w} шт.
+        - **По вертикали**: {modules_h} шт.
+        - **Основное количество**: {total_modules} шт.
+        - **Резерв**: {reserve_modules} шт.
+        - **Итого для заказа**: {total_modules_order} шт.
+        """)
+
+    if mount_type == "В кабинетах":
+        with st.expander("Кабинеты", expanded=True):
+            st.markdown(f"""
+            - **Модель**: {cabinet_model}
+            - **Размер одного**: {cabinet_width} × {cabinet_height} мм
+            - **Количество**: {total_cabinets} шт. ({cabinets_w} × {cabinets_h})
+            - **Вес одного**: {cabinet_weight_per:.1f} кг
+            - **Общий вес**: {total_cabinet_weight:.1f} кг
+            """)
+
+    with st.expander("Принимающие карты", expanded=True):
+        st.markdown(f"""
+        - **Модель**: {receiving_card}
+        - **Количество**: {num_cards} шт. + 1 резерв = {num_cards_reserve} шт.
+        """)
+
+    with st.expander("Блоки питания", expanded=True):
+        st.markdown(f"""
+        - **Мощность**: {psu_power} Вт
+        - **Пиковое потребление**: {peak_power_screen:.1f} кВт
+        - **С запасом**: {power_with_reserve:.1f} кВт
+        - **Количество**: {num_psu} шт. + 1 резерв = {num_psu_reserve} шт.
+        """)
+
+    with st.expander("Процессор/плеер", expanded=True):
+        st.markdown(f"""
+        - **Модель**: {processor}
+        - **Доступно портов**: {PROCESSOR_PORTS.get(processor, 1)}
+        - **Необходимое портов**: {math.ceil(total_px / 650000)}
+        - **Нагрузка на порт**: {(total_px / (PROCESSOR_PORTS.get(processor, 1) * 650000)) * 100:.1f}%
+        """)
+
+    with st.expander("Сеть", expanded=True):
+        st.markdown(f"""
+        - **Тип**: {power_phase}
+        - **Ток**: {current:.1f} А (с запасом)
+        - **Кабель ВВГ**: {cable_section}
+        - **Автомат**: {breaker} А (тип C)
+        """)
+
+    with st.expander("Каркас и крепёж (монолитный)", expanded=True):
+        st.markdown(f"""
+        - **Вертикальные профили**: {vert_profiles} шт., длина на отрез {vert_length} мм, общая {vert_profiles * vert_length / 1000:.2f} м
+        - **Горизонтальные профили**: {horiz_profiles} шт., длина на отрез {horiz_length} мм, общая {horiz_profiles * horiz_length / 1000:.2f} м
+        - **Винты M6 + резьбовые заклёпки M6**: {fasteners_m6} шт. + {reserve_fasteners} шт. (запас 3%)
+        - **Магниты {magnet_size}**: {magnets} шт. (округлено до 500 шт.)
+        - **Металлические пластины**: {num_plates} шт. (по количеству БП)
+        - **Винты 4×16 со сверлом к профилям**: {vinths} шт. + {reserve_vinths} шт. (запас 10%)
+        """)
+
+    with st.expander("Коммутация", expanded=True):
+        st.markdown(f"""
+        - **Силовые кабели 220 В**: {num_cables} шт., общая {num_cables * 0.8:.1f} м
+        - **Наконечники НВИ**: {nvi} шт. + {reserve_nvi} шт. (запас 10%)
+        - **Патч-корды RJ45**: {patch_cords} шт.
+        - **Кабель питания приёмной карты от БП**: {num_power_cables} шт., общая {total_power_cable_length:.1f} м + {reserve_power_cables} шт. (запас 10%)
+        """)
+
+    with st.expander("Вес экрана", expanded=True):
+        st.markdown(f"""
+        - **Вес модулей**: {weight_modules:.1f} кг
+        - **Вес каркаса**: {weight_carcas:.1f} кг
+        - **Общий вес**: {total_weight:.1f} кг
+        """)
+
+    with st.expander("Упаковка и логистика", expanded=True):
+        st.markdown(f"""
+        - **Количество коробок**: {num_boxes} шт.
+        - **Общий вес коробок**: {box_weight} кг
+        - **Общий объём коробок**: {box_volume:.2f} м³
+        """)
+
+    # Схема монтажа (HTML, вариант 2) — ТОЛЬКО В КОНЦЕ
     if mount_type == "Монолитный":
-        st.subheader("Схема монтажа")
-        # ... (твой HTML-код схемы монтажа)
+        st.subheader("Схема монолитного монтажа (вид сверху)")
+        html_scheme = """
+        <div style="font-family: monospace; background: #1a1a2e; color: #e0e0ff; padding: 20px; border-radius: 12px; border: 1px solid #4a4a8a; overflow-x: auto;">
+            <p style="color: #7f5af0; font-weight: bold; text-align: center;">Схема монолитного экрана</p>
+            <pre style="margin: 0; white-space: pre;">
+┌""" + "─" * (modules_w * 6) + """┐
+"""
+        for row in range(modules_h):
+            line = "│"
+            for col in range(modules_w):
+                color = "#00ff9d" if (row + col) % 2 == 0 else "#ff6bcb"
+                line += f'<span style="color:{color};"> ███ </span>'
+            line += "│\n"
+            html_scheme += line + "├" + "─" * (modules_w * 6) + "┤\n"
+
+        html_scheme += """└""" + "─" * (modules_w * 6) + """┘
+<span style="color:#00ff9d;">███</span> — модуль установлен
+            </pre>
+        </div>
+        """
+        st.markdown(html_scheme, unsafe_allow_html=True)
