@@ -81,16 +81,30 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Размер и тип экрана")
-    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=st.session_state.width_mm, key="width_input")
-    st.session_state.width_mm = width_mm
 
-    # КНОПКА АВТОПОДБОРА — работает стабильно
-    if st.button("Автоподбор 16:9", key="autofit_button"):
-        update_height()
+    width_mm = st.number_input(
+        "Ширина экрана (мм)",
+        min_value=320,
+        step=320,
+        value=st.session_state.get("width_mm", 3840),
+        key="width_input"
+    )
+    st.session_state["width_mm"] = width_mm
+
+    if st.button("Подогнать высоту под 16:9"):
+        ideal_height = width_mm / 1.7777777777777777
+        new_height = round(ideal_height / 160) * 160
+        st.session_state["height_mm"] = max(160, new_height)
         st.rerun()
 
-    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=st.session_state.height_mm, key="height_input")
-    st.session_state.height_mm = height_mm
+    height_mm = st.number_input(
+        "Высота экрана (мм)",
+        min_value=160,
+        step=160,
+        value=st.session_state.get("height_mm", 2240),
+        key="height_input"
+    )
+    st.session_state["height_mm"] = height_mm
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
