@@ -67,14 +67,13 @@ OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 if "width_mm" not in st.session_state:
     st.session_state.width_mm = 3840
 if "height_mm" not in st.session_state:
-    st.session_state.height_mm = 2160  # начальное значение 16:9 (3840×2160)
+    st.session_state.height_mm = 2160  # начальное 16:9
 
-# Функция для автоматического подбора высоты по 16:9 (кратно 160 мм)
+# Функция автоматического подбора высоты по 16:9 (кратно 160 мм)
 def update_height():
     ideal_height = (st.session_state.width_mm * 9) / 16
-    new_height = round(ideal_height / 160) * 160  # ближайшее кратное 160
+    new_height = round(ideal_height / 160) * 160
     st.session_state.height_mm = new_height
-    st.rerun()  # мгновенное обновление страницы
 
 # Ввод параметров
 col1, col2, col3 = st.columns(3)
@@ -87,8 +86,9 @@ with col1:
         step=320,
         value=st.session_state.width_mm,
         key="width_input",
-        on_change=update_height  # ключевой момент — callback обновляет высоту
+        on_change=update_height  # вызов функции при изменении ширины
     )
+    # Обновляем состояние
     st.session_state.width_mm = width_mm
 
     height_mm = st.number_input(
@@ -98,6 +98,7 @@ with col1:
         value=st.session_state.height_mm,
         key="height_input"
     )
+    # Обновляем состояние (если пользователь вручную изменил высоту)
     st.session_state.height_mm = height_mm
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
@@ -165,32 +166,7 @@ with col3:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
 
-    # Динамическая проверка портов (видно сразу)
-    real_width = math.ceil(width_mm / 320) * 320
-    real_height = math.ceil(height_mm / 160) * 160
-    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-    required_ports = math.ceil(total_px / 650000)
-    available_ports = PROCESSOR_PORTS.get(processor, 1)
-    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-
-    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
-    status_color = "green" if required_ports <= available_ports else "red"
-
-    st.markdown(f"""
-    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
-        <strong>Проверка портов для выбранного процессора:</strong><br>
-        Доступно: <strong>{available_ports}</strong><br>
-        Необходимо: <strong>{required_ports}</strong><br>
-        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
-        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
-            {status_text}
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if load_per_port > 90 and required_ports <= available_ports:
-        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
-
+# Остальные поля (магнит, датчик, карта, ориентиры, запас, БП, сеть, резерв) — как в твоём исходном коде
 # Магнит для монолитного
 magnet_size = "13 мм"
 if mount_type == "Монолитный":
