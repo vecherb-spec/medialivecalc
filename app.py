@@ -80,28 +80,29 @@ def update_height():
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.subheader("Размер и тип экрана")
+st.subheader("Размер и тип экрана")
 
-# Поле ширины (просто вводим)
+# Поле ширины
 width_mm = st.number_input(
     "Ширина экрана (мм)",
     min_value=320,
     step=320,
     value=st.session_state.get("width_mm", 3840),
-    key="width_input"
+    key="width_input_simple"
 )
 st.session_state["width_mm"] = width_mm
 
-# ФОРМА с кнопкой автоподбора (самый надёжный способ)
+# Отдельная форма только для кнопки автоподбора (самый надёжный способ)
 with st.form(key="autofit_form"):
-    submit = st.form_submit_button("Автоподбор 16:9", type="primary")
+    autofit_button = st.form_submit_button("Автоподбор 16:9", type="primary", use_container_width=True)
 
-if submit:
+# Обработка нажатия кнопки (вне формы!)
+if autofit_button:
     ideal_height = width_mm / 1.7777777777777777
     new_height = round(ideal_height / 160) * 160
     st.session_state["height_mm"] = max(160, new_height)
-    st.success(f"Высота подогнана: {st.session_state['height_mm']} мм")
-    st.rerun()  # обновление страницы
+    st.success(f"Высота подогнана под 16:9: {st.session_state['height_mm']} мм")
+    st.rerun()
 
 # Поле высоты (обновляется после кнопки)
 height_mm = st.number_input(
@@ -109,7 +110,7 @@ height_mm = st.number_input(
     min_value=160,
     step=160,
     value=st.session_state.get("height_mm", 2240),
-    key="height_input"
+    key="height_input_simple"
 )
 st.session_state["height_mm"] = height_mm
 
