@@ -67,11 +67,12 @@ OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 if "width_mm" not in st.session_state:
     st.session_state.width_mm = 3840
 if "height_mm" not in st.session_state:
-    st.session_state.height_mm = 2160  # начальное значение 16:9
+    st.session_state.height_mm = 2160  # начальное значение 16:9 (3840×2160)
 
 # Функция пересчёта высоты по 16:9 (кратно 160 мм)
 def update_height():
     ideal_height = st.session_state.width_mm / 1.778
+    # Округляем до ближайшего кратного 160
     new_height = round(ideal_height / 160) * 160
     st.session_state.height_mm = new_height
 
