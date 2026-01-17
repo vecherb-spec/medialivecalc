@@ -1,5 +1,9 @@
 import streamlit as st
 import math
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from io import BytesIO
+from datetime import datetime
 
 # Конфигурация страницы
 st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
@@ -63,32 +67,13 @@ CARD_MAX_PIXELS = {
 INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
 OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
 
-# Сессионное состояние для ширины и высоты (чтобы автоматически обновлять высоту)
-if "width_mm" not in st.session_state:
-    st.session_state.width_mm = 3840
-if "height_mm" not in st.session_state:
-    st.session_state.height_mm = 2160  # начальное значение 16:9 (3840×2160)
-
-# Функция автоматического подбора высоты по 16:9 (кратно 160 мм)
-def update_height():
-    ideal_height = (st.session_state.width_mm * 9) / 16
-    new_height = round(ideal_height / 160) * 160  # ближайшее кратное 160
-    st.session_state.height_mm = new_height
-
 # Ввод параметров
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("Размер и тип экрана")
-    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=st.session_state.width_mm, key="width_input")
-    st.session_state.width_mm = width_mm
-
-    # Автоматическое обновление высоты при изменении ширины
-    update_height()  # вызываем каждый раз при изменении ширины
-
-    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=st.session_state.height_mm, key="height_input")
-    st.session_state.height_mm = height_mm
-
+    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
+    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2880)
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
 with col2:
@@ -154,7 +139,32 @@ with col3:
         available_processors = ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор/плеер", available_processors, index=0)
 
-# Остальные поля (магнит, датчик, карта, ориентиры, запас, БП, сеть, резерв)
+    # Динамическая проверка портов (видно сразу)
+    real_width = math.ceil(width_mm / 320) * 320
+    real_height = math.ceil(height_mm / 160) * 160
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    required_ports = math.ceil(total_px / 650000)
+    available_ports = PROCESSOR_PORTS.get(processor, 1)
+    load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
+
+    status_text = "Портов хватает" if required_ports <= available_ports else "Недостаточно портов!"
+    status_color = "green" if required_ports <= available_ports else "red"
+
+    st.markdown(f"""
+    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); margin-top: 10px;">
+        <strong>Проверка портов для выбранного процессора:</strong><br>
+        Доступно: <strong>{available_ports}</strong><br>
+        Необходимо: <strong>{required_ports}</strong><br>
+        Нагрузка на порт: <strong>{load_per_port:.1f}%</strong><br>
+        <span style="color: {status_color}; font-weight: bold; font-size: 1.2em;">
+            {status_text}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if load_per_port > 90 and required_ports <= available_ports:
+        st.warning("⚠️ Нагрузка на порт превышает 90%! Рекомендуем выбрать процессор с большим запасом.")
+
 # Магнит для монолитного
 magnet_size = "13 мм"
 if mount_type == "Монолитный":
@@ -181,11 +191,11 @@ psu_power = st.selectbox("Мощность БП (Вт)", [200, 300, 400], index=
 # Сеть
 power_phase = st.radio("Подключение к сети", ["Одна фаза (220 В)", "Три фазы (380 В)"], index=0)
 
-# Резерв (исправлено: всегда определены дефолтные значения)
+# Резерв — ИСПРАВЛЕНО: дефолтные значения всегда определены
 reserve_enabled = st.checkbox("Включить резервные элементы?", value=True)
 reserve_modules_percent = 5
 reserve_modules_custom = 0
-reserve_modules_choice = "5%"  # дефолтное значение
+reserve_modules_choice = "5%"  # дефолтное значение, чтобы избежать NameError
 reserve_psu_cards = False
 reserve_patch = False
 if reserve_enabled:
@@ -204,7 +214,7 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     real_height = modules_h * 160
     total_modules = modules_w * modules_h
 
-    # Резерв модулей
+    # Резерв модулей — теперь безопасно
     reserve_modules = math.ceil(total_modules * reserve_modules_percent / 100) if reserve_modules_choice != "Свой" else reserve_modules_custom
     total_modules_order = total_modules + reserve_modules
 
@@ -256,9 +266,11 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
     horiz_length = real_width - 60
     total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
 
-    # Крепёж
-    fasteners_m6 = horiz_profiles * vert_profiles
+    # Крепёж (винты M6 + заклёпки M6 — 2/3 шт. на вертикальную + запас 3%)
+    fasteners_m6 = int(horiz_profiles * vert_profiles * (2/3))
     reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
+
+    # Магниты
     magnets = math.ceil(total_modules * 4 / 500) * 500
 
     # Коммутация
@@ -406,3 +418,84 @@ if st.button("Рассчитать", type="primary", use_container_width=True):
         </div>
         """
         st.markdown(html_scheme, unsafe_allow_html=True)
+
+    # PDF-отчёт (красивый и правильный)
+    def generate_pdf_report():
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        # Заголовок
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(100, height - 80, "Расчёт LED-экрана MediaLive")
+        c.setFont("Helvetica", 12)
+        c.drawString(100, height - 110, f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+        y = height - 150
+
+        # Характеристики экрана
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Характеристики экрана")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"Размер: {real_width} × {real_height} мм")
+        y -= 15
+        c.drawString(120, y, f"Площадь: {real_width * real_height / 1_000_000:.2f} м²")
+        y -= 15
+        c.drawString(120, y, f"Частота обновления: {refresh_rate} Hz")
+        y -= 15
+        c.drawString(120, y, f"Технология: {tech}")
+        y -= 15
+        c.drawString(120, y, f"Яркость: {1200 if screen_type == 'Indoor' else 6500} нит")
+        y -= 15
+        c.drawString(120, y, f"Датчик яркости и температуры: {sensor}")
+
+        # Модули
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Модули")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"По горизонтали: {modules_w} шт.")
+        y -= 15
+        c.drawString(120, y, f"По вертикали: {modules_h} шт.")
+        y -= 15
+        c.drawString(120, y, f"Итого для заказа: {total_modules_order} шт.")
+
+        # Блоки питания
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Блоки питания")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"Количество: {num_psu_reserve} шт. ({psu_power} Вт)")
+
+        # Вес экрана
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Вес экрана")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"Общий вес: {total_weight:.1f} кг")
+
+        # Упаковка
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(100, y, "Упаковка")
+        y -= 30
+        c.setFont("Helvetica", 10)
+        c.drawString(120, y, f"Коробок: {num_boxes} шт.")
+        c.drawString(120, y - 15, f"Общий объём: {box_volume:.2f} м³")
+
+        c.save()
+        buffer.seek(0)
+        return buffer
+
+    # Кнопка скачивания PDF
+    pdf_buffer = generate_pdf_report()
+    st.download_button(
+        label="Скачать PDF-отчёт",
+        data=pdf_buffer,
+        file_name=f"LED_Raschet_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mime="application/pdf"
+    )
