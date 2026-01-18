@@ -1,160 +1,174 @@
 import streamlit as st
 import math
-import pandas as pd
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
 
-# ---------------- CONFIG ----------------
-st.set_page_config(page_title="MediaLive LED Calculator V5", layout="wide", page_icon="🖥️")
+# ================= CONFIG =================
+st.set_page_config(
+    page_title="MediaLive Configurator PRO",
+    layout="wide",
+    page_icon="🟣"
+)
 
+# ================= STYLE =================
 st.markdown("""
 <style>
-.main {background: linear-gradient(to bottom right, #0f0c29, #302b63, #24243e);}
-h1, h2, h3 {color: #a78bfa !important;}
-.stButton>button {background: linear-gradient(90deg, #667eea, #764ba2); color: white; border-radius: 12px; font-weight: bold;}
+body {
+    background: radial-gradient(circle at top, #12182b, #0b0f1a);
+    color: #E6E8FF;
+}
+.block-container { padding: 2rem; }
+
+.glass {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(14px);
+    border-radius: 18px;
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 0 40px rgba(124,124,255,0.08);
+    margin-bottom: 20px;
+}
+
+.neon { color: #7C7CFF; font-weight: 600; }
+
+.badge-ok {
+    background: rgba(45,255,179,0.15);
+    color: #2DFFB3;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.badge-warn {
+    background: rgba(255,92,92,0.15);
+    color: #FF5C5C;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🖥️ MediaLive LED Screen Calculator V5")
-st.markdown("Промышленный инженерный калькулятор LED-экранов")
+# ================= HEADER =================
+st.markdown("""
+<div class="glass">
+<h1 class="neon">MediaLive Configurator PRO</h1>
+<p>Professional LED Screen Engineering System</p>
+</div>
+""", unsafe_allow_html=True)
 
-# ---------------- DATA ----------------
+# ================= DATA =================
 PROCESSOR_PORTS = {
-    "VC2": 2, "VC4": 4, "VC6": 6, "VC10": 10, "VC16": 16, "VC24": 24,
-    "MCTRL300": 2, "MCTRL600": 4, "MCTRL700": 6, "MCTRL4K": 16,
-    "VX400": 4, "VX600 Pro": 6, "VX1000 Pro": 10, "VX2000 Pro": 20
+    "VX400": 4, "VX600 Pro": 6, "VX1000 Pro": 10, "VX2000 Pro": 20,
+    "VX16S": 16, "VC2": 2, "VC4": 4, "VC6": 6, "VC10": 10,
+    "VC16": 16, "VC24": 24, "MCTRL300": 2, "MCTRL600": 4,
+    "MCTRL700": 6, "MCTRL4K": 16, "MCTRL R5": 8,
+    "TB10 Plus": 1, "TB30": 1, "TB40": 2, "TB50": 2, "TB60": 4
 }
 
 CARD_MAX_PIXELS = {
-    "A5s Plus": 320*256,
-    "A7s Plus": 512*256,
-    "A8s": 512*384,
-    "A10s Pro": 512*512,
-    "MRV412": 512*512
+    "A5s Plus": 320*256, "A7s Plus": 512*256, "A8s / A8s-N": 512*384,
+    "A10s Plus-N / A10s Pro": 512*512, "MRV412": 512*512,
+    "MRV416": 512*384, "MRV432": 512*512, "MRV532": 512*512,
+    "NV3210": 512*384, "MRV208-N / MRV208-1": 256*256,
+    "MRV470-1": 512*384, "A4s Plus": 256*256
 }
 
-INDOOR_PITCHES = [1.25, 1.53, 1.86, 2.0, 2.5, 3.07]
-OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0]
+INDOOR_PITCHES = [0.8,1.0,1.25,1.37,1.53,1.66,1.86,2.0,2.5,3.07,4.0]
+OUTDOOR_PITCHES = [2.5,3.07,4.0,5.0,6.0,6.66,8.0,10.0]
 
-# ---------------- INPUT ----------------
-col1, col2, col3 = st.columns(3)
+# ================= SESSION =================
+if "width_mm" not in st.session_state:
+    st.session_state.width_mm = 3840
+if "height_mm" not in st.session_state:
+    st.session_state.height_mm = 2160
+
+# ================= INPUT =================
+st.markdown('<div class="glass">', unsafe_allow_html=True)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    width_mm = st.number_input("Ширина экрана (мм)", min_value=320, step=320, value=3840)
-    height_mm = st.number_input("Высота экрана (мм)", min_value=160, step=160, value=2240)
+    st.subheader("📐 Геометрия")
+    width_mm = st.number_input("Ширина экрана (мм)", 320, step=320, value=st.session_state.width_mm)
+    height_mm = st.number_input("Высота экрана (мм)", 160, step=160, value=st.session_state.height_mm)
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"])
 
 with col2:
-    pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES if screen_type=="Indoor" else OUTDOOR_PITCHES)
-    refresh_rate = st.selectbox("Частота обновления", [1920, 2880, 3840, 7680], index=2)
-    processor = st.selectbox("Процессор", list(PROCESSOR_PORTS.keys()))
+    st.subheader("🧩 Конструкция")
+    mount_type = st.radio("Тип монтажа", ["Монолитный", "В кабинетах"])
+    tech = st.selectbox("Технология", ["SMD", "COB", "GOB"])
+    pixel_pitch = st.selectbox("Шаг пикселя", INDOOR_PITCHES if screen_type=="Indoor" else OUTDOOR_PITCHES)
 
 with col3:
-    receiving_card = st.selectbox("Принимающая карта", list(CARD_MAX_PIXELS.keys()))
-    psu_power = st.selectbox("Мощность БП (Вт)", [200,300,400], index=1)
-    power_reserve = st.radio("Запас по питанию", [15,30], index=1)
+    st.subheader("🎮 Система")
+    system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"])
+    processor = st.selectbox("Процессор", list(PROCESSOR_PORTS.keys()))
+    receiving_card = st.selectbox("Receiving card", list(CARD_MAX_PIXELS.keys()))
 
-# ---------------- CALCULATION ----------------
-if st.button("🔧 Рассчитать проект", use_container_width=True):
+with col4:
+    st.subheader("⚡ Электрика")
+    psu_power = st.selectbox("Мощность БП (Вт)", [200,300,400])
+    power_reserve = st.selectbox("Запас питания (%)", [15,30])
+    power_phase = st.radio("Сеть", ["220В (1 фаза)", "380В (3 фазы)"])
 
-    modules_w = math.ceil(width_mm / 320)
-    modules_h = math.ceil(height_mm / 160)
-    total_modules = modules_w * modules_h
+st.markdown('</div>', unsafe_allow_html=True)
 
-    real_width = modules_w * 320
-    real_height = modules_h * 160
+# ================= CALC =================
+modules_w = math.ceil(width_mm/320)
+modules_h = math.ceil(height_mm/160)
+real_w = modules_w * 320
+real_h = modules_h * 160
+total_modules = modules_w * modules_h
 
-    resolution_w = int(real_width / pixel_pitch)
-    resolution_h = int(real_height / pixel_pitch)
-    total_pixels = resolution_w * resolution_h
+total_px = (real_w/pixel_pitch)*(real_h/pixel_pitch)
 
-    avg_power_module = 8 if screen_type=="Indoor" else 15
-    max_power_module = 24 if screen_type=="Indoor" else 45
+avg_power_module = 8 if screen_type=="Indoor" else 15
+max_power_module = 24 if screen_type=="Indoor" else 45
 
-    avg_power = total_modules * avg_power_module / 1000
-    peak_power = total_modules * max_power_module / 1000
-    power_with_reserve = peak_power * (1 + power_reserve/100)
+avg_power = total_modules * avg_power_module / 1000
+peak_power = total_modules * max_power_module / 1000
+power_with_reserve = peak_power * (1+power_reserve/100)
 
-    num_psu = math.ceil(power_with_reserve / (psu_power/1000))
+num_psu = math.ceil(power_with_reserve / (psu_power/1000))
+num_cards = math.ceil(total_px / CARD_MAX_PIXELS[receiving_card])
 
-    max_pixels_card = CARD_MAX_PIXELS[receiving_card]
-    num_cards = math.ceil(total_pixels / max_pixels_card)
+required_ports = math.ceil(total_px / 650000)
+available_ports = PROCESSOR_PORTS[processor]
+port_load = total_px/(available_ports*650000)*100
 
-    required_ports = math.ceil(total_pixels / 650000)
-    available_ports = PROCESSOR_PORTS[processor]
+# ================= REPORT =================
+st.markdown('<div class="glass">', unsafe_allow_html=True)
+st.subheader("📊 Инженерный отчёт")
 
-    # ---------------- REPORT DATA ----------------
-    report = {
-        "Ширина экрана (мм)": real_width,
-        "Высота экрана (мм)": real_height,
-        "Разрешение": f"{resolution_w} x {resolution_h}",
-        "Площадь (м²)": round(real_width*real_height/1_000_000,2),
-        "Шаг пикселя": pixel_pitch,
-        "Частота": refresh_rate,
-        "Модулей всего": total_modules,
-        "Средняя мощность (кВт)": round(avg_power,2),
-        "Пиковая мощность (кВт)": round(peak_power,2),
-        "Мощность с запасом (кВт)": round(power_with_reserve,2),
-        "Блоки питания (шт)": num_psu,
-        "Принимающие карты (шт)": num_cards,
-        "Процессор": processor,
-        "Необходимых портов": required_ports,
-        "Доступно портов": available_ports
-    }
+c1,c2,c3,c4 = st.columns(4)
 
-    st.success("✅ Проект рассчитан")
+c1.metric("Размер", f"{real_w} × {real_h} мм")
+c2.metric("Разрешение", f"{int(real_w/pixel_pitch)} × {int(real_h/pixel_pitch)} px")
+c3.metric("Модули", f"{total_modules} шт")
+c4.metric("Площадь", f"{real_w*real_h/1_000_000:.2f} м²")
 
-    st.subheader("📊 Основные параметры")
-    st.json(report)
+st.divider()
 
-    # ---------------- EXCEL EXPORT ----------------
-    df = pd.DataFrame(list(report.items()), columns=["Параметр","Значение"])
-    excel_buffer = BytesIO()
-    df.to_excel(excel_buffer, index=False, sheet_name="MediaLive Report")
-    excel_buffer.seek(0)
+c1.metric("Средняя мощность", f"{avg_power:.1f} кВт")
+c2.metric("Пиковая мощность", f"{peak_power:.1f} кВт")
+c3.metric("С запасом", f"{power_with_reserve:.1f} кВт")
+c4.metric("БП", f"{num_psu} шт")
 
-    # ---------------- PDF EXPORT ----------------
-    pdf_buffer = BytesIO()
-    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-    styles = getSampleStyleSheet()
+st.divider()
 
-    elements = []
-    elements.append(Paragraph("MediaLive LED Screen Project Report", styles["Title"]))
-    elements.append(Spacer(1,12))
+c1.metric("Receiving cards", f"{num_cards} шт")
+c2.metric("Процессор", processor)
+c3.metric("Порты", f"{required_ports}/{available_ports}")
+c4.metric("Нагрузка", f"{port_load:.1f}%")
 
-    table_data = [["Параметр","Значение"]]
-    for k,v in report.items():
-        table_data.append([k,str(v)])
+if port_load < 85:
+    st.markdown('<span class="badge-ok">Порты в норме</span>', unsafe_allow_html=True)
+else:
+    st.markdown('<span class="badge-warn">Перегруз портов</span>', unsafe_allow_html=True)
 
-    table = Table(table_data, repeatRows=1)
-    table.setStyle(TableStyle([
-        ("GRID",(0,0),(-1,-1),1,colors.black),
-        ("BACKGROUND",(0,0),(-1,0),colors.lightgrey),
-        ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold")
-    ]))
+st.markdown('</div>', unsafe_allow_html=True)
 
-    elements.append(table)
-    doc.build(elements)
-    pdf_buffer.seek(0)
-
-    # ---------------- DOWNLOAD BUTTONS ----------------
-    colx, coly = st.columns(2)
-
-    with colx:
-        st.download_button(
-            "📥 Скачать Excel спецификацию",
-            data=excel_buffer,
-            file_name="MediaLive_LED_Report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-    with coly:
-        st.download_button(
-            "📄 Скачать PDF отчёт",
-            data=pdf_buffer,
-            file_name="MediaLive_LED_Report.pdf",
-            mime="application/pdf"
-        )
+# ================= FOOTER =================
+st.markdown("""
+<div style="text-align:center; opacity:0.4; margin-top:40px">
+MediaLive Configurator PRO • Engineering Edition
+</div>
+""", unsafe_allow_html=True)
