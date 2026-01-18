@@ -68,8 +68,13 @@ if "width_mm" not in st.session_state:
     st.session_state.width_mm = 3840
 if "height_mm" not in st.session_state:
     st.session_state.height_mm = 2240
-if "previous_width" not in st.session_state:
-    st.session_state.previous_width = 3840
+
+# Функции пересчёта
+def fit_ratio(ratio):
+    ideal = st.session_state.width_mm / ratio
+    lower = math.floor(ideal / 160) * 160
+    upper = math.ceil(ideal / 160) * 160
+    st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
 
 # Ввод параметров
 col1, col2, col3 = st.columns(3)
@@ -84,15 +89,19 @@ with col1:
         value=st.session_state.width_mm,
         key="width_input"
     )
+    st.session_state.width_mm = width_mm
 
-    # Автоматический пересчёт высоты при изменении ширины
-    if width_mm != st.session_state.previous_width:
-        ideal_height = width_mm / 1.7777777777777777
-        new_height = round(ideal_height / 160) * 160
-        st.session_state.height_mm = max(160, new_height)
-        st.session_state.previous_width = width_mm
-        st.session_state.width_mm = width_mm
-        st.rerun()
+    # Кнопки подгонки в форме (самый стабильный способ)
+    with st.form(key="fit_form"):
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.form_submit_button("Подогнать 16:9", type="primary"):
+                fit_ratio(1.7777777777777777)
+                st.rerun()
+        with col_btn2:
+            if st.form_submit_button("Подогнать 4:3", type="primary"):
+                fit_ratio(1.3333333333333333)
+                st.rerun()
 
     height_mm = st.number_input(
         "Высота экрана (мм)",
@@ -105,6 +114,7 @@ with col1:
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
+# Остальной код — монтаж, шаг, кабинеты, процессор, проверка портов, магнит, датчик, карта, ориентиры, БП, сеть, резерв, расчёт, отчёт, схема
 with col2:
     st.subheader("Монтаж и шаг пикселя")
     mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
