@@ -101,7 +101,7 @@ with col1:
     with st.form(key="ratio_form"):
         col16, col43 = st.columns(2)
         with col16:
-            if st.form_submit_button("Подогнать 16:9", type="primary"):
+            if st.form_submit_button("16:9", type="primary"):
                 ideal = width_mm / 1.7777777777777777
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
@@ -109,7 +109,7 @@ with col1:
                 st.rerun()
 
         with col43:
-            if st.form_submit_button("Подогнать 4:3", type="primary"):
+            if st.form_submit_button("4:3", type="primary"):
                 ideal = width_mm / 1.3333333333333333
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
