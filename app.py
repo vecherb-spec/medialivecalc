@@ -91,7 +91,7 @@ with col1:
     )
     st.session_state["width_mm"] = width_mm
 
-    # Форма с кнопками
+    # Форма с кнопками подгонки
     with st.form(key="ratio_form"):
         col16, col43 = st.columns(2)
         with col16:
@@ -100,7 +100,7 @@ with col1:
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
                 st.success(f"Высота подогнана под 16:9: {st.session_state['height_mm']} мм")
-                st.rerun()  # <-- ключевой момент: rerun после сообщения
+                st.rerun()
 
         with col43:
             if st.form_submit_button("Подогнать 4:3", type="primary"):
@@ -110,15 +110,14 @@ with col1:
                 st.success(f"Высота подогнана под 4:3: {st.session_state['height_mm']} мм")
                 st.rerun()
 
-    # Поле высоты (всегда берёт актуальное значение из session_state)
+    # ВЫСОТА — БЕЗ КЛЮЧА (это решает проблему)
     height_mm = st.number_input(
-        "Высота экрана (мм)",
+        label="Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2240),
-        key="height_input"
+        value=st.session_state.get("height_mm", 2240)
     )
-    st.session_state["height_mm"] = height_mm
+    st.session_state.height_mm = height_mm
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
