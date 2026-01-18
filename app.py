@@ -69,9 +69,15 @@ if "width_mm" not in st.session_state:
 if "height_mm" not in st.session_state:
     st.session_state.height_mm = 2240
 
-# Функции пересчёта
-def fit_ratio(ratio):
-    ideal = st.session_state.width_mm / ratio
+# Функции пересчёта для кнопок
+def fit_16_9():
+    ideal = st.session_state.width_mm / 1.7777777777777777
+    lower = math.floor(ideal / 160) * 160
+    upper = math.ceil(ideal / 160) * 160
+    st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
+
+def fit_4_3():
+    ideal = st.session_state.width_mm / 1.3333333333333333
     lower = math.floor(ideal / 160) * 160
     upper = math.ceil(ideal / 160) * 160
     st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
@@ -104,8 +110,8 @@ with col1:
     # Если выбран готовый размер — подставляем ширину и высоту
     selected_w, selected_h = popular_16_9[selected_label]
     if selected_w is not None:
-        st.session_state["width_mm"] = selected_w
-        st.session_state["height_mm"] = selected_h
+        st.session_state.width_mm = selected_w
+        st.session_state.height_mm = selected_h
 
     # Поле ширины (можно менять вручную)
     width_mm = st.number_input(
@@ -122,18 +128,14 @@ with col1:
         col16, col43 = st.columns(2)
         with col16:
             if st.form_submit_button("Подогнать под 16:9", type="primary"):
-                ideal = width_mm / 1.7777777777777777
-                new_h = round(ideal / 160) * 160
-                st.session_state["height_mm"] = max(160, new_h)
-                st.success(f"Высота подогнана под 16:9: {st.session_state['height_mm']} мм")
+                fit_16_9()
+                st.success(f"Высота подогнана под 16:9: {st.session_state.height_mm} мм")
                 st.rerun()
 
         with col43:
             if st.form_submit_button("Подогнать под 4:3", type="primary"):
-                ideal = width_mm / 1.3333333333333333
-                new_h = round(ideal / 160) * 160
-                st.session_state["height_mm"] = max(160, new_h)
-                st.success(f"Высота подогнана под 4:3: {st.session_state['height_mm']} мм")
+                fit_4_3()
+                st.success(f"Высота подогнана под 4:3: {st.session_state.height_mm} мм")
                 st.rerun()
 
     # Поле высоты (можно менять вручную)
