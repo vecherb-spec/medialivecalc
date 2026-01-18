@@ -82,29 +82,27 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.subheader("Размер и тип экрана")
 
-    # Популярные готовые размеры (все кратны 320×160)
-    popular_sizes = {
-        "3840 × 2160 (Full HD 16:9)": (3840, 2160),
-        "5120 × 2880 (5K-ish 16:9)": (5120, 2880),
-        "6400 × 3600 (6.4×3.6 м 16:9)": (6400, 3600),
-        "7680 × 4320 (8K 16:9)": (7680, 4320),
-        "3200 × 1800 (маленький 16:9)": (3200, 1800),
-        "4480 × 2520 (промежуточный 16:9)": (4480, 2520),
-        "5760 × 3240 (большой 16:9)": (5760, 3240),
-        "3840 × 2880 (4:3)": (3840, 2880),
-        "5120 × 3840 (4:3)": (5120, 3840),
+    # Популярные размеры только 16:9 (ширина + рассчитанная высота)
+    popular_16_9 = {
+        "2560 × 1440": (2560, 1440),
+        "3200 × 1800": (3200, 1800),
+        "3840 × 2160": (3840, 2160),
+        "4160 × 2340": (4160, 2340),
+        "4800 × 2700": (4800, 2700),
+        "5120 × 2880": (5120, 2880),
+        "6080 × 3420": (6080, 3420),
         "Свой размер (вручную)": (None, None)
     }
 
-    selected_size = st.selectbox(
-        "Выберите популярный размер (16:9 или 4:3)",
-        list(popular_sizes.keys()),
-        index=0,
-        key="size_select"
+    # Выпадающий список размеров
+    selected_label = st.selectbox(
+        "Выберите популярный размер 16:9",
+        list(popular_16_9.keys()),
+        index=2  # по умолчанию 3840×2160
     )
 
     # Если выбран готовый размер — подставляем ширину и высоту
-    selected_w, selected_h = popular_sizes[selected_size]
+    selected_w, selected_h = popular_16_9[selected_label]
     if selected_w is not None:
         st.session_state.width_mm = selected_w
         st.session_state.height_mm = selected_h
@@ -119,7 +117,7 @@ with col1:
     )
     st.session_state["width_mm"] = width_mm
 
-    # Кнопки подгонки (если захочешь подогнать кастомную ширину)
+    # Кнопки подгонки в форме (работают стабильно)
     with st.form(key="ratio_form"):
         col16, col43 = st.columns(2)
         with col16:
@@ -138,12 +136,12 @@ with col1:
                 st.success(f"Высота подогнана под 4:3: {st.session_state['height_mm']} мм")
                 st.rerun()
 
-    # Поле высоты
+    # Поле высоты (можно менять вручную)
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2240),
+        value=st.session_state.get("height_mm", 2160),
         key="height_input"
     )
     st.session_state["height_mm"] = height_mm
