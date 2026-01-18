@@ -112,6 +112,7 @@ with col1:
     if selected_w is not None:
         st.session_state.width_mm = selected_w
         st.session_state.height_mm = selected_h
+        st.rerun()  # обновляем страницу после выбора
 
     # Поле ширины (можно менять вручную)
     width_mm = st.number_input(
@@ -128,14 +129,18 @@ with col1:
         col16, col43 = st.columns(2)
         with col16:
             if st.form_submit_button("Подогнать под 16:9", type="primary"):
-                fit_16_9()
-                st.success(f"Высота подогнана под 16:9: {st.session_state.height_mm} мм")
+                ideal = width_mm / 1.7777777777777777
+                new_h = round(ideal / 160) * 160
+                st.session_state["height_mm"] = max(160, new_h)
+                st.success(f"Высота подогнана под 16:9: {st.session_state['height_mm']} мм")
                 st.rerun()
 
         with col43:
             if st.form_submit_button("Подогнать под 4:3", type="primary"):
-                fit_4_3()
-                st.success(f"Высота подогнана под 4:3: {st.session_state.height_mm} мм")
+                ideal = width_mm / 1.3333333333333333
+                new_h = round(ideal / 160) * 160
+                st.session_state["height_mm"] = max(160, new_h)
+                st.success(f"Высота подогнана под 4:3: {st.session_state['height_mm']} мм")
                 st.rerun()
 
     # Поле высоты (можно менять вручную)
