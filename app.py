@@ -82,7 +82,7 @@ col1, col2, col3 = st.columns(3)
 with col1:
     # Вставь этот блок вместо твоего текущего ввода размеров (внутри with col1:)
 
-st.subheader("Размер и тип экрана")
+    st.subheader("Размер и тип экрана")
 
 width_mm = st.number_input(
     "Ширина экрана (мм)",
