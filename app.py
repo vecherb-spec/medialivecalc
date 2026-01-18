@@ -104,8 +104,8 @@ with col1:
     # Если выбран готовый размер — подставляем ширину и высоту
     selected_w, selected_h = popular_16_9[selected_label]
     if selected_w is not None:
-        st.session_state.width_mm = selected_w
-        st.session_state.height_mm = selected_h
+        st.session_state["width_mm"] = selected_w
+        st.session_state["height_mm"] = selected_h
 
     # Поле ширины (можно менять вручную)
     width_mm = st.number_input(
