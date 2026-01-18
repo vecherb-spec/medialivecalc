@@ -1,66 +1,66 @@
+# ================= MEDIA LIVE CONFIGURATOR PRO v4 =================
+# Factory Engineering Edition
+# Based 100% on original engineering core
+# ================================================================
+
 import streamlit as st
 import math
+import pandas as pd
+from datetime import datetime
 
-# ================= CONFIG =================
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
-    page_title="MediaLive Configurator PRO",
+    page_title="MediaLive Configurator PRO v4",
     layout="wide",
     page_icon="🟣"
 )
 
-# ================= STYLE =================
+# ---------------- PRO THEME ----------------
 st.markdown("""
 <style>
 body {
-    background: radial-gradient(circle at top, #12182b, #0b0f1a);
+    background: radial-gradient(circle at top, #0e1325, #070b17);
     color: #E6E8FF;
 }
-.block-container { padding: 2rem; }
-
 .glass {
-    background: rgba(255,255,255,0.06);
-    backdrop-filter: blur(14px);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(16px);
     border-radius: 18px;
-    padding: 20px;
+    padding: 22px;
     border: 1px solid rgba(255,255,255,0.08);
     box-shadow: 0 0 40px rgba(124,124,255,0.08);
     margin-bottom: 20px;
 }
-
-.neon { color: #7C7CFF; font-weight: 600; }
-
-.badge-ok {
-    background: rgba(45,255,179,0.15);
-    color: #2DFFB3;
-    padding: 4px 10px;
-    border-radius: 8px;
-    font-size: 13px;
+.title {
+    font-size: 38px;
+    font-weight: 700;
+    color: #7C7CFF;
 }
-
-.badge-warn {
-    background: rgba(255,92,92,0.15);
-    color: #FF5C5C;
-    padding: 4px 10px;
-    border-radius: 8px;
-    font-size: 13px;
+.subtitle {
+    opacity: 0.6;
+}
+hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #7C7CFF, transparent);
+    margin: 20px 0;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ================= HEADER =================
+# ---------------- HEADER ----------------
 st.markdown("""
 <div class="glass">
-<h1 class="neon">MediaLive Configurator PRO</h1>
-<p>Professional LED Screen Engineering System</p>
+  <div class="title">MediaLive Configurator PRO v4</div>
+  <div class="subtitle">Factory Engineering Edition • Qiangli • Novastar</div>
 </div>
 """, unsafe_allow_html=True)
 
-# ================= DATA =================
+# ===================== ENGINEERING DATA =====================
 PROCESSOR_PORTS = {
-    "VX400": 4, "VX600 Pro": 6, "VX1000 Pro": 10, "VX2000 Pro": 20,
-    "VX16S": 16, "VC2": 2, "VC4": 4, "VC6": 6, "VC10": 10,
-    "VC16": 16, "VC24": 24, "MCTRL300": 2, "MCTRL600": 4,
-    "MCTRL700": 6, "MCTRL4K": 16, "MCTRL R5": 8,
+    "VX400": 4, "VX600 Pro": 6, "VX1000 Pro": 10, "VX2000 Pro": 20, "VX16S": 16,
+    "VC2": 2, "VC4": 4, "VC6": 6, "VC10": 10, "VC16": 16, "VC24": 24,
+    "MCTRL300": 2, "MCTRL600": 4, "MCTRL700": 6, "MCTRL4K": 16, "MCTRL R5": 8,
     "TB10 Plus": 1, "TB30": 1, "TB40": 2, "TB50": 2, "TB60": 4
 }
 
@@ -75,100 +75,194 @@ CARD_MAX_PIXELS = {
 INDOOR_PITCHES = [0.8,1.0,1.25,1.37,1.53,1.66,1.86,2.0,2.5,3.07,4.0]
 OUTDOOR_PITCHES = [2.5,3.07,4.0,5.0,6.0,6.66,8.0,10.0]
 
-# ================= SESSION =================
-if "width_mm" not in st.session_state:
-    st.session_state.width_mm = 3840
-if "height_mm" not in st.session_state:
-    st.session_state.height_mm = 2160
+# ===================== SIDEBAR NAV =====================
+menu = st.sidebar.radio(
+    "Навигация PRO",
+    [
+        "Проект",
+        "Геометрия",
+        "Конструкция",
+        "Электрика",
+        "Система",
+        "Коммутация",
+        "Логистика",
+        "Инженерный отчёт"
+    ]
+)
 
-# ================= INPUT =================
-st.markdown('<div class="glass">', unsafe_allow_html=True)
-col1, col2, col3, col4 = st.columns(4)
+# ===================== PROJECT =====================
+if menu == "Проект":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.subheader("📁 Паспорт проекта")
 
-with col1:
-    st.subheader("📐 Геометрия")
-    width_mm = st.number_input("Ширина экрана (мм)", 320, step=320, value=st.session_state.width_mm)
-    height_mm = st.number_input("Высота экрана (мм)", 160, step=160, value=st.session_state.height_mm)
-    screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"])
+    project = st.text_input("Проект", "MediaLive LED Screen")
+    client = st.text_input("Клиент")
+    location = st.text_input("Локация")
+    engineer = st.text_input("Инженер", "MediaLive Engineering")
+    date = st.date_input("Дата", datetime.now())
 
-with col2:
-    st.subheader("🧩 Конструкция")
     mount_type = st.radio("Тип монтажа", ["Монолитный", "В кабинетах"])
-    tech = st.selectbox("Технология", ["SMD", "COB", "GOB"])
-    pixel_pitch = st.selectbox("Шаг пикселя", INDOOR_PITCHES if screen_type=="Indoor" else OUTDOOR_PITCHES)
+    installation = st.radio("Установка", ["Стена", "Подвес", "Напольная"])
 
-with col3:
-    st.subheader("🎮 Система")
-    system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"])
-    processor = st.selectbox("Процессор", list(PROCESSOR_PORTS.keys()))
-    receiving_card = st.selectbox("Receiving card", list(CARD_MAX_PIXELS.keys()))
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with col4:
-    st.subheader("⚡ Электрика")
-    psu_power = st.selectbox("Мощность БП (Вт)", [200,300,400])
-    power_reserve = st.selectbox("Запас питания (%)", [15,30])
-    power_phase = st.radio("Сеть", ["220В (1 фаза)", "380В (3 фазы)"])
+# ===================== GEOMETRY =====================
+if menu == "Геометрия":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.subheader("📐 Геометрия экрана")
 
-st.markdown('</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
 
-# ================= CALC =================
-modules_w = math.ceil(width_mm/320)
-modules_h = math.ceil(height_mm/160)
-real_w = modules_w * 320
-real_h = modules_h * 160
-total_modules = modules_w * modules_h
+    with col1:
+        width_mm = st.number_input("Ширина экрана (мм)", 320, step=320, value=3840)
+        height_mm = st.number_input("Высота экрана (мм)", 160, step=160, value=2160)
+        screen_type = st.radio("Тип экрана", ["Indoor","Outdoor"])
 
-total_px = (real_w/pixel_pitch)*(real_h/pixel_pitch)
+    with col2:
+        pixel_pitch = st.selectbox(
+            "Шаг пикселя (мм)",
+            INDOOR_PITCHES if screen_type=="Indoor" else OUTDOOR_PITCHES,
+            index=8 if screen_type=="Indoor" else 0
+        )
+        tech = st.selectbox("Технология", ["SMD","COB","GOB"])
 
-avg_power_module = 8 if screen_type=="Indoor" else 15
-max_power_module = 24 if screen_type=="Indoor" else 45
+    with col3:
+        refresh_rate = st.selectbox("Частота обновления (Hz)", [1920,2880,3840,6000,7680], index=2)
 
-avg_power = total_modules * avg_power_module / 1000
-peak_power = total_modules * max_power_module / 1000
-power_with_reserve = peak_power * (1+power_reserve/100)
+    modules_w = math.ceil(width_mm/320)
+    modules_h = math.ceil(height_mm/160)
+    real_w = modules_w * 320
+    real_h = modules_h * 160
 
-num_psu = math.ceil(power_with_reserve / (psu_power/1000))
-num_cards = math.ceil(total_px / CARD_MAX_PIXELS[receiving_card])
+    res_w = int(real_w / pixel_pitch)
+    res_h = int(real_h / pixel_pitch)
+    area = real_w * real_h / 1_000_000
 
-required_ports = math.ceil(total_px / 650000)
-available_ports = PROCESSOR_PORTS[processor]
-port_load = total_px/(available_ports*650000)*100
+    st.markdown("---")
+    st.metric("Фактический размер", f"{real_w} × {real_h} мм")
+    st.metric("Разрешение", f"{res_w} × {res_h} px")
+    st.metric("Площадь", f"{area:.2f} м²")
 
-# ================= REPORT =================
-st.markdown('<div class="glass">', unsafe_allow_html=True)
-st.subheader("📊 Инженерный отчёт")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-c1,c2,c3,c4 = st.columns(4)
+# ===================== SYSTEM =====================
+if menu == "Система":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.subheader("🧠 Система управления")
 
-c1.metric("Размер", f"{real_w} × {real_h} мм")
-c2.metric("Разрешение", f"{int(real_w/pixel_pitch)} × {int(real_h/pixel_pitch)} px")
-c3.metric("Модули", f"{total_modules} шт")
-c4.metric("Площадь", f"{real_w*real_h/1_000_000:.2f} м²")
+    system_type = st.radio("Тип системы", ["Синхронный","Асинхронный"])
+    processors = (
+        ["VC2","VC4","VC6","VC10","VC16","VC24","MCTRL300","MCTRL600","MCTRL700","MCTRL4K","MCTRL R5",
+         "VX400","VX600 Pro","VX1000 Pro","VX2000 Pro","VX16S"]
+        if system_type=="Синхронный"
+        else ["TB10 Plus","TB30","TB40","TB50","TB60"]
+    )
 
-st.divider()
+    processor = st.selectbox("Процессор / Плеер", processors)
+    receiving_card = st.selectbox("Принимающая карта", list(CARD_MAX_PIXELS.keys()))
 
-c1.metric("Средняя мощность", f"{avg_power:.1f} кВт")
-c2.metric("Пиковая мощность", f"{peak_power:.1f} кВт")
-c3.metric("С запасом", f"{power_with_reserve:.1f} кВт")
-c4.metric("БП", f"{num_psu} шт")
+    total_px = (real_w/pixel_pitch)*(real_h/pixel_pitch)
+    req_ports = math.ceil(total_px/650000)
+    avail_ports = PROCESSOR_PORTS[processor]
+    load = total_px/(avail_ports*650000)*100
 
-st.divider()
+    st.markdown(f"""
+    **Порты:** {avail_ports}  
+    **Требуется:** {req_ports}  
+    **Нагрузка:** {load:.1f}%
+    """)
 
-c1.metric("Receiving cards", f"{num_cards} шт")
-c2.metric("Процессор", processor)
-c3.metric("Порты", f"{required_ports}/{available_ports}")
-c4.metric("Нагрузка", f"{port_load:.1f}%")
+    if load > 90:
+        st.warning("⚠️ Нагрузка портов >90%")
 
-if port_load < 85:
-    st.markdown('<span class="badge-ok">Порты в норме</span>', unsafe_allow_html=True)
-else:
-    st.markdown('<span class="badge-warn">Перегруз портов</span>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+# ===================== ELECTRICAL =====================
+if menu == "Электрика":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.subheader("⚡ Электропитание")
 
-# ================= FOOTER =================
-st.markdown("""
-<div style="text-align:center; opacity:0.4; margin-top:40px">
-MediaLive Configurator PRO • Engineering Edition
-</div>
-""", unsafe_allow_html=True)
+    psu_power = st.selectbox("Блок питания (Вт)", [200,300,400])
+    reserve = st.radio("Запас по питанию (%)", [15,30], index=1)
+    phase = st.radio("Сеть", ["220 В","380 В"])
+
+    avg_mod = 8 if screen_type=="Indoor" else 15
+    max_mod = 24 if screen_type=="Indoor" else 45
+
+    total_modules = modules_w * modules_h
+    peak_kw = total_modules * max_mod / 1000
+    power_kw = peak_kw * (1 + reserve/100)
+
+    psu_kw = psu_power/1000
+    psu_qty = math.ceil(power_kw/psu_kw)
+
+    voltage = 220 if phase=="220 В" else 380*math.sqrt(3)
+    current = power_kw*1000/voltage
+    breaker = math.ceil(current*1.25)
+
+    st.markdown(f"""
+    **Модулей:** {total_modules}  
+    **Пиковая мощность:** {peak_kw:.1f} кВт  
+    **С запасом:** {power_kw:.1f} кВт  
+    **БП:** {psu_qty} шт  
+    **Ток:** {current:.1f} А  
+    **Автомат:** {breaker} А
+    """)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ===================== LOGISTICS =====================
+if menu == "Логистика":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.subheader("🚚 Логистика и вес")
+
+    module_weight = 0.37 if screen_type=="Indoor" else 0.5
+    weight_modules = total_modules * module_weight
+    weight_total = weight_modules * 1.05
+
+    boxes = math.ceil(total_modules/40)
+    volume = boxes * 0.06
+
+    st.markdown(f"""
+    **Вес модулей:** {weight_modules:.1f} кг  
+    **Общий вес:** {weight_total:.1f} кг  
+    **Коробки:** {boxes} шт  
+    **Объём:** {volume:.2f} м³
+    """)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ===================== FINAL REPORT =====================
+if menu == "Инженерный отчёт":
+    st.markdown('<div class="glass">', unsafe_allow_html=True)
+    st.subheader("📘 Финальный инженерный отчёт")
+
+    st.markdown(f"""
+### Проект
+- **Проект:** {project}
+- **Клиент:** {client}
+- **Локация:** {location}
+
+### Экран
+- **Размер:** {real_w} × {real_h} мм
+- **Разрешение:** {res_w} × {res_h} px
+- **Площадь:** {area:.2f} м²
+- **Шаг пикселя:** {pixel_pitch} мм
+- **Частота:** {refresh_rate} Hz
+
+### Система
+- **Процессор:** {processor}
+- **Receiving card:** {receiving_card}
+
+### Электрика
+- **Мощность:** {power_kw:.1f} кВт
+- **БП:** {psu_qty} шт
+- **Автомат:** {breaker} А
+
+### Логистика
+- **Вес:** {weight_total:.1f} кг
+- **Объём:** {volume:.2f} м³
+""")
+
+    st.success("MediaLive Configurator PRO v4 — расчёт завершён")
+    st.markdown('</div>', unsafe_allow_html=True)
