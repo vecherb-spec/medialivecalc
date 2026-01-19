@@ -91,7 +91,7 @@ with col1:
     )
     st.session_state.width_mm = width_mm
 
-    # Кнопки подгонки в форме (все 4 пропорции)
+    # Кнопки подгонки в форме — расширили на 21:9 и 1:1
     with st.form(key="ratio_form"):
         col16, col43, col21, col11 = st.columns(4)
         with col16:
@@ -126,7 +126,7 @@ with col1:
                 st.success(f"Высота подогнана под 1:1: {st.session_state['height_mm']} мм")
                 st.rerun()
 
-    # Поле высоты — БЕЗ КЛЮЧА, чтобы значение всегда отображалось после rerun
+    # Поле высоты — БЕЗ КЛЮЧА (чтобы обновлялось визуально)
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
@@ -136,50 +136,6 @@ with col1:
     st.session_state.height_mm = height_mm
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
-
-# Остальной код — монтаж, шаг, кабинеты, процессор, проверка портов, магнит, датчик, карта, ориентиры, БП, сеть, резерв, расчёт, отчёт, схема
-with col2:
-    st.subheader("Монтаж и шаг пикселя")
-    mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
-
-    if screen_type == "Indoor":
-        pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
-    else:
-        pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
-
-    tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
-
-    cabinet_model = None
-    cabinet_width = 640
-    cabinet_height = 480
-    cabinet_weight_per = 20.0
-    if mount_type == "В кабинетах":
-        st.subheader("Выбор кабинета Qiangli")
-        cabinet_options = [
-            "QM Series (640×480 мм, indoor, ~20 кг)",
-            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
-            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
-            "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
-            "Custom (введите размер и вес вручную)"
-        ]
-        cabinet_model = st.selectbox("Модель кабинета", cabinet_options, index=0)
-
-        cabinet_data = {
-            "QM Series (640×480 мм, indoor, ~20 кг)": (640, 480, 20.0),
-            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)": (960, 960, 40.0),
-            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)": (500, 500, 13.5),
-            "QS Series (960×960 мм, outdoor fixed, ~45 кг)": (960, 960, 45.0),
-            "Custom (введите размер и вес вручную)": (None, None, None)
-        }
-        selected_data = cabinet_data.get(cabinet_model)
-        if selected_data[0] is None:
-            col_c1, col_c2, col_c3 = st.columns(3)
-            with col_c1:
-                cabinet_width = st.number_input("Ширина кабинета (мм)", min_value=320, value=640)
-            with col_c2:
-                cabinet_height = st.number_input("Высота кабинета (мм)", min_value=160, value=480)
-            with col_c3:
-                cabinet_weight_per = st.number_input("Вес одного кабинета (кг)", min_value=1.0, value=20.0, step=0.5)
         else:
             cabinet_width, cabinet_height, cabinet_weight_per = selected_data
 
