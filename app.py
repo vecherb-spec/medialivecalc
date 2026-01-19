@@ -97,11 +97,11 @@ with col1:
     )
     st.session_state.width_mm = width_mm
 
-    # Кнопки подгонки в форме
+    # Кнопки подгонки в форме (расширили на 1:1)
     with st.form(key="ratio_form"):
-        col16, col43, col21 = st.columns(3)
+        col16, col43, col21, col11 = st.columns(4)
         with col16:
-            if st.form_submit_button("Подогнать под 16:9", type="primary"):
+            if st.form_submit_button("16:9", type="primary"):
                 ideal = width_mm / 1.7777777777777777
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
@@ -109,7 +109,7 @@ with col1:
                 st.rerun()
 
         with col43:
-            if st.form_submit_button("Подогнать под 4:3", type="primary"):
+            if st.form_submit_button("4:3", type="primary"):
                 ideal = width_mm / 1.3333333333333333
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
@@ -117,19 +117,27 @@ with col1:
                 st.rerun()
 
         with col21:
-            if st.form_submit_button("Подогнать под 21:9", type="primary"):
-                ideal = width_mm / 2.3333333333333335  # точная 21:9 ≈ 2.3333
+            if st.form_submit_button("21:9", type="primary"):
+                ideal = width_mm / 2.3333333333333335
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
                 st.success(f"Высота подогнана под 21:9: {st.session_state['height_mm']} мм")
                 st.rerun()
 
-    # Поле высоты — БЕЗ КЛЮЧА (это решает проблему визуального обновления)
+        with col11:
+            if st.form_submit_button("1:1", type="primary"):
+                ideal = width_mm / 1.0  # квадрат
+                new_h = round(ideal / 160) * 160
+                st.session_state["height_mm"] = max(160, new_h)
+                st.success(f"Высота подогнана под 1:1: {st.session_state['height_mm']} мм")
+                st.rerun()
+
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2240)
+        value=st.session_state.get("height_mm", 2240),
+        key="height_input"
     )
     st.session_state.height_mm = height_mm
 
