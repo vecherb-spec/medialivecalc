@@ -88,6 +88,33 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.subheader("Размер и тип экрана")
 
+    # Популярные размеры только 16:9 (ширина + рассчитанная высота)
+    popular_16_9 = {
+        "2560 мм (1440 мм высота)": (2560, 1440),
+        "3200 мм (1800 мм высота)": (3200, 1800),
+        "3840 мм (2160 мм высота)": (3840, 2160),
+        "4120 мм (2240 мм высота)": (4120, 2240),
+        "4800 мм (2700 мм высота)": (4800, 2700),
+        "5120 мм (2880 мм высота)": (5120, 2880),
+        "6080 мм (3420 мм высота)": (6080, 3420),
+        "Свой размер (вручную)": (None, None)
+    }
+
+    # Выпадающий список размеров
+    selected_label = st.selectbox(
+        "Выберите популярный размер 16:9",
+        list(popular_16_9.keys()),
+        index=2  # по умолчанию 3840×2160
+    )
+
+    # Если выбран готовый размер — подставляем ширину и высоту
+    selected_w, selected_h = popular_16_9[selected_label]
+    if selected_w is not None:
+        st.session_state.width_mm = selected_w
+        st.session_state.height_mm = selected_h
+        st.rerun()  # обновляем страницу после выбора
+
+    # Поле ширины (можно менять вручную)
     width_mm = st.number_input(
         "Ширина экрана (мм)",
         min_value=320,
@@ -95,13 +122,13 @@ with col1:
         value=st.session_state.get("width_mm", 3840),
         key="width_input"
     )
-    st.session_state.width_mm = width_mm
+    st.session_state["width_mm"] = width_mm
 
-    # Кнопки подгонки в форме — расширили на 21:9 и 1:1
+    # Кнопки подгонки в форме (работают стабильно)
     with st.form(key="ratio_form"):
-        col16, col43, col21, col11 = st.columns(4)
+        col16, col43 = st.columns(2)
         with col16:
-            if st.form_submit_button("16:9", type="primary"):
+            if st.form_submit_button("Подогнать под 16:9", type="primary"):
                 ideal = width_mm / 1.7777777777777777
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
@@ -109,37 +136,21 @@ with col1:
                 st.rerun()
 
         with col43:
-            if st.form_submit_button("4:3", type="primary"):
+            if st.form_submit_button("Подогнать под 4:3", type="primary"):
                 ideal = width_mm / 1.3333333333333333
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
                 st.success(f"Высота подогнана под 4:3: {st.session_state['height_mm']} мм")
                 st.rerun()
 
-        with col21:
-            if st.form_submit_button("21:9", type="primary"):
-                ideal = width_mm / 2.3333333333333335
-                new_h = round(ideal / 160) * 160
-                st.session_state["height_mm"] = max(160, new_h)
-                st.success(f"Высота подогнана под 21:9: {st.session_state['height_mm']} мм")
-                st.rerun()
-
-        with col11:
-            if st.form_submit_button("1:1", type="primary"):
-                ideal = width_mm / 1.0
-                new_h = round(ideal / 160) * 160
-                st.session_state["height_mm"] = max(160, new_h)
-                st.success(f"Высота подогнана под 1:1: {st.session_state['height_mm']} мм")
-                st.rerun()
-
-    # Поле высоты — БЕЗ КЛЮЧА (чтобы обновлялось визуально)
+    # Поле высоты — без ключа, чтобы всегда бралось свежее значение из session_state
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2240)
+        value=st.session_state.get("height_mm", 2160)
     )
-    st.session_state.height_mm = height_mm
+    st.session_state["height_mm"] = height_mm
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 # Остальной код — монтаж, шаг, кабинеты, процессор, проверка портов, магнит, датчик, карта, ориентиры, БП, сеть, резерв, расчёт, отчёт, схема
