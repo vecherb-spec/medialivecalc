@@ -106,24 +106,20 @@ with col1:
 # Остальной код (монтаж, шаг, кабинеты, процессор, проверка портов, магнит, датчик, карта, ориентиры, БП, сеть, резерв, расчёт, отчёт, схема)
 with col2:
     st.subheader("Монтаж и шаг пикселя")
-    mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
+    mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1, key="mount_type")
 
     if screen_type == "Indoor":
-        pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", ["1.5", "1.8", "2.5", "3.0"], index=2, key="pitch_indoor")
     else:
-        pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", ["3.9", "4.8", "5.2", "6.0"], index=0, key="pitch_outdoor")
 
-    tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
-
-    # Выбор кабинета (упрощённо, чтобы не ломать)
-    st.write("Выбор кабинета (вставь свой код здесь)")
+    tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0, key="tech")
 
 with col3:
     st.subheader("Частота и система")
-    refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
-    system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"], index=0)
-
-    processor = st.selectbox("Процессор/плеер", ["Пример процессора"], index=0)
+    refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2, key="refresh")
+    system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"], index=0, key="system_type")
+    processor = st.selectbox("Процессор/плеер", ["Пример процессора"], index=0
 
     # Проверка портов (упрощённо)
     st.write("Проверка портов (вставь свой код здесь)")
