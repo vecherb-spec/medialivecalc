@@ -92,12 +92,12 @@ with col1:
         "Ширина экрана (мм)",
         min_value=320,
         step=320,
-        value=st.session_state.width_mm,
+        value=st.session_state.get("width_mm", 3840),
         key="width_input"
     )
     st.session_state.width_mm = width_mm
 
-    # Кнопки подгонки в форме (расширили на 21:9)
+    # Кнопки подгонки в форме
     with st.form(key="ratio_form"):
         col16, col43, col21 = st.columns(3)
         with col16:
@@ -124,12 +124,12 @@ with col1:
                 st.success(f"Высота подогнана под 21:9: {st.session_state['height_mm']} мм")
                 st.rerun()
 
+    # Поле высоты — БЕЗ КЛЮЧА (это решает проблему визуального обновления)
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.height_mm,
-        key="height_input"
+        value=st.session_state.get("height_mm", 2240)
     )
     st.session_state.height_mm = height_mm
 
