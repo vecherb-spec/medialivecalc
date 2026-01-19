@@ -50,7 +50,7 @@ with col1:
     selected_label = st.selectbox(
         "Выберите популярный размер 16:9",
         list(popular_16_9.keys()),
-        index=2  # по умолчанию 3840×2160
+        index=2
     )
 
     selected_w, selected_h = popular_16_9[selected_label]
@@ -67,19 +67,31 @@ with col1:
     )
     st.session_state["width_mm"] = width_mm
 
-    # Кнопки подгонки — рабочий вариант
+    # Кнопки подгонки в форме
     with st.form(key="ratio_form"):
-        col16, col43 = st.columns(2)
+        col16, col43, col21, col11 = st.columns(4)
         with col16:
-            if st.form_submit_button("Подогнать под 16:9", type="primary"):
+            if st.form_submit_button("16:9", type="primary"):
                 fit_ratio(1.7777777777777777)
                 st.success(f"Высота подогнана под 16:9: {st.session_state.height_mm} мм")
                 st.rerun()
 
         with col43:
-            if st.form_submit_button("Подогнать под 4:3", type="primary"):
+            if st.form_submit_button("4:3", type="primary"):
                 fit_ratio(1.3333333333333333)
                 st.success(f"Высота подогнана под 4:3: {st.session_state.height_mm} мм")
+                st.rerun()
+
+        with col21:
+            if st.form_submit_button("21:9", type="primary"):
+                fit_ratio(2.3333333333333335)
+                st.success(f"Высота подогнана под 21:9: {st.session_state.height_mm} мм")
+                st.rerun()
+
+        with col11:
+            if st.form_submit_button("1:1", type="primary"):
+                fit_ratio(1.0)
+                st.success(f"Высота подогнана под 1:1: {st.session_state.height_mm} мм")
                 st.rerun()
 
     height_mm = st.number_input(
@@ -92,11 +104,34 @@ with col1:
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
 
-# Остальной код (монтаж, шаг, кабинеты, процессор, проверка портов, магнит, датчик, карта, ориентиры, БП, сеть, резерв, расчёт, отчёт, схема) — вставь сюда свой полный код
-# Для теста оставь хотя бы это:
+# Остальной код (монтаж, шаг, кабинеты, процессор, проверка портов, магнит, датчик, карта, ориентиры, БП, сеть, резерв, расчёт, отчёт, схема)
 with col2:
-    st.subheader("Тест")
-    st.write("Если ты видишь это — приложение загрузилось!")
+    st.subheader("Монтаж и шаг пикселя")
+    mount_type = st.radio("Тип монтажа", ["В кабинетах", "Монолитный"], index=1)
 
-    if st.button("Рассчитать"):
-        st.success("Расчёт готов!")
+    if screen_type == "Indoor":
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", INDOOR_PITCHES, index=8)
+    else:
+        pixel_pitch = st.selectbox("Шаг пикселя (мм)", OUTDOOR_PITCHES, index=0)
+
+    tech = st.selectbox("Технология модуля", ["SMD", "COB", "GOB"], index=0)
+
+    # Выбор кабинета (упрощённо, чтобы не ломать)
+    st.write("Выбор кабинета (вставь свой код здесь)")
+
+with col3:
+    st.subheader("Частота и система")
+    refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
+    system_type = st.radio("Тип системы", ["Синхронный", "Асинхронный"], index=0)
+
+    processor = st.selectbox("Процессор/плеер", ["Пример процессора"], index=0)
+
+    # Проверка портов (упрощённо)
+    st.write("Проверка портов (вставь свой код здесь)")
+
+# Кнопка расчёта
+if st.button("Рассчитать", type="primary", use_container_width=True):
+    st.success("Расчёт готов!")
+    st.write("Ширина:", width_mm, "мм")
+    st.write("Высота:", height_mm, "мм")
+    # Вставь сюда свой полный расчёт и отчёт
