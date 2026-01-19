@@ -54,7 +54,7 @@ with col1:
         index=2  # по умолчанию 3840×2160
     )
 
-    # Сохраняем выбранный размер в session_state (без rerun здесь!)
+    # Сохраняем выбранный размер в session_state (без rerun!)
     selected_w, selected_h = popular_16_9[selected_label]
     if selected_w is not None:
         st.session_state.width_mm = selected_w
