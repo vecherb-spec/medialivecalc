@@ -97,7 +97,7 @@ with col1:
     )
     st.session_state.width_mm = width_mm
 
-    # Кнопки подгонки в форме (расширили на 1:1)
+    # Кнопки подгонки в форме — расширили на 21:9 и 1:1
     with st.form(key="ratio_form"):
         col16, col43, col21, col11 = st.columns(4)
         with col16:
@@ -126,18 +126,18 @@ with col1:
 
         with col11:
             if st.form_submit_button("1:1", type="primary"):
-                ideal = width_mm / 1.0  # квадрат
+                ideal = width_mm / 1.0
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
                 st.success(f"Высота подогнана под 1:1: {st.session_state['height_mm']} мм")
                 st.rerun()
 
+    # Поле высоты — БЕЗ КЛЮЧА (чтобы обновлялось визуально)
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2240),
-        key="height_input"
+        value=st.session_state.get("height_mm", 2240)
     )
     st.session_state.height_mm = height_mm
 
