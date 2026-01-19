@@ -82,32 +82,6 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.subheader("Размер и тип экрана")
 
-    # Популярные размеры только 16:9 (ширина + рассчитанная высота)
-    popular_16_9 = {
-        "2560 × 1440": (2560, 1440),
-        "3200 × 1800": (3200, 1800),
-        "3840 × 2160": (3840, 2160),
-        "4120 × 2340": (4120, 2340),
-        "4800 × 2700": (4800, 2700),
-        "5120 × 2880": (5120, 2880),
-        "6080 × 3420": (6080, 3420),
-        "Свой размер (вручную)": (None, None)
-    }
-
-    # Выпадающий список размеров
-    selected_label = st.selectbox(
-        "Выберите популярный размер 16:9",
-        list(popular_16_9.keys()),
-        index=2  # по умолчанию 3840×2160
-    )
-
-    # Если выбран готовый размер — сохраняем в session_state (без rerun здесь!)
-    selected_w, selected_h = popular_16_9[selected_label]
-    if selected_w is not None:
-        st.session_state.width_mm = selected_w
-        st.session_state.height_mm = selected_h
-
-    # Поле ширины (можно менять вручную)
     width_mm = st.number_input(
         "Ширина экрана (мм)",
         min_value=320,
@@ -115,9 +89,9 @@ with col1:
         value=st.session_state.get("width_mm", 3840),
         key="width_input"
     )
-    st.session_state["width_mm"] = width_mm
+    st.session_state.width_mm = width_mm
 
-    # Кнопки подгонки в форме (все 4 пропорции — работают стабильно)
+    # Кнопки подгонки в форме (все 4 пропорции)
     with st.form(key="ratio_form"):
         col16, col43, col21, col11 = st.columns(4)
         with col16:
@@ -152,12 +126,12 @@ with col1:
                 st.success(f"Высота подогнана под 1:1: {st.session_state['height_mm']} мм")
                 st.rerun()
 
-    # Поле высоты — без ключа, чтобы всегда бралось свежее значение
+    # Поле высоты — БЕЗ КЛЮЧА, чтобы значение всегда отображалось после rerun
     height_mm = st.number_input(
         "Высота экрана (мм)",
         min_value=160,
         step=160,
-        value=st.session_state.get("height_mm", 2160)
+        value=st.session_state.get("height_mm", 2240)
     )
     st.session_state.height_mm = height_mm
 
