@@ -1,5 +1,6 @@
 import streamlit as st
 import math
+streamlit run app.py
 
 # Конфигурация страницы
 st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
