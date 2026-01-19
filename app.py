@@ -101,7 +101,7 @@ with col1:
         index=2  # по умолчанию 3840×2160
     )
 
-    # Если выбран готовый размер — подставляем ширину и высоту
+    # Если выбран готовый размер — сохраняем в session_state (без rerun здесь!)
     selected_w, selected_h = popular_16_9[selected_label]
     if selected_w is not None:
         st.session_state.width_mm = selected_w
@@ -117,11 +117,11 @@ with col1:
     )
     st.session_state["width_mm"] = width_mm
 
-    # Кнопки подгонки в форме (все 4 пропорции)
+    # Кнопки подгонки в форме (все 4 пропорции — работают стабильно)
     with st.form(key="ratio_form"):
         col16, col43, col21, col11 = st.columns(4)
         with col16:
-            if st.form_submit_button("Подогнать под 16:9", type="primary"):
+            if st.form_submit_button("16:9", type="primary"):
                 ideal = width_mm / 1.7777777777777777
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
@@ -129,7 +129,7 @@ with col1:
                 st.rerun()
 
         with col43:
-            if st.form_submit_button("Подогнать под 4:3", type="primary"):
+            if st.form_submit_button("4:3", type="primary"):
                 ideal = width_mm / 1.3333333333333333
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
@@ -137,7 +137,7 @@ with col1:
                 st.rerun()
 
         with col21:
-            if st.form_submit_button("Подогнать под 21:9", type="primary"):
+            if st.form_submit_button("21:9", type="primary"):
                 ideal = width_mm / 2.3333333333333335
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
@@ -145,7 +145,7 @@ with col1:
                 st.rerun()
 
         with col11:
-            if st.form_submit_button("Подогнать под 1:1", type="primary"):
+            if st.form_submit_button("1:1", type="primary"):
                 ideal = width_mm / 1.0
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
