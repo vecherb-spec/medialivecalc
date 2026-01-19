@@ -1,28 +1,18 @@
 import streamlit as st
 import math
 
-# Конфигурация страницы
-st.set_page_config(page_title="Калькулятор LED-экранов MediaLive", layout="wide", page_icon="🖥️")
-
-# Красивый дизайн
-st.markdown("""
-    <style>
-    .main {background: linear-gradient(to bottom right, #0f0c29, #302b63, #24243e);}
-    .stButton>button {background: linear-gradient(90deg, #667eea, #764ba2); color: white; border: none; border-radius: 12px; padding: 12px 24px; font-weight: bold; transition: all 0.3s;}
-    .stButton>button:hover {transform: scale(1.05); box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);}
-    </style>
-""", unsafe_allow_html=True)
+# ... остальной код (конфигурация, стили, инициализация session_state) ...
 
 st.title("🖥️ Калькулятор LED-экранов MediaLive")
 st.markdown("Расчёт комплектующих для экранов Qiangli 320×160 мм — быстро и точно")
 
-# Сессионное состояние
+# Сессионное состояние (остаётся без изменений)
 if "width_mm" not in st.session_state:
     st.session_state.width_mm = 3840
 if "height_mm" not in st.session_state:
     st.session_state.height_mm = 2240
 
-# Функции пересчёта
+# Функция пересчёта (без изменений)
 def fit_ratio(ratio):
     ideal = st.session_state.width_mm / ratio
     lower = math.floor(ideal / 160) * 160
@@ -35,7 +25,7 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.subheader("Размер и тип экрана")
 
-    # Популярные размеры только 16:9
+    # Популярные размеры (без изменений)
     popular_16_9 = {
         "2560 × 1440": (2560, 1440),
         "3200 × 1800": (3200, 1800),
@@ -67,32 +57,27 @@ with col1:
     )
     st.session_state["width_mm"] = width_mm
 
-    # Кнопки подгонки в форме
-    with st.form(key="ratio_form"):
-        col16, col43, col21, col11 = st.columns(4)
-        with col16:
-            if st.form_submit_button("16:9", type="primary"):
-                fit_ratio(1.7777777777777777)
-                st.success(f"Высота подогнана под 16:9: {st.session_state.height_mm} мм")
-                st.rerun()
+    # Кнопки подгонки — ВЫНОСИМ ИЗ ФОРМЫ!
+    col16, col43, col21, col11 = st.columns(4)
+    with col16:
+        if st.button("16:9", type="primary"):
+            fit_ratio(1.7777777777777777)
+            st.success(f"Высота подогнана под 16:9: {st.session_state.height_mm} мм")
 
-        with col43:
-            if st.form_submit_button("4:3", type="primary"):
-                fit_ratio(1.3333333333333333)
-                st.success(f"Высота подогнана под 4:3: {st.session_state.height_mm} мм")
-                st.rerun()
+    with col43:
+        if st.button("4:3", type="primary"):
+            fit_ratio(1.3333333333333333)
+            st.success(f"Высота подогнана под 4:3: {st.session_state.height_mm} мм")
 
-        with col21:
-            if st.form_submit_button("21:9", type="primary"):
-                fit_ratio(2.3333333333333335)
-                st.success(f"Высота подогнана под 21:9: {st.session_state.height_mm} мм")
-                st.rerun()
+    with col21:
+        if st.button("21:9", type="primary"):
+            fit_ratio(2.3333333333333335)
+            st.success(f"Высота подогнана под 21:9: {st.session_state.height_mm} мм")
 
-        with col11:
-            if st.form_submit_button("1:1", type="primary"):
-                fit_ratio(1.0)
-                st.success(f"Высота подогнана под 1:1: {st.session_state.height_mm} мм")
-                st.rerun()
+    with col11:
+        if st.button("1:1", type="primary"):
+            fit_ratio(1.0)
+            st.success(f"Высота подогнана под 1:1: {st.session_state.height_mm} мм")
 
     height_mm = st.number_input(
         "Высота экрана (мм)",
@@ -103,6 +88,9 @@ with col1:
     st.session_state.height_mm = height_mm
 
     screen_type = st.radio("Тип экрана", ["Indoor", "Outdoor"], index=0)
+
+# ... остальной код (col2, col3, расчёт) ...
+
 
 # Остальной код (монтаж, шаг, кабинеты, процессор, проверка портов, магнит, датчик, карта, ориентиры, БП, сеть, резерв, расчёт, отчёт, схема)
 with col2:
