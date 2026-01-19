@@ -118,7 +118,7 @@ with col1:
 
         with col21:
             if st.form_submit_button("Подогнать под 21:9", type="primary"):
-                ideal = width_mm / 2.3333333333333335  # точная 21:9
+                ideal = width_mm / 2.3333333333333335  # точная 21:9 ≈ 2.3333
                 new_h = round(ideal / 160) * 160
                 st.session_state["height_mm"] = max(160, new_h)
                 st.success(f"Высота подогнана под 21:9: {st.session_state['height_mm']} мм")
