@@ -372,7 +372,6 @@ with col_mount:
 
 # ==========================================
 # ==========================================
-# ==========================================
 # БЛОК 3: УПРАВЛЕНИЕ И КОНТРОЛЛЕРЫ
 # ==========================================
 st.markdown('<div class="section-header">📺 3. Управление и Контроллеры</div>', unsafe_allow_html=True)
@@ -394,7 +393,19 @@ with col_ctrl1:
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
         key="main_proc_select"
     )
-    # Создаем чистую переменную для отчета
+    
+    # ПЛАШКА ДЛЯ КОНТРОЛЛЕРА
+    st.markdown(f"""
+    <div style="padding: 15px; border-radius: 10px; background-color: #1e293b; border-left: 5px solid #3b82f6; margin-top: 10px; margin-bottom: 20px;">
+        <div style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Закупка (Контроллер)</div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+            <span style="color: #f8fafc; font-size: 1.4rem; font-weight: bold;">${selected_proc['price_usd']:.2f}</span>
+            <span style="color: #60a5fa; font-size: 1.1rem;">({(selected_proc['price_usd'] * exchange_rate):,.0f} ₽)</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Переменные для отчета
     processor_name = selected_proc["name"]
     proc_price_usd = selected_proc["price_usd"]
 
@@ -407,7 +418,19 @@ with col_ctrl2:
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
         key="main_card_select"
     )
-    # Создаем чистые переменные для расчетов и отчета
+    
+    # ПЛАШКА ДЛЯ ПРИЕМНОЙ КАРТЫ
+    st.markdown(f"""
+    <div style="padding: 15px; border-radius: 10px; background-color: #1e293b; border-left: 5px solid #10b981; margin-top: 10px; margin-bottom: 20px;">
+        <div style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Закупка (1 карта)</div>
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+            <span style="color: #f8fafc; font-size: 1.4rem; font-weight: bold;">${selected_card['price_usd']:.2f}</span>
+            <span style="color: #34d399; font-size: 1.1rem;">({(selected_card['price_usd'] * exchange_rate):,.0f} ₽)</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Переменные для расчетов
     receiving_card = selected_card
     card_name = receiving_card["name"]
     card_price_usd = receiving_card["price_usd"]
@@ -426,6 +449,7 @@ with col_ctrl2:
     else:
         st.info("HUB75 встроен в карту (MRV)")
 
+# РАСЧЕТ ПОРТОВ (Остается без изменений под плашками)
 real_width = math.ceil(width_mm / 320) * 320
 real_height = math.ceil(height_mm / 160) * 160
 total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
