@@ -25,8 +25,8 @@ st.markdown("""
         border: 1px solid #2d3748;
         margin-bottom: 20px;
     }
-    .metric-value { font-size: 28px; font-weight: bold; color: #63b3ed; }
-    .metric-label { font-size: 14px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
+    .metric-value { font-size: 26px; font-weight: bold; color: #63b3ed; }
+    .metric-label { font-size: 13px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
     
     .stButton>button {
         background: linear-gradient(90deg, #3182ce, #2b6cb0); 
@@ -59,10 +59,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- СПРАВОЧНИКИ ---
-INDOOR_PITCHES = [0.8, 1.0, 1.25, 1.37, 1.53, 1.66, 1.86, 2.0, 2.5, 3.07, 4.0]
-OUTDOOR_PITCHES = [2.5, 3.07, 4.0, 5.0, 6.0, 6.66, 8.0, 10.0]
+# --- БАЗА ДАННЫХ МОДУЛЕЙ (Имитация прайса поставщика) ---
+MODULES_DB = [
+    {"name": "Qiangli Q3.0 Pro (Indoor)", "env": "Indoor", "pitch": 3.07, "tech": "SMD", "brightness": 800, "max_power": 20.0, "price_rub": 950},
+    {"name": "Qiangli Q2.5 Pro (Indoor)", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 800, "max_power": 22.0, "price_rub": 1150},
+    {"name": "Qiangli Q2.0 Pro (Indoor)", "env": "Indoor", "pitch": 2.0, "tech": "SMD", "brightness": 800, "max_power": 24.0, "price_rub": 1600},
+    {"name": "Qiangli Q1.86 Pro (Indoor)", "env": "Indoor", "pitch": 1.86, "tech": "SMD", "brightness": 600, "max_power": 25.0, "price_rub": 2100},
+    {"name": "Qiangli Q1.53 Pro (Indoor)", "env": "Indoor", "pitch": 1.53, "tech": "SMD", "brightness": 600, "max_power": 28.0, "price_rub": 3200},
+    {"name": "Qiangli Q4.0 (Outdoor)", "env": "Outdoor", "pitch": 4.0, "tech": "SMD", "brightness": 6500, "max_power": 40.0, "price_rub": 2100},
+    {"name": "Qiangli Q3.0 (Outdoor)", "env": "Outdoor", "pitch": 3.0, "tech": "SMD", "brightness": 6000, "max_power": 45.0, "price_rub": 2800},
+    {"name": "Qiangli Q2.5 (Outdoor)", "env": "Outdoor", "pitch": 2.5, "tech": "SMD", "brightness": 5500, "max_power": 50.0, "price_rub": 4200},
+]
 
+# --- СПРАВОЧНИКИ ---
 PROCESSOR_PORTS = {
     "VX400": 4, "VX600 Pro": 6, "VX1000 Pro": 10, "VX2000 Pro": 20, "VX16S": 16,
     "VC2": 2, "VC4": 4, "VC6": 6, "VC10": 10, "VC16": 16, "VC24": 24,
@@ -115,10 +124,10 @@ st.sidebar.markdown("---")
 st.sidebar.header("📝 Данные проекта")
 project_name = st.sidebar.text_input("Имя проекта", value="MediaLive - Новый проект")
 client_name = st.sidebar.text_input("Клиент / Заказчик", placeholder="Введите имя клиента")
-price_per_m2 = st.sidebar.number_input("Цена за м² (₽)", min_value=0, value=150000, step=5000)
+price_per_m2 = st.sidebar.number_input("Цена продажи клиенту за м² (₽)", min_value=0, value=150000, step=5000)
 
 st.title("🖥️ Профессиональный калькулятор LED-экранов")
-st.markdown("Точный расчет комплектующих для экранов Qiangli, Novastar и Mean Well.")
+st.markdown("Точный расчет комплектующих на базе динамического прайс-листа.")
 
 # ==========================================
 # БЛОК 1: РАЗМЕРЫ И ПРОПОРЦИИ
@@ -140,34 +149,45 @@ if btn_cols[2].button("21:9 (Кино)"): fit_ratio(2.3333333333333335); st.reru
 if btn_cols[3].button("1:1 (Квадрат)"): fit_ratio(1.0); st.rerun()
 
 # ==========================================
-# БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ
+# БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ (ОБНОВЛЕНО: БАЗА ДАННЫХ)
 # ==========================================
 st.markdown('<div class="section-header">⚙️ 2. Матрица и Конструкция</div>', unsafe_allow_html=True)
 
 col_mat, col_mount = st.columns(2)
 
 with col_mat:
-    screen_type = st.radio("Среда использования", ["Indoor (Внутренний)", "Outdoor (Уличный)"], horizontal=True)
-    env_key = "Indoor" if "Indoor" in screen_type else "Outdoor"
+    env_key = st.radio("Среда использования", ["Indoor", "Outdoor"], horizontal=True)
     
-    col_mat_1, col_mat_2 = st.columns(2)
-    with col_mat_1:
-        pitch_options = INDOOR_PITCHES if env_key == "Indoor" else OUTDOOR_PITCHES
-        default_pitch_idx = 8 if env_key == "Indoor" else 0
-        pixel_pitch = st.selectbox("Шаг пикселя (P)", pitch_options, index=default_pitch_idx)
-    with col_mat_2:
-        tech = st.selectbox("Технология", ["SMD", "COB", "GOB"], index=0)
+    # Фильтруем базу данных по типу Indoor/Outdoor
+    available_modules = [m for m in MODULES_DB if m["env"] == env_key]
+    module_names = [m["name"] for m in available_modules]
+    
+    # Выбор конкретного модуля из базы
+    selected_module_name = st.selectbox("Выберите модуль из базы поставщика:", module_names)
+    
+    # Извлекаем параметры выбранного модуля
+    selected_module = next(m for m in available_modules if m["name"] == selected_module_name)
+    
+    pixel_pitch = selected_module["pitch"]
+    tech = selected_module["tech"]
+    brightness = selected_module["brightness"]
+    max_power_module = selected_module["max_power"]
+    module_price_rub = selected_module["price_rub"]
+    
+    # Визуальное подтверждение параметров
+    st.markdown(f"""
+    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 13px; color: #cbd5e0;">
+        <strong>Шаг:</strong> P{pixel_pitch} &nbsp;|&nbsp;
+        <strong>Технология:</strong> {tech} &nbsp;|&nbsp;
+        <strong>Яркость:</strong> {brightness} нит &nbsp;|&nbsp;
+        <strong>Потребление:</strong> {max_power_module} Вт/шт &nbsp;|&nbsp;
+        <strong>Цена закуп:</strong> {module_price_rub} ₽/шт
+    </div>
+    """, unsafe_allow_html=True)
         
-    c_sens, c_bright = st.columns(2)
-    with c_sens:
-        sensor = "Нет"
-        if env_key == "Outdoor":
-            sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], index=1)
-    with c_bright:
-        if env_key == "Indoor":
-            brightness = st.selectbox("Яркость (нит)", [600, 800, 1000, 1200, 1500], index=1)
-        else:
-            brightness = st.selectbox("Яркость (нит)", [4500, 5500, 6000, 6500, 8000, 10000], index=3)
+    sensor = "Нет"
+    if env_key == "Outdoor":
+        sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], index=1)
 
 with col_mount:
     mount_type = st.radio("Тип монтажа", ["Монолитный (Магниты/Профиль)", "В кабинетах"], horizontal=True, index=0)
@@ -285,8 +305,10 @@ else:
     reserve_modules = reserve_modules_custom
 total_modules_order = total_modules + reserve_modules
 
-# Мощности
-max_power_module = 24.0 if "Indoor" in env_key else 45.0
+# === ФИНАНСЫ (Себестоимость модулей) ===
+total_modules_cost = total_modules_order * module_price_rub
+
+# Мощности (max_power_module теперь берется из БД)
 peak_power_screen_kw = total_modules * max_power_module / 1000
 avg_power_screen_kw = peak_power_screen_kw * 0.35
 
@@ -301,8 +323,8 @@ num_cards_by_pix = math.ceil(total_px / max_pixels_card)
 num_cards = max(num_cards_by_mod, num_cards_by_pix)
 num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
-# --- ИСПРАВЛЕННАЯ ЭЛЕКТРИКА (Ток, сечение, автомат) ---
-electrical_power_kw = peak_power_screen_kw * 1.20 # +20% на пусковые токи
+# Электрика (для автомата и кабеля всё еще считаем пиковую мощность, +20% скрытого запаса на пусковые токи)
+electrical_power_kw = peak_power_screen_kw * 1.20 
 
 if "Одна фаза" in power_phase:
     current = (electrical_power_kw * 1000) / 220
@@ -311,27 +333,16 @@ else:
     current = (electrical_power_kw * 1000) / (380 * math.sqrt(3))
     cores = 5
 
-# Подбор сечения по ПУЭ (медь, открытая/закрытая проводка - усредненно)
-if current <= 15:
-    sq = "1.5"
-elif current <= 21:
-    sq = "2.5"
-elif current <= 27:
-    sq = "4"
-elif current <= 34:
-    sq = "6"
-elif current <= 50:
-    sq = "10"
-elif current <= 70:
-    sq = "16"
-elif current <= 85:
-    sq = "25"
-else:
-    sq = "35"
-
+if current <= 15: sq = "1.5"
+elif current <= 21: sq = "2.5"
+elif current <= 27: sq = "4"
+elif current <= 34: sq = "6"
+elif current <= 50: sq = "10"
+elif current <= 70: sq = "16"
+elif current <= 85: sq = "25"
+else: sq = "35"
 cable_section = f"{cores}×{sq} мм²"
 
-# Подбор стандартного номинала автомата (тип C)
 target_breaker = current * 1.25
 standard_breakers = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250]
 breaker = next((b for b in standard_breakers if b >= target_breaker), math.ceil(target_breaker))
@@ -386,12 +397,13 @@ box_volume = num_boxes * 0.06
 # ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
+# 5 Колонок с показателями (ОБНОВЛЕНО: Себестоимость модулей)
 col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-with col_m1: st.markdown(f'<div class="metric-card"><div class="metric-label">Площадь</div><div class="metric-value">{area_m2:.2f} м²</div></div>', unsafe_allow_html=True)
-with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
-with col_m3: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
-with col_m4: st.markdown(f'<div class="metric-card"><div class="metric-label">Рабочая мощн.</div><div class="metric-value">{avg_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
-with col_m5: st.markdown(f'<div class="metric-card"><div class="metric-label">Смета (Прайс)</div><div class="metric-value">{total_price_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
+with col_m1: st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
+with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
+with col_m3: st.markdown(f'<div class="metric-card"><div class="metric-label">Рабочая мощн.</div><div class="metric-value">{avg_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
+with col_m4: st.markdown(f'<div class="metric-card" style="border-color:#4299e1;"><div class="metric-label" style="color:#63b3ed;">Закупка модулей</div><div class="metric-value" style="color:white;">{total_modules_cost:,.0f} ₽</div></div>', unsafe_allow_html=True)
+with col_m5: st.markdown(f'<div class="metric-card" style="border-color:#48bb78;"><div class="metric-label" style="color:#68d391;">Смета (Продажа)</div><div class="metric-value" style="color:white;">{total_price_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
 
 with st.expander("Характеристики экрана", expanded=True):
     st.markdown(f"""
@@ -405,11 +417,13 @@ with st.expander("Характеристики экрана", expanded=True):
 
 with st.expander("Модули", expanded=True):
     st.markdown(f"""
+    - **Модель**: {selected_module_name}
     - **По горизонтали**: {modules_w} шт.
     - **По вертикали**: {modules_h} шт.
     - **Основное количество**: {total_modules} шт.
     - **Резерв (ЗИП)**: {reserve_modules} шт.
     - **Итого для заказа**: **{total_modules_order} шт.**
+    - **Закупочная стоимость**: {total_modules_cost:,.0f} ₽ ({module_price_rub} ₽/шт)
     """)
 
 if "кабинетах" in mount_type:
@@ -516,7 +530,7 @@ figma_data = {
     "area_m2": round(area_m2, 2), "pixel_pitch": pixel_pitch, "total_modules": total_modules_order,
     "receiving_cards": num_cards_reserve, "power_supplies": num_psu_reserve, "processor": processor,
     "peak_power_kw": round(peak_power_screen_kw, 2), "avg_power_kw": round(avg_power_screen_kw, 2),
-    "total_price_rub": total_price_rub
+    "total_price_rub": total_price_rub, "module_cost_rub": total_modules_cost
 }
 figma_json = json.dumps(figma_data, indent=4, ensure_ascii=False)
 
