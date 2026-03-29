@@ -62,7 +62,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- ФУНКЦИЯ ПАРСИНГА КУРСА ЦБ РФ ---
+# --- ФУНКЦИЯ ПАРСИНГА КУРСА ЦБ РФ (+1%) ---
 @st.cache_data(ttl=3600) # Кэшируем результат на 1 час
 def get_cbr_usd_rate():
     try:
@@ -74,12 +74,12 @@ def get_cbr_usd_rate():
         for valute in root.findall('Valute'):
             if valute.attrib.get('ID') == 'R01235': # ID доллара США
                 value_str = valute.find('Value').text.replace(',', '.')
-                return float(value_str) + 1.0 # Возвращаем курс + 1 рубль
+                return float(value_str) * 1.01 # Возвращаем курс + 1%
         return 95.0
     except Exception:
         return 95.0 # Резервный курс при ошибке сети
 
-# --- БАЗА ДАННЫХ МОДУЛЕЙ (Синхронизировано с визуальной таблицей LEDCapital) ---
+# --- БАЗА ДАННЫХ МОДУЛЕЙ (Синхронизировано с прайсом, отсортировано по шагу и частоте) ---
 MODULES_DB = [
     # INDOOR
     {'name': 'Qiangli Q1.25 Indoor 3840Hz', 'env': 'Indoor', 'pitch': 1.25, 'tech': 'SMD', 'brightness': 600, 'max_power': 30.0, 'price_usd': 45.01},
@@ -190,11 +190,11 @@ st.sidebar.header("💵 Финансы")
 current_cbr_rate = get_cbr_usd_rate()
 
 exchange_rate = st.sidebar.number_input(
-    "Курс USD (₽) для закупки (ЦБ + 1₽)", 
+    "Курс USD (₽) для закупки (ЦБ + 1%)", 
     min_value=50.0, 
     value=float(current_cbr_rate), 
     step=0.1,
-    help="Курс автоматически парсится с сайта ЦБ РФ + добавляется 1 рубль, согласно правилам прайс-листа."
+    help="Курс автоматически парсится с сайта ЦБ РФ + добавляется 1%, согласно правилам прайс-листа."
 )
 price_per_m2 = st.sidebar.number_input("Цена за м² клиенту (₽)", min_value=0, value=150000, step=5000)
 
