@@ -453,7 +453,7 @@ with col_pwr:
     st.markdown(f"""
     <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
         <span style="color: #a0aec0;">Мощность:</span> <strong>{sel_psu['max_w']}W</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Цена за шт:</span> <strong style="color: #48bb78;">${sel_psu['price_usd']:.2f}</strong> ({(sel_psu['price_usd'] * exchange_rate):.0f} ₽)
+        <span style="color: #a0aec0;">Цена за шт:</span> <strong style="color: #48bb78;">${sel_psu['price_usd']:.2f}</strong> ({(sel_psu['price_usd'] * exchange_rate): ,.0f} ₽)
     </div>
     """, unsafe_allow_html=True)
     
