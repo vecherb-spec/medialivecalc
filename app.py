@@ -412,16 +412,15 @@ with col_ctrl2:
     card_name = receiving_card["name"]
     card_price_usd = receiving_card["price_usd"]
     card_price_rub = card_price_usd * exchange_rate
-    modules_per_card = receiving_card.get("capacity", 256)
 
-    # ИНФО-ПЛАШКА КАРТЫ (стиль как у модуля)
+    # ИНФО-ПЛАШКА КАРТЫ (единый стандарт для всех моделей)
     st.markdown(f"""
     <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
         <span style="color: #a0aec0; font-size: 13px;">
-            Серия: <strong>{receiving_card['type']}</strong> &nbsp;|&nbsp; Модель: <strong>{card_name}</strong> &nbsp;|&nbsp; Лимит: <strong>{modules_per_card} мод.</strong>
+            Серия: <strong>{receiving_card['type']}</strong> &nbsp;|&nbsp; Модель: <strong>{card_name}</strong> &nbsp;|&nbsp; Разрешение: <strong>512х512 (N) / 512х384</strong>
         </span><br>
         <span style="color: #a0aec0; font-size: 13px;">
-            Разрешение (max): <strong>512x256</strong> &nbsp;|&nbsp; Цена (закупка): <strong style="color: #48bb78;">${card_price_usd:.2f}</strong> ({card_price_rub:,.0f} ₽)
+            Цена (закупка): <strong style="color: #48bb78;">${card_price_usd:.2f}</strong> ({card_price_rub:,.0f} ₽)
         </span>
     </div>
     """, unsafe_allow_html=True)
@@ -439,24 +438,20 @@ with col_ctrl2:
     else:
         st.info("HUB75 встроен в карту (MRV)")
 
-# РАСЧЕТ И СТАТУС ПОРТОВ (единственная инфо-панель для контроллера)
+# РАСЧЕТ И СТАТУС ПОРТОВ (под всеми плашками)
+# Вычисляем пиксели на основе выбранного шага и габаритов
 real_width = math.ceil(width_mm / 320) * 320
 real_height = math.ceil(height_mm / 160) * 160
 total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
 
 required_ports = math.ceil(total_px / 650000)
 load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-
-status_text = "✅ Портов достаточно" if required_ports <= available_ports else "❌ ВНИМАНИЕ: Недостаточно портов!"
 status_color = "#48bb78" if required_ports <= available_ports else "#f56565"
 
 st.markdown(f"""
 <div style="padding: 12px 20px; border-radius: 8px; border-left: 4px solid {status_color}; background: #1a202c; margin-top: 10px;">
     <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{processor_name}</strong>:</span><br>
-    Доступно: <strong>{available_ports}</strong> &nbsp;|&nbsp;
-    Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp;
-    Нагрузка на порт: <strong>{load_per_port:.1f}%</strong> &nbsp;&nbsp;➔&nbsp;&nbsp;
-    <span style="color: {status_color}; font-weight: bold;">{status_text}</span>
+    Доступно: <strong>{available_ports}</strong> &nbsp;|&nbsp; Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp; Нагрузка: <strong>{load_per_port:.1f}%</strong>
 </div>
 """, unsafe_allow_html=True)
 
