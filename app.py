@@ -402,14 +402,21 @@ st.markdown('<div class="section-header">⚡ 4. Питание сети и ЗИ�
 
 col_pwr, col_zip = st.columns(2)
 
+# ==========================================
+# БЛОК 4: ПИТАНИЕ И РЕЗЕРВ (ЗИП)
+# ==========================================
+st.markdown('<div class="section-header">⚡ 4. Питание сети и ЗИП</div>', unsafe_allow_html=True)
+
+col_pwr, col_zip = st.columns(2)
+
 with col_pwr:
-    # 1. Выбор конкретной модели БП из прайса (теперь с ценой в списке)
+    # 1. Выбор БП (уникальный ключ добавлен)
     selected_psu = st.selectbox(
         "Модель БП (из прайса):", 
         PSU_DB, 
         format_func=lambda x: f"{x['name']} — {(x['price_usd'] * exchange_rate):.0f} ₽",
         index=0,
-        key="psu_selector_unique" # Добавили уникальный ключ, чтобы не было ошибок
+        key="unique_psu_selector" 
     )
     sel_psu = selected_psu 
     
@@ -421,32 +428,14 @@ with col_pwr:
     </div>
     """, unsafe_allow_html=True)
     
-    # 3. Выбор количества модулей (ОСТАВЛЯЕМ ТОЛЬКО ЗДЕСЬ)
-    modules_per_psu = st.selectbox("Модулей на 1 БП:", [4, 6, 8, 10, 12, 16], index=2)
-    power_phase = st.radio("Вводная сеть", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True)
-    
-    # Инфо-плашка под выбором
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Мощность:</span> <strong>{sel_psu['max_w']}W</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Цена USD:</span> <strong style="color: #48bb78;">${sel_psu['price_usd']:.2f}</strong>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10, 12, 16], index=2)
-    power_phase = st.radio("Вводная сеть", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True)
-    
-    # Инфо-панель под БП
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Мощность:</span> <strong>{sel_psu['max_w']}W</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Напряжение:</span> <strong>5V/4.5V</strong><br>
-        <span style="color: #a0aec0;">Цена (закупка):</span> <strong style="color: #48bb78;">${sel_psu['price_usd']:.2f}</strong> ({(sel_psu['price_usd'] * exchange_rate):.2f} ₽)
-    </div>
-    """, unsafe_allow_html=True)
-    
-    modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10, 12, 16], index=2)
-    power_phase = st.radio("Вводная сеть", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True, index=0)
+    # 3. Выбор модулей и фаз (ОСТАВЛЯЕМ ТОЛЬКО ЗДЕСЬ)
+    modules_per_psu = st.selectbox("Модулей на 1 БП:", [4, 6, 8, 10, 12, 16], index=2, key="unique_m_per_p")
+    power_phase = st.radio("Вводная сеть:", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True, key="unique_phase")
+
+with col_zip:
+    # Оставь тут свой старый код для ЗИПа, он не конфликтует
+    reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
+    # ... и так далее
 
 with col_zip:
     reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
