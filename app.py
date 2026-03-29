@@ -647,14 +647,56 @@ box_volume = num_boxes * 0.06
 # ==========================================
 # БЛОК 5: ПОЛНЫЙ ДЕТАЛЬНЫЙ ОТЧЕТ
 # ==========================================
+# ==========================================
+# БЛОК 5: ПОЛНЫЙ ДЕТАЛЬНЫЙ ОТЧЕТ
+# ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
-col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-with col_m1: st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
-with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
-with col_m3: st.markdown(f'<div class="metric-card"><div class="metric-label">Рабочая мощн.</div><div class="metric-value">{avg_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
-with col_m4: st.markdown(f'<div class="metric-card" style="border-color:#4299e1;"><div class="metric-label" style="color:#63b3ed;">Закупка модулей</div><div class="metric-value" style="color:white;">{total_modules_cost_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
-with col_m5: st.markdown(f'<div class="metric-card" style="border-color:#48bb78;"><div class="metric-label" style="color:#68d391;">Смета (Продажа)</div><div class="metric-value" style="color:white;">{total_price_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
+# Верхний ряд: Технические метрики
+col_m1, col_m2, col_m3 = st.columns(3)
+with col_m1: 
+    st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
+with col_m2: 
+    st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
+with col_m3: 
+    st.markdown(f'<div class="metric-card"><div class="metric-label">Рабочая мощн.</div><div class="metric-value">{avg_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
+
+st.markdown("---")
+
+# Нижний ряд: Финансовые плашки (Закупка ВСЕГО и Продажа ВСЕГО)
+col_f1, col_f2 = st.columns(2)
+
+with col_f1:
+    st.markdown(f"""
+    <div style="padding: 15px; border-radius: 10px; background: #1a202c; border-left: 5px solid #3b82f6; min-height: 120px;">
+        <div style="color: #a0aec0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Общая закупка (Железо)</div>
+        <div style="margin: 10px 0;">
+            <span style="color: #f8fafc; font-size: 1.8rem; font-weight: bold;">${total_buy_usd:,.2f}</span><br>
+            <span style="color: #94a3b8; font-size: 1.2rem;">({total_buy_rub:,.0f} ₽)</span>
+        </div>
+        <div style="font-size: 0.75rem; color: #718096; border-top: 1px solid #2d3748; padding-top: 8px;">
+            {total_modules_order} мод. | {num_psu_reserve} БП | {num_cards_reserve} карт | {num_hubs} хаб.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_f2:
+    # Рассчитываем продажу на основе твоей переменной total_buy_usd и маржи
+    sale_total_usd = total_buy_usd * margin
+    sale_total_rub = sale_total_usd * exchange_rate
+    
+    st.markdown(f"""
+    <div style="padding: 15px; border-radius: 10px; background: #1a202c; border-left: 5px solid #48bb78; min-height: 120px;">
+        <div style="color: #a0aec0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Смета Продажа (Экран)</div>
+        <div style="margin: 10px 0;">
+            <span style="color: #f8fafc; font-size: 1.8rem; font-weight: bold;">${sale_total_usd:,.2f}</span><br>
+            <span style="color: #48bb78; font-size: 1.2rem; font-weight: bold;">({sale_total_rub:,.0f} ₽)</span>
+        </div>
+        <div style="font-size: 0.75rem; color: #718096; border-top: 1px solid #2d3748; padding-top: 8px;">
+            Итоговая стоимость для клиента (наценка {int((margin-1)*100)}%)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 with st.expander("Характеристики экрана", expanded=True):
     st.markdown(f"""
