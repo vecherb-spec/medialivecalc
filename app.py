@@ -409,7 +409,7 @@ with col_ctrl2:
 # БЛОК 4: ПИТАНИЕ И РЕЗЕРВ (ЗИП) - ФИНАЛЬНЫЙ ЧИСТЫЙ ВАРИАНТ
 # ==========================================
 st.markdown('<div class="section-header">⚡ 4. Питание сети и ЗИП</div>', unsafe_allow_html=True)
-
+col_ctrl1, col_ctrl2 = st.columns(2)
 col_pwr, col_zip = st.columns(2)
 
 with col_pwr:
