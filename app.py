@@ -554,12 +554,22 @@ total_modules_order = total_modules + reserve_modules
 peak_power_screen_kw = total_modules * max_power_module / 1000
 avg_power_screen_kw = peak_power_screen_kw * 0.35
 
-# --- 2. КАРТЫ ---
-card_res_tuple = CARD_MAX_PIXELS.get(receiving_card['name'], (1, 1))
-max_pixels_card = card_res_tuple[0] * card_res_tuple[1] 
-num_cards_by_mod = math.ceil(total_modules / receiving_card.get("capacity", 256))
+# --- 2. КАРТЫ (РАСЧЕТ ПО ТВОЕМУ СПИСКУ) ---
+
+# А) Считаем строго по количеству модулей, которые ты выбрал в списке (6, 8, 10...)
+num_cards_by_mod = math.ceil(total_modules / modules_per_card)
+
+# Б) Для контроля: физический предел карты по разрешению (Novastar)
+card_res_tuple = CARD_MAX_PIXELS.get(receiving_card['name'], (512, 384))
+max_pixels_card = card_res_tuple[0] * card_res_tuple[1]
 num_cards_by_pix = math.ceil(total_px / max_pixels_card)
+
+# В) ИТОГО "ЧИСТОЕ" КОЛИЧЕСТВО
+# Если ты вручную задал мало модулей (например 6), то num_cards_by_mod будет большим, 
+# и программа возьмет именно его.
 num_cards = max(num_cards_by_mod, num_cards_by_pix)
+
+# Г) ИТОГО С УЧЕТОМ ЗИП (если нажата кнопка запаса)
 num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
 # --- 3. БП ---
