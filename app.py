@@ -372,48 +372,48 @@ with col_mount:
 
 # ==========================================
 # ==========================================
+# ==========================================
 # БЛОК 3: УПРАВЛЕНИЕ И КОНТРОЛЛЕРЫ
 # ==========================================
 st.markdown('<div class="section-header">📺 3. Управление и Контроллеры</div>', unsafe_allow_html=True)
 
-# СОЗДАЕМ КОЛОНКИ (это исправит ошибку NameError)
 col_ctrl1, col_ctrl2 = st.columns(2)
 
 with col_ctrl1:
     st.markdown("---")
-    # 1. Выбор категории системы
+    # Выбор типа системы
     ctrl_category = st.radio("Тип системы:", ["Синхронная", "Асинхронная"], horizontal=True, key="sys_type_radio")
     
     # Фильтруем базу процессоров
     current_db = SYNC_CONTROLLERS_DB if ctrl_category == "Синхронная" else ASYNC_CONTROLLERS_DB
     
-    # 2. Выбор модели процессора
+    # Выбор модели процессора
     selected_proc = st.selectbox(
         "Модель контроллера/процессора:", 
         current_db,
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
         key="main_proc_select"
     )
+    # Создаем чистую переменную для отчета
+    processor_name = selected_proc["name"]
     proc_price_usd = selected_proc["price_usd"]
-    
-    # Настройки отображения (частота и скан)
-    scan_mode = st.selectbox("Метод сканирования (Scan):", [16, 20, 22, 32], index=3)
-    refresh_rate = st.selectbox("Частота обновления (Hz):", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
     st.markdown("---")
-    # 3. Выбор приемной карты (Novastar)
+    # Выбор приемной карты
     selected_card = st.selectbox(
         "Приёмная карта (Novastar):", 
         RECEIVING_CARDS_DB,
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
         key="main_card_select"
     )
+    # Создаем чистые переменные для расчетов и отчета
     receiving_card = selected_card
-    modules_per_card = receiving_card.get("capacity", 256)
+    card_name = receiving_card["name"]
     card_price_usd = receiving_card["price_usd"]
+    modules_per_card = receiving_card.get("capacity", 256)
 
-    # 4. Логика хаба (наши цены 5.29 / 14.86)
+    # Логика хаба
     hub_price_usd = 0.0
     if receiving_card["type"] == "A":
         selected_hub = st.selectbox(
