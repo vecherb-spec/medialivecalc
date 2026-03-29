@@ -445,20 +445,39 @@ with col_ctrl2:
     else:
         st.info("HUB75 встроен в карту (MRV)")
 
-# РАСЧЕТ И СТАТУС ПОРТОВ (под всеми плашками)
-# Вычисляем пиксели на основе выбранного шага и габаритов
-real_width = math.ceil(width_mm / 320) * 320
-real_height = math.ceil(height_mm / 160) * 160
+# 1. Расчет пикселей (проверь, что pixel_pitch определен выше)
 total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
 
+# 2. Логика проверки
 required_ports = math.ceil(total_px / 650000)
 load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-status_color = "#48bb78" if required_ports <= available_ports else "#f56565"
 
+# 3. Цвета и тексты
+if required_ports <= available_ports:
+    status_text = "✅ ПОРТОВ ДОСТАТОЧНО"
+    status_color = "#48bb78"  # Зеленый
+    bg_color = "#1a202c"      # Темный фон
+else:
+    status_text = "❌ ВНИМАНИЕ: НЕДОСТАТОЧНО ПОРТОВ!"
+    status_color = "#ff4b4b"  # Ярко-красный (Streamlit Red)
+    bg_color = "#4a1b1b"      # Темно-красный фон для акцента
+
+# 4. Вывод плашки
 st.markdown(f"""
-<div style="padding: 12px 20px; border-radius: 8px; border-left: 4px solid {status_color}; background: #1a202c; margin-top: 10px;">
-    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{processor_name}</strong>:</span><br>
-    Доступно: <strong>{available_ports}</strong> &nbsp;|&nbsp; Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp; Нагрузка: <strong>{load_per_port:.1f}%</strong>
+<div style="padding: 15px 20px; border-radius: 10px; border: 2px solid {status_color}; background-color: {bg_color}; margin-top: 20px;">
+    <div style="color: #a0aec0; font-size: 14px; margin-bottom: 5px;">
+        Статус портов процессора <strong>{processor_name}</strong>:
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="color: #f8fafc; font-size: 15px;">
+            Доступно: <strong>{available_ports}</strong> &nbsp;|&nbsp; 
+            Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp; 
+            Нагрузка: <strong>{load_per_port:.1f}%</strong>
+        </div>
+        <div style="color: {status_color}; font-weight: bold; font-size: 16px; letter-spacing: 0.5px;">
+            {status_text}
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
