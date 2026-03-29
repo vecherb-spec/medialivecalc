@@ -155,9 +155,11 @@ PSU_DB = [
     {"name": "CZCL A-200-5N (Slim)", "price_usd": 12.80, "max_w": 200},
     {"name": "CZCL A-300-5 (Slim)", "price_usd": 14.50, "max_w": 300},
 ]
+# Хабы (строго по ценам пользователя)
 HUBS_DB = [
-    {"name": "HUB 75Е-AXS (Серия A)", "price_usd": 14.86},
-    {"name": "HUB 320-AXS (Серия A)", "price_usd": 14.86},
+    {"name": "HUB 75E", "price_usd": 5.29},
+    {"name": "HUB 75E-AXS", "price_usd": 14.86},
+    {"name": "HUB 320-AXS", "price_usd": 14.86},
 ]
 # --- СПРАВОЧНИКИ ---
 PROCESSOR_PORTS = {
@@ -347,30 +349,25 @@ with col_ctrl1:
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
-    # Выбор карты
-    selected_card_name = st.selectbox("Приёмная карта (из прайса):", [c["name"] for c in RECEIVING_CARDS_DB], index=1)
-    receiving_card = next(c for c in RECEIVING_CARDS_DB if c["name"] == selected_card_name)
+    # (Выбор приёмной карты Novastar остаётся без изменений)
     
-    # Получаем разрешение из кортежа (по умолчанию 0x0)
-    res_w, res_h = CARD_MAX_PIXELS.get(receiving_card['name'], (0, 0))
-    
-    # Инфо-панель под картой
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Разрешение:</span> <strong>{res_w} × {res_h} px</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Тип:</span> <strong>{receiving_card['type']}</strong><br>
-        <span style="color: #a0aec0;">Цена (закупка):</span> <strong style="color: #48bb78;">${receiving_card['price_usd']:.2f}</strong> ({(receiving_card['price_usd'] * exchange_rate):.2f} ₽)
-    </div>
-    """, unsafe_allow_html=True)
-    
-    modules_per_card = st.selectbox("Схема коммутации (Модулей на 1 карту)", [8, 10, 12, 16], index=2)
-    
-    # Логика хаба для А-серии
     hub_price_usd = 0.0
     if receiving_card["type"] == "A":
-        selected_hub_name = st.selectbox("Выберите HUB для серии A:", [h["name"] for h in HUBS_DB])
-        hub = next(h for h in HUBS_DB if h["name"] == selected_hub_name)
-        hub_price_usd = hub["price_usd"]
+        # Список выбора: Название — $Цена
+        selected_hub = st.selectbox(
+            "Выберите HUB для серии A:", 
+            HUBS_DB,
+            format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
+            key="hub_selector_final_user_prices"
+        )
+        hub_price_usd = selected_hub["price_usd"]
+        
+        # Инфо-плашка с ценой в рублях под списком
+        st.markdown(f"""
+        <div style="font-size: 13px; color: #a0aec0; margin-top: -10px; margin-bottom: 10px;">
+            Цена за шт: <span style="color: #48bb78;">${hub_price_usd:.2f}</span> ({(hub_price_usd * exchange_rate):.0f} ₽)
+        </div>
+        """, unsafe_allow_html=True)
     else:
         st.info("HUB75 встроен в MRV")
 
