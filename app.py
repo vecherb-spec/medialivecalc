@@ -128,6 +128,42 @@ MODULES_DB = [
     {'name': 'Qiangli Q8 Outdoor 2880Hz', 'env': 'Outdoor', 'pitch': 8.0, 'tech': 'SMD', 'brightness': 4500, 'max_power': 44.0, 'price_usd': 7.62},
     {'name': 'Qiangli Q8 Outdoor 7680Hz', 'env': 'Outdoor', 'pitch': 8.0, 'tech': 'SMD', 'brightness': 4500, 'max_power': 44.0, 'price_usd': 8.04},
 ]
+# Синхронные контроллеры и процессоры (строки 8-9, 28-38, 54-77)
+SYNC_CONTROLLERS_DB = [
+    {"name": "Novastar MSD 300", "price_usd": 100.63},
+    {"name": "Novastar MSD 600", "price_usd": 207.03},
+    {"name": "Novastar MCTRL 300", "price_usd": 155.53},
+    {"name": "Novastar MCTRL 500", "price_usd": 336.72},
+    {"name": "Novastar MCTRL 600", "price_usd": 278.31},
+    {"name": "Novastar MCTRL 700", "price_usd": 290.46},
+    {"name": "Novastar MCTRL 660", "price_usd": 474.83},
+    {"name": "Novastar MCTRL 660 Pro", "price_usd": 810.40},
+    {"name": "Novastar MX30", "price_usd": 2228.28},
+    {"name": "Novastar MX40 Pro", "price_usd": 5657.79},
+    {"name": "Novastar MCTRL R5", "price_usd": 1926.10},
+    {"name": "Novastar MCTRL 4K", "price_usd": 3210.51},
+    {"name": "NovaPro UHD JR", "price_usd": 5142.86},
+    {"name": "NovaPro UHD", "price_usd": 3090.00},
+    {"name": "VX400", "price_usd": 889.92},
+    {"name": "VX600", "price_usd": 987.77},
+    {"name": "VX1000", "price_usd": 1357.54},
+    {"name": "VC2", "price_usd": 105.06},
+    {"name": "VC4", "price_usd": 179.22},
+    {"name": "VC10", "price_usd": 889.92},
+    {"name": "VC16", "price_usd": 1781.90},
+]
+
+# Асинхронные контроллеры (строки 20-27)
+ASYNC_CONTROLLERS_DB = [
+    {"name": "T30", "price_usd": 206.00},
+    {"name": "T50", "price_usd": 283.25},
+    {"name": "TB10 Plus", "price_usd": 58.61},
+    {"name": "TB20 Plus", "price_usd": 111.96},
+    {"name": "TB30", "price_usd": 236.39},
+    {"name": "TB40", "price_usd": 181.28},
+    {"name": "TB50", "price_usd": 348.14},
+    {"name": "TB60", "price_usd": 404.58},
+]
 # --- ДОБАВЛЯЕМ НОВЫЕ СПРАВОЧНИКИ КАРТ И ХАБОВ ---
 RECEIVING_CARDS_DB = [
     {"name": "Novastar MRV 208", "price_usd": 13.29, "type": "MRV"},
@@ -337,14 +373,33 @@ with col_mount:
 # ==========================================
 # БЛОК 3: УПРАВЛЕНИЕ И КОММУТАЦИЯ
 # ==========================================
-st.markdown('<div class="section-header">🎛️ 3. Система управления и Data-коммутация</div>', unsafe_allow_html=True)
+st.subheader("📺 Видеопроцессор / Контроллер")
 
-col_ctrl1, col_ctrl2 = st.columns(2)
+# Переключатель типа
+ctrl_type = st.radio("Тип управления:", ["Синхронный", "Асинхронный"], horizontal=True)
 
-with col_ctrl1:
-    system_type = st.radio("Система", ["Синхронная (Live)", "Асинхронная (Плеер)"], horizontal=True, index=0)
-    avail_procs = ["VC10", "VC2", "VC4", "VC6", "VC16", "VC24", "MCTRL300", "MCTRL600", "MCTRL700", "MCTRL4K", "MCTRL R5", "VX400", "VX600 Pro", "VX1000 Pro", "VX2000 Pro", "VX16S"] if "Синхронная" in system_type else ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
-    processor = st.selectbox("Процессор / Контроллер", avail_procs, index=0)
+if ctrl_type == "Синхронный":
+    db = SYNC_CONTROLLERS_DB
+else:
+    db = ASYNC_CONTROLLERS_DB
+
+# Выбор конкретной модели
+selected_proc = st.selectbox(
+    "Выберите модель:", 
+    db, 
+    format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
+    key="unique_proc_selector"
+)
+
+# Сохраняем цену для расчетов
+proc_price_usd = selected_proc["price_usd"]
+
+# Инфо-плашка
+st.markdown(f"""
+<div style="padding: 10px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; font-size: 14px;">
+    Закупка: <strong style="color: #48bb78;">${proc_price_usd:.2f}</strong> ({(proc_price_usd * exchange_rate):.0f} ₽)
+</div>
+""", unsafe_allow_html=True)
     
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
