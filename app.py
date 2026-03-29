@@ -641,7 +641,6 @@ with st.expander("Характеристики экрана", expanded=True):
     st.markdown(f"""
     - **Разрешение**: {int(real_width / pixel_pitch)} × {int(real_height / pixel_pitch)} px
     - **Площадь**: {area_m2:.2f} м²
-    - **Частота обновления**: {refresh_rate} Hz
     - **Технология**: {tech}
     - **Яркость**: {brightness} нит
     - **Датчик яркости и температуры**: {sensor}
