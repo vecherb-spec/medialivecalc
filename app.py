@@ -335,19 +335,31 @@ with col_ctrl1:
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
-    # Выбор карты из нового списка
-    selected_card_name = st.selectbox("Приёмная карта:", [c["name"] for c in RECEIVING_CARDS_DB], index=1)
+    # Выбор карты
+    selected_card_name = st.selectbox("Приёмная карта (из прайса):", [c["name"] for c in RECEIVING_CARDS_DB], index=1)
     receiving_card = next(c for c in RECEIVING_CARDS_DB if c["name"] == selected_card_name)
     
-    modules_per_card = st.selectbox("Схема коммутации (Модулей на 1 карту)", [8, 10, 12, 16], index=0)
+    # Инфо-панель под картой (характеристики и цена)
+    card_limit_px = CARD_MAX_PIXELS.get(receiving_card['name'], 0)
+    st.markdown(f"""
+    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
+        <span style="color: #a0aec0;">Лимит:</span> <strong>{card_limit_px:,} px</strong> &nbsp;|&nbsp;
+        <span style="color: #a0aec0;">Тип:</span> <strong>{receiving_card['type']}</strong><br>
+        <span style="color: #a0aec0;">Цена (за закупку):</span> <strong style="color: #48bb78;">${receiving_card['price_usd']:.2f}</strong> ({(receiving_card['price_usd'] * exchange_rate):.2f} ₽)
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Авто-логика хаба: появляется только если выбрана серия "A"
+    modules_per_card = st.selectbox("Схема коммутации (Модулей на 1 карту)", [8, 10, 12, 16], index=2)
+    
+    # Логика хаба для А-серии
     hub_price_usd = 0.0
     if receiving_card["type"] == "A":
         selected_hub_name = st.selectbox("Выберите HUB для серии A:", [h["name"] for h in HUBS_DB])
-        hub_price_usd = next(h["price_usd"] for h in HUBS_DB if h["name"] == selected_hub_name)
+        hub = next(h for h in HUBS_DB if h["name"] == selected_hub_name)
+        hub_price_usd = hub["price_usd"]
+        st.markdown(f"<div style='font-size: 12px; color: #a0aec0; margin-top: -10px;'>Цена хаба: ${hub_price_usd}</div>", unsafe_allow_html=True)
     else:
-        st.info("HUB75 встроен в эту карту")
+        st.info("HUB75 встроен в MRV")
 
 real_width = math.ceil(width_mm / 320) * 320
 real_height = math.ceil(height_mm / 160) * 160
