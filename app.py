@@ -128,7 +128,24 @@ MODULES_DB = [
     {'name': 'Qiangli Q8 Outdoor 2880Hz', 'env': 'Outdoor', 'pitch': 8.0, 'tech': 'SMD', 'brightness': 4500, 'max_power': 44.0, 'price_usd': 7.62},
     {'name': 'Qiangli Q8 Outdoor 7680Hz', 'env': 'Outdoor', 'pitch': 8.0, 'tech': 'SMD', 'brightness': 4500, 'max_power': 44.0, 'price_usd': 8.04},
 ]
+# --- ДОБАВЛЯЕМ НОВЫЕ СПРАВОЧНИКИ КАРТ И ХАБОВ ---
+RECEIVING_CARDS_DB = [
+    {"name": "Novastar MRV 208", "price_usd": 13.29, "type": "MRV"},
+    {"name": "Novastar MRV 412", "price_usd": 15.40, "type": "MRV"},
+    {"name": "Novastar MRV 416", "price_usd": 16.09, "type": "MRV"},
+    {"name": "Novastar MRV 532", "price_usd": 21.00, "type": "MRV"},
+    {"name": "Novastar CA50E (COEX)", "price_usd": 138.65, "type": "COEX"},
+    {"name": "Novastar A5s Plus", "price_usd": 17.02, "type": "A"},
+    {"name": "Novastar A7s Plus", "price_usd": 19.12, "type": "A"},
+    {"name": "Novastar A8s", "price_usd": 33.89, "type": "A"},
+    {"name": "Novastar A10s Plus", "price_usd": 44.57, "type": "A"},
+    {"name": "Novastar A10s Pro", "price_usd": 71.31, "type": "A"},
+]
 
+HUBS_DB = [
+    {"name": "HUB 75Е-AXS (Серия A)", "price_usd": 14.86},
+    {"name": "HUB 320-AXS (Серия A)", "price_usd": 14.86},
+]
 # --- СПРАВОЧНИКИ ---
 PROCESSOR_PORTS = {
     "VX400": 4, "VX600 Pro": 6, "VX1000 Pro": 10, "VX2000 Pro": 20, "VX16S": 16,
@@ -312,8 +329,19 @@ with col_ctrl1:
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
-    receiving_card = st.selectbox("Приёмная карта (Receiving Card)", list(CARD_MAX_PIXELS.keys()), index=5)
+    # Выбор карты из нового списка
+    selected_card_name = st.selectbox("Приёмная карта:", [c["name"] for c in RECEIVING_CARDS_DB], index=1)
+    receiving_card = next(c for c in RECEIVING_CARDS_DB if c["name"] == selected_card_name)
+    
     modules_per_card = st.selectbox("Схема коммутации (Модулей на 1 карту)", [8, 10, 12, 16], index=0)
+    
+    # Авто-логика хаба: появляется только если выбрана серия "A"
+    hub_price_usd = 0.0
+    if receiving_card["type"] == "A":
+        selected_hub_name = st.selectbox("Выберите HUB для серии A:", [h["name"] for h in HUBS_DB])
+        hub_price_usd = next(h["price_usd"] for h in HUBS_DB if h["name"] == selected_hub_name)
+    else:
+        st.info("HUB75 встроен в эту карту")
 
 real_width = math.ceil(width_mm / 320) * 320
 real_height = math.ceil(height_mm / 160) * 160
@@ -385,9 +413,16 @@ else:
     reserve_modules = reserve_modules_custom
 total_modules_order = total_modules + reserve_modules
 
-# === ЗАКУПКА МОДУЛЕЙ ===
-total_modules_cost_usd = total_modules_order * price_usd
-total_modules_cost_rub = total_modules_order * price_rub_per_module
+# === НОВЫЙ РАСЧЕТ ЗАКУПКИ (Модули + Карты + Хабы) ===
+cost_mods_total = total_modules_order * price_usd
+num_cards_calc = math.ceil(total_modules / modules_per_card)
+num_cards_final = num_cards_calc + 1 if reserve_psu_cards else num_cards_calc
+
+cost_cards_total = num_cards_final * receiving_card["price_usd"]
+cost_hubs_total = num_cards_final * hub_price_usd # Хаб на каждую карту А-серии
+
+total_modules_cost_usd = cost_mods_total + cost_cards_total + cost_hubs_total
+total_modules_cost_rub = total_modules_cost_usd * exchange_rate
 
 # Мощности
 peak_power_screen_kw = total_modules * max_power_module / 1000
