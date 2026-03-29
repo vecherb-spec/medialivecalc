@@ -25,8 +25,8 @@ st.markdown("""
         border: 1px solid #2d3748;
         margin-bottom: 20px;
     }
-    .metric-value { font-size: 26px; font-weight: bold; color: #63b3ed; }
-    .metric-label { font-size: 13px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
+    .metric-value { font-size: 28px; font-weight: bold; color: #63b3ed; }
+    .metric-label { font-size: 14px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
     
     .stButton>button {
         background: linear-gradient(90deg, #3182ce, #2b6cb0); 
@@ -158,9 +158,17 @@ with col_mat:
     with col_mat_2:
         tech = st.selectbox("Технология", ["SMD", "COB", "GOB"], index=0)
         
-    sensor = "Нет"
-    if env_key == "Outdoor":
-        sensor = st.selectbox("Датчик яркости/температуры", ["Нет", "Есть (NS060 или аналог)"], index=1)
+    c_sens, c_bright = st.columns(2)
+    with c_sens:
+        sensor = "Нет"
+        if env_key == "Outdoor":
+            sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], index=1)
+    with c_bright:
+        # ДОБАВЛЕН ВЫБОР ЯРКОСТИ
+        if env_key == "Indoor":
+            brightness = st.selectbox("Яркость (нит)", [600, 800, 1000, 1200, 1500], index=1) # 800 по умолчанию
+        else:
+            brightness = st.selectbox("Яркость (нит)", [4500, 5500, 6000, 6500, 8000, 10000], index=3) # 6500 по умолчанию
 
 with col_mount:
     mount_type = st.radio("Тип монтажа", ["Монолитный (Магниты/Профиль)", "В кабинетах"], horizontal=True, index=0)
@@ -271,8 +279,6 @@ total_modules = modules_w * modules_h
 area_m2 = (real_width / 1000) * (real_height / 1000)
 total_price_rub = area_m2 * price_per_m2
 
-brightness = 1200 if env_key == "Indoor" else 6500
-
 if reserve_modules_choice != "Свой":
     reserve_percent = int(reserve_modules_choice.replace("%", ""))
     reserve_modules = math.ceil(total_modules * reserve_percent / 100)
@@ -360,7 +366,6 @@ with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Р
 with col_m3: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
 with col_m4: st.markdown(f'<div class="metric-card"><div class="metric-label">Рабочая мощн.</div><div class="metric-value">{avg_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
 with col_m5: st.markdown(f'<div class="metric-card"><div class="metric-label">Смета (Прайс)</div><div class="metric-value">{total_price_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
-
 
 with st.expander("Характеристики экрана", expanded=True):
     st.markdown(f"""
