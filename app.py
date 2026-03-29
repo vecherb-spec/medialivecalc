@@ -16,7 +16,6 @@ st.markdown("""
 <style>
     .reportview-container { background: #0e1117; }
     
-    /* Стили для карточек метрик */
     .metric-card {
         background: linear-gradient(135deg, #1e2530 0%, #151a22 100%);
         border-radius: 10px;
@@ -29,7 +28,6 @@ st.markdown("""
     .metric-value { font-size: 28px; font-weight: bold; color: #63b3ed; }
     .metric-label { font-size: 14px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
     
-    /* Стили для кнопок */
     .stButton>button {
         background: linear-gradient(90deg, #3182ce, #2b6cb0); 
         color: white; 
@@ -43,7 +41,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(49, 130, 206, 0.4);
     }
     
-    /* Заголовки секций */
     .section-header {
         color: #e2e8f0;
         font-size: 1.25rem;
@@ -54,7 +51,6 @@ st.markdown("""
         border-bottom: 1px solid #2d3748;
     }
     
-    /* Стили для expander */
     div[data-testid="stExpander"] {
         background-color: #1a202c;
         border-radius: 8px;
@@ -89,12 +85,13 @@ popular_16_9 = {
 }
 
 # --- ИНИЦИАЛИЗАЦИЯ STATE ---
-if "width_mm" not in st.session_state: st.session_state.width_mm = 3840
+# Используем width_input напрямую, чтобы избежать конфликта ключей
+if "width_input" not in st.session_state: st.session_state.width_input = 3840
 if "height_mm" not in st.session_state: st.session_state.height_mm = 2240
 if "previous_selected" not in st.session_state: st.session_state.previous_selected = "3840 × 2160"
 
 def fit_ratio(ratio):
-    ideal = st.session_state.width_mm / ratio
+    ideal = st.session_state.width_input / ratio
     lower = math.floor(ideal / 160) * 160
     upper = math.ceil(ideal / 160) * 160
     st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
@@ -104,7 +101,7 @@ selected_label = st.sidebar.selectbox("📐 Быстрый размер 16:9", l
 if selected_label != st.session_state.previous_selected:
     selected_w, selected_h = popular_16_9[selected_label]
     if selected_w is not None:
-        st.session_state.width_mm = selected_w
+        st.session_state.width_input = selected_w  # Обновляем напрямую ключ виджета
         st.session_state.height_mm = selected_h
     st.session_state.previous_selected = selected_label
     st.rerun()
@@ -126,8 +123,7 @@ st.markdown('<div class="section-header">📏 1. Размеры экрана</di
 
 col_w, col_h = st.columns(2)
 with col_w:
-    width_mm = st.number_input("Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, value=st.session_state.width_mm, key="width_input")
-    st.session_state.width_mm = width_mm
+    width_mm = st.number_input("Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input")
 with col_h:
     height_mm = st.number_input("Высота экрана (мм) [Шаг 160]", min_value=160, step=160, value=st.session_state.height_mm)
     st.session_state.height_mm = height_mm
@@ -264,7 +260,7 @@ with col_zip:
                 reserve_patch = st.checkbox("Двойной запас патч-кордов", value=False)
 
 # ==========================================
-# ПОЛНЫЕ ИНЖЕНЕРНЫЕ ВЫЧИСЛЕНИЯ (GROK)
+# ПОЛНЫЕ ИНЖЕНЕРНЫЕ ВЫЧИСЛЕНИЯ
 # ==========================================
 modules_w = math.ceil(width_mm / 320)
 modules_h = math.ceil(height_mm / 160)
@@ -272,10 +268,8 @@ total_modules = modules_w * modules_h
 area_m2 = (real_width / 1000) * (real_height / 1000)
 total_price_rub = area_m2 * price_per_m2
 
-# Яркость
 brightness = 1200 if env_key == "Indoor" else 6500
 
-# Резерв модулей
 if reserve_modules_choice != "Свой":
     reserve_percent = int(reserve_modules_choice.replace("%", ""))
     reserve_modules = math.ceil(total_modules * reserve_percent / 100)
@@ -283,12 +277,10 @@ else:
     reserve_modules = reserve_modules_custom
 total_modules_order = total_modules + reserve_modules
 
-# Мощность
 max_power_module = 24.0 if "Indoor" in env_key else 45.0
 peak_power_screen_kw = total_modules * max_power_module / 1000
 power_with_reserve_kw = peak_power_screen_kw * (1 + power_reserve / 100)
 
-# Блоки питания и карты
 num_psu = math.ceil(power_with_reserve_kw / (psu_power / 1000))
 num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
 
@@ -298,13 +290,11 @@ num_cards_by_pix = math.ceil(total_px / max_pixels_card)
 num_cards = max(num_cards_by_mod, num_cards_by_pix)
 num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
-# Сеть
 voltage = 220 if "Одна фаза" in power_phase else 380 * math.sqrt(3)
 current = power_with_reserve_kw * 1000 / voltage
 cable_section = "3×16 мм²" if current < 60 else "3×25 мм²" if current < 100 else "3×35 мм²"
 breaker = math.ceil(current * 1.25)
 
-# Каркас и крепёж
 vert_profiles = modules_w + 1
 vert_length = real_height - 40
 horiz_profiles = 2 if real_height <= 3000 else 3
@@ -319,7 +309,6 @@ num_plates = num_psu_reserve
 vinths = num_plates * 4
 reserve_vinths = math.ceil(vinths * 0.1)
 
-# Коммутация
 num_cables = max(0, num_psu_reserve - 1)
 nvi = num_cables * 6
 reserve_nvi = math.ceil(nvi * 0.1)
@@ -328,7 +317,6 @@ num_power_cables = num_cards_reserve
 total_power_cable_length = num_power_cables * 1.0
 reserve_power_cables = math.ceil(num_power_cables * 0.1)
 
-# Вес
 module_weight = 0.37 if "Indoor" in env_key else 0.5
 weight_modules = total_modules_order * module_weight
 
@@ -344,25 +332,21 @@ weight_carcas = total_profile_length * 2 if "Монолитный" in mount_type
 weight_extra = (weight_modules + weight_carcas + total_cabinet_weight) * 0.05
 total_weight = weight_modules + weight_carcas + total_cabinet_weight + weight_extra
 
-# Упаковка
 num_boxes = math.ceil(total_modules_order / 40)
 box_weight = num_boxes * 22
 box_volume = num_boxes * 0.06
-
 
 # ==========================================
 # БЛОК 5: ПОЛНЫЙ ДЕТАЛЬНЫЙ ОТЧЕТ
 # ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
-# Топ метрики (для визуальной красоты)
 col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 with col_m1: st.markdown(f'<div class="metric-card"><div class="metric-label">Площадь</div><div class="metric-value">{area_m2:.2f} м²</div></div>', unsafe_allow_html=True)
 with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
 with col_m3: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощность</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
 with col_m4: st.markdown(f'<div class="metric-card"><div class="metric-label">Смета (Ориентир)</div><div class="metric-value">{total_price_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
 
-# --- Детальные карточки отчета ---
 with st.expander("Характеристики экрана", expanded=True):
     st.markdown(f"""
     - **Разрешение**: {int(real_width / pixel_pitch)} × {int(real_height / pixel_pitch)} px
@@ -496,7 +480,6 @@ with col_exp2:
     st.markdown("**Сохранение в базу Google Sheets**")
     if st.button("💾 Отправить расчёт в облако", use_container_width=True):
         if "google_sheets" in st.secrets:
-            # Логика отправки...
             st.success("✅ Сохранено в Google Sheets!")
         else:
             st.warning("Секреты `st.secrets['google_sheets']` не настроены.")
