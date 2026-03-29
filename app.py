@@ -671,7 +671,7 @@ if "кабинетах" in mount_type:
 
 with st.expander("Принимающие карты", expanded=True):
     st.markdown(f"""
-    - **Модель**: {selected_proc['name']}
+    - **Модель**: {receiving_card['name']}
     - **Основное количество**: {num_cards} шт.
     - **Итого с учетом ЗИП**: **{num_cards_reserve} шт.**
     """)
