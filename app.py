@@ -439,7 +439,7 @@ status_color = "#48bb78" if required_ports <= available_ports else "#f56565"
 
 st.markdown(f"""
 <div style="padding: 12px 20px; border-radius: 8px; border-left: 4px solid {status_color}; background: #1a202c; margin-top: 10px;">
-    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{processor}</strong>:</span><br>
+    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{selected_proc['name']}</strong>:</span><br>
     Доступно: <strong>{available_ports}</strong> &nbsp;|&nbsp;
     Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp;
     Нагрузка на порт: <strong>{load_per_port:.1f}%</strong> &nbsp;&nbsp;➔&nbsp;&nbsp;
