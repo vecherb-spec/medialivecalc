@@ -407,7 +407,7 @@ with col_ctrl1:
 
 with col_ctrl2:
     st.markdown("---")
-    # 3. Выбор приемной карты
+    # 1. Выбор приемной карты
     selected_card = st.selectbox(
         "Приёмная карта (Novastar):", 
         RECEIVING_CARDS_DB,
@@ -415,19 +415,30 @@ with col_ctrl2:
         key="main_card_select"
     )
     
+    # --- НОВЫЙ БЛОК: КРАТНОСТЬ МОДУЛЕЙ ---
+    # Список значений, как ты просил + стандартные для больших экранов
+    card_mods_options = [6, 8, 10, 12, 14, 16, 18, 20, 24, 32, 48, 64, 128, 256]
+    
+    modules_per_card = st.selectbox(
+        "Кол-во модулей на 1 карту:", 
+        options=card_mods_options,
+        index=13, # По умолчанию 256
+        help="Выберите физическое количество модулей, подключаемых к одной карте."
+    )
+    # -------------------------------------
+
     receiving_card = selected_card
     card_name = receiving_card["name"]
     card_price_usd = receiving_card["price_usd"]
     card_price_rub = card_price_usd * exchange_rate
 
     # ЛОГИКА ОТОБРАЖЕНИЯ РАЗРЕШЕНИЯ
-    # Только для 412 и 416 серий показываем расширенное разрешение N
     if any(model_num in card_name for model_num in ["412", "416"]):
         res_info = "512х512 (N) / 512х384"
     else:
-        res_info = "256х256" # Стандарт для младших серий
+        res_info = "256х256"
 
-    # ИНФО-ПЛАШКА КАРТЫ (стиль 1-в-1 как у модуля)
+    # ИНФО-ПЛАШКА КАРТЫ
     st.markdown(f"""
     <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
         <span style="color: #a0aec0; font-size: 13px;">
@@ -442,15 +453,6 @@ with col_ctrl2:
     # 4. Логика хаба
     hub_price_usd = 0.0
     if receiving_card["type"] == "A":
-        selected_hub = st.selectbox(
-            "Выберите HUB для серии A:", 
-            HUBS_DB,
-            format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-            key="main_hub_select"
-        )
-        hub_price_usd = selected_hub["price_usd"]
-    else:
-        st.info("HUB75 встроен в карту (MRV)")
 
 # РАСЧЕТ И СТАТУС ПОРТОВ (единственная инфо-панель для контроллера)
 real_width = math.ceil(width_mm / 320) * 320
