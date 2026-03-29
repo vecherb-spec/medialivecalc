@@ -452,11 +452,11 @@ num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
 
 # Расчет принимающих карт
 # Мы берем только название (ключ .get('name')), чтобы найти данные в словаре лимитов пикселей
-max_pixels_card = CARD_MAX_PIXELS.get(receiving_card['name'], 256*256)
+card_res_tuple = CARD_MAX_PIXELS.get(receiving_card['name'], (1, 1))
+max_pixels_card = card_res_tuple[0] * card_res_tuple[1] 
+
 num_cards_by_mod = math.ceil(total_modules / modules_per_card)
 num_cards_by_pix = math.ceil(total_px / max_pixels_card)
-num_cards = max(num_cards_by_mod, num_cards_by_pix)
-num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
 # Электрика
 electrical_power_kw = peak_power_screen_kw * 1.20 
