@@ -449,35 +449,35 @@ else:
     reserve_modules = reserve_modules_custom
 total_modules_order = total_modules + reserve_modules
 
-# === НОВЫЙ РАСЧЕТ ЗАКУПКИ (Модули + Карты + Хабы) ===
-buy_mods_total = total_modules_order * price_usd
-buy_cards_total = num_cards_reserve * receiving_card["price_usd"]
-buy_hubs_total = num_hubs * hub_price_usd
-buy_psu_total = num_psu_reserve * sel_psu["price_usd"] # <--- Цена выбранного БП
+# === ИСПРАВЛЕННЫЙ БЛОК РАСЧЕТОВ ЭЛЕКТРОНИКИ ===
 
-total_modules_cost_usd = buy_mods_total + buy_cards_total + buy_hubs_total + buy_psu_total
-total_modules_cost_rub = total_modules_cost_usd * exchange_rate
-
-# Мощности
-peak_power_screen_kw = total_modules * max_power_module / 1000
-avg_power_screen_kw = peak_power_screen_kw * 0.35
-
-# Расчет БП
-num_psu = math.ceil(total_modules / modules_per_psu)
-num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
-
-# Расчет принимающих карт
-# Мы берем только название (ключ .get('name')), чтобы найти данные в словаре лимитов пикселей
-# === ИСПРАВЛЕННЫЙ РАСЧЕТ ПРИЕМНЫХ КАРТ (СТРОКИ 455+) ===
+# 1. Считаем карты (используя данные из нашего интерфейса)
 card_res_tuple = CARD_MAX_PIXELS.get(receiving_card['name'], (1, 1))
 max_pixels_card = card_res_tuple[0] * card_res_tuple[1] 
 
 num_cards_by_mod = math.ceil(total_modules / modules_per_card)
 num_cards_by_pix = math.ceil(total_px / max_pixels_card)
 
-# Здесь создаются переменные, которых сейчас не хватает программе:
+# Создаем ту самую переменную, на которую ругается код
 num_cards = max(num_cards_by_mod, num_cards_by_pix)
 num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
+
+# 2. Считаем БП
+num_psu = math.ceil(total_modules / modules_per_psu)
+num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
+
+# 3. Считаем Хабы (num_hubs уже должен быть определен в блоке интерфейса, но продублируем для надежности)
+num_hubs = num_cards_reserve if receiving_card["type"] == "A" else 0
+
+# 4. ИТОГОВАЯ ЗАКУПКА (USD)
+buy_mods_total = total_modules_order * price_usd
+buy_cards_total = num_cards_reserve * receiving_card["price_usd"]
+buy_hubs_total = num_hubs * hub_price_usd
+buy_psu_total = num_psu_reserve * sel_psu["price_usd"]
+
+# Итоговая переменная для твоего отчета
+total_modules_cost_usd = buy_mods_total + buy_cards_total + buy_hubs_total + buy_psu_total
+total_modules_cost_rub = total_modules_cost_usd * exchange_rate
 
 # Электрика
 electrical_power_kw = peak_power_screen_kw * 1.20 
