@@ -155,18 +155,17 @@ PROCESSOR_PORTS = {
 }
 
 CARD_MAX_PIXELS = {
-    "Novastar MRV 208": 256*256,
-    "Novastar MRV 412": 512*512,
-    "Novastar MRV 416": 512*256,
-    "Novastar MRV 532": 256*384,
-    "Novastar CA50E (COEX)": 512*768,
-    "Novastar A5s Plus": 512*384,
-    "Novastar A7s Plus": 512*512,
-    "Novastar A8s": 512*256,
-    "Novastar A10s Plus": 512*512,
-    "Novastar A10s Pro": 512*512
+    "Novastar MRV 208": (256, 256),
+    "Novastar MRV 412": (512, 512),
+    "Novastar MRV 416": (512, 256),
+    "Novastar MRV 532": (256, 384),
+    "Novastar CA50E (COEX)": (512, 768),
+    "Novastar A5s Plus": (512, 384),
+    "Novastar A7s Plus": (512, 512),
+    "Novastar A8s": (512, 256),
+    "Novastar A10s Plus": (512, 512),
+    "Novastar A10s Pro": (512, 512)
 }
-
 popular_16_9 = {
     "2560 × 1440 мм (8×9 шт) | Идеально 16:9": (2560, 1440),
     "2880 × 1600 мм (9×10 шт) | ~16:9": (2880, 1600),
@@ -339,13 +338,15 @@ with col_ctrl2:
     selected_card_name = st.selectbox("Приёмная карта (из прайса):", [c["name"] for c in RECEIVING_CARDS_DB], index=1)
     receiving_card = next(c for c in RECEIVING_CARDS_DB if c["name"] == selected_card_name)
     
-    # Инфо-панель под картой (характеристики и цена)
-    card_limit_px = CARD_MAX_PIXELS.get(receiving_card['name'], 0)
+    # Получаем разрешение из кортежа (по умолчанию 0x0)
+    res_w, res_h = CARD_MAX_PIXELS.get(receiving_card['name'], (0, 0))
+    
+    # Инфо-панель под картой
     st.markdown(f"""
     <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Лимит:</span> <strong>{card_limit_px:,} px</strong> &nbsp;|&nbsp;
+        <span style="color: #a0aec0;">Разрешение:</span> <strong>{res_w} × {res_h} px</strong> &nbsp;|&nbsp;
         <span style="color: #a0aec0;">Тип:</span> <strong>{receiving_card['type']}</strong><br>
-        <span style="color: #a0aec0;">Цена (за закупку):</span> <strong style="color: #48bb78;">${receiving_card['price_usd']:.2f}</strong> ({(receiving_card['price_usd'] * exchange_rate):.2f} ₽)
+        <span style="color: #a0aec0;">Цена (закупка):</span> <strong style="color: #48bb78;">${receiving_card['price_usd']:.2f}</strong> ({(receiving_card['price_usd'] * exchange_rate):.2f} ₽)
     </div>
     """, unsafe_allow_html=True)
     
@@ -357,7 +358,6 @@ with col_ctrl2:
         selected_hub_name = st.selectbox("Выберите HUB для серии A:", [h["name"] for h in HUBS_DB])
         hub = next(h for h in HUBS_DB if h["name"] == selected_hub_name)
         hub_price_usd = hub["price_usd"]
-        st.markdown(f"<div style='font-size: 12px; color: #a0aec0; margin-top: -10px;'>Цена хаба: ${hub_price_usd}</div>", unsafe_allow_html=True)
     else:
         st.info("HUB75 встроен в MRV")
 
