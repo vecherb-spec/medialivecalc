@@ -141,13 +141,19 @@ RECEIVING_CARDS_DB = [
     {"name": "Novastar A10s Plus", "price_usd": 44.57, "type": "A"},
     {"name": "Novastar A10s Pro", "price_usd": 71.31, "type": "A"},
 ]
-# Блоки питания (строки 320-330)
+# Блоки питания (строки 320-330 строго по прайсу LEDCapital)
 PSU_DB = [
+    {"name": "A-200-5 (Chuanglian)", "price_usd": 6.84, "max_w": 200},
+    {"name": "A-200-5N (Slim) (Chuanglian)", "price_usd": 12.80, "max_w": 200},
+    {"name": "A-300-5 (Slim) (Chuanglian)", "price_usd": 14.50, "max_w": 300},
+    {"name": "A-200JQ-5 slim (Chuanglian)", "price_usd": 13.57, "max_w": 200},
+    {"name": "A-300FAR-4.5PH (Chuanglian)", "price_usd": 27.31, "max_w": 300},
+    {"name": "A-400JQ-4.5PH (Chuanglian)", "price_usd": 17.69, "max_w": 400},
     {"name": "Mean Well LRS-200-5", "price_usd": 15.58, "max_w": 200},
     {"name": "Mean Well LRS-350-5", "price_usd": 21.05, "max_w": 350},
-    {"name": "A-200JQ-5 slim", "price_usd": 13.57, "max_w": 200},
-    {"name": "A-300FAR-4.5PH", "price_usd": 27.31, "max_w": 300},
-    {"name": "A-400JQ-4.5PH", "price_usd": 17.69, "max_w": 400},
+    {"name": "G-Energy N200V5-A (Slim)", "price_usd": 13.57, "max_w": 200},
+    {"name": "CZCL A-200-5N (Slim)", "price_usd": 12.80, "max_w": 200},
+    {"name": "CZCL A-300-5 (Slim)", "price_usd": 14.50, "max_w": 300},
 ]
 HUBS_DB = [
     {"name": "HUB 75Е-AXS (Серия A)", "price_usd": 14.86},
@@ -397,9 +403,24 @@ st.markdown('<div class="section-header">⚡ 4. Питание сети и ЗИ�
 col_pwr, col_zip = st.columns(2)
 
 with col_pwr:
-    # Выбор БП
-    selected_psu_name = st.selectbox("Модель БП (из прайса):", [p["name"] for p in PSU_DB], index=2)
-    sel_psu = next(p for p in PSU_DB if p["name"] == selected_psu_name)
+    # Выбор БП: Название + Цена в рублях (считается на лету)
+    sel_psu = st.selectbox(
+        "Модель БП (из прайса):", 
+        PSU_DB, 
+        format_func=lambda x: f"{x['name']} — {(x['price_usd'] * exchange_rate):.0f} ₽",
+        index=0
+    )
+    
+    # Инфо-плашка под выбором
+    st.markdown(f"""
+    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
+        <span style="color: #a0aec0;">Мощность:</span> <strong>{sel_psu['max_w']}W</strong> &nbsp;|&nbsp;
+        <span style="color: #a0aec0;">Цена USD:</span> <strong style="color: #48bb78;">${sel_psu['price_usd']:.2f}</strong>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    modules_per_psu = st.selectbox("Модулей на БП", [4, 6, 8, 10, 12, 16], index=2)
+    power_phase = st.radio("Вводная сеть", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True)
     
     # Инфо-панель под БП
     st.markdown(f"""
