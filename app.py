@@ -431,7 +431,7 @@ real_height = math.ceil(height_mm / 160) * 160
 total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
 
 required_ports = math.ceil(total_px / 650000)
-available_ports = PROCESSOR_PORTS.get(processor, 1)
+available_ports = PROCESSOR_PORTS.get(selected_proc["name"], 1)
 load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
 
 status_text = "✅ Портов достаточно" if required_ports <= available_ports else "❌ ВНИМАНИЕ: Недостаточно портов!"
