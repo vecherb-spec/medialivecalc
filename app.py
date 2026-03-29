@@ -778,7 +778,7 @@ figma_data = {
     "project_name": project_name, "client": client_name, "date": datetime.datetime.now().strftime("%Y-%m-%d"),
     "screen_dimensions_mm": f"{real_width}x{real_height}", "resolution_px": f"{int(real_width/pixel_pitch)}x{int(real_height/pixel_pitch)}",
     "area_m2": round(area_m2, 2), "pixel_pitch": pixel_pitch, "total_modules": total_modules_order,
-    "receiving_cards": num_cards_reserve, "power_supplies": num_psu_reserve, "processor": processor,
+    "receiving_cards": num_cards_reserve, "power_supplies": num_psu_reserve, "processor": selected_proc['name'],
     "peak_power_kw": round(peak_power_screen_kw, 2), "avg_power_kw": round(avg_power_screen_kw, 2),
     "total_price_rub": total_price_rub, "module_cost_usd": total_modules_cost_usd, "module_cost_rub": total_modules_cost_rub
 }
