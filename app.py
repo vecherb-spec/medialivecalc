@@ -396,27 +396,20 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# БЛОК 4: ПИТАНИЕ И РЕЗЕРВ (ЗИП)
-# ==========================================
-st.markdown('<div class="section-header">⚡ 4. Питание сети и ЗИП</div>', unsafe_allow_html=True)
-
-col_pwr, col_zip = st.columns(2)
-
-# ==========================================
-# БЛОК 4: ПИТАНИЕ И РЕЗЕРВ (ЗИП)
+# БЛОК 4: ПИТАНИЕ И РЕЗЕРВ (ЗИП) - ФИНАЛЬНЫЙ ЧИСТЫЙ ВАРИАНТ
 # ==========================================
 st.markdown('<div class="section-header">⚡ 4. Питание сети и ЗИП</div>', unsafe_allow_html=True)
 
 col_pwr, col_zip = st.columns(2)
 
 with col_pwr:
-    # 1. Выбор БП (уникальный ключ добавлен)
+    # 1. Выбор БП
     selected_psu = st.selectbox(
         "Модель БП (из прайса):", 
         PSU_DB, 
         format_func=lambda x: f"{x['name']} — {(x['price_usd'] * exchange_rate):.0f} ₽",
         index=0,
-        key="unique_psu_selector" 
+        key="final_psu_selector" 
     )
     sel_psu = selected_psu 
     
@@ -428,14 +421,9 @@ with col_pwr:
     </div>
     """, unsafe_allow_html=True)
     
-    # 3. Выбор модулей и фаз (ОСТАВЛЯЕМ ТОЛЬКО ЗДЕСЬ)
-    modules_per_psu = st.selectbox("Модулей на 1 БП:", [4, 6, 8, 10, 12, 16], index=2, key="unique_m_per_p")
-    power_phase = st.radio("Вводная сеть:", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True, key="unique_phase")
-
-with col_zip:
-    # Оставь тут свой старый код для ЗИПа, он не конфликтует
-    reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
-    # ... и так далее
+    # 3. Настройки
+    modules_per_psu = st.selectbox("Модулей на 1 БП:", [4, 6, 8, 10, 12, 16], index=2, key="final_m_per_p")
+    power_phase = st.radio("Вводная сеть:", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True, key="final_phase")
 
 with col_zip:
     reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
