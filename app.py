@@ -278,8 +278,7 @@ st.markdown("Точный расчет комплектующих на базе 
 # БЛОК 1: РАЗМЕРЫ И ПРОПОРЦИИ
 # ==========================================
 st.markdown('<div class="section-header">📏 1. Размеры экрана</div>', unsafe_allow_html=True)
-real_width = math.ceil(width_mm / mod_width) * mod_width
-real_height = math.ceil(height_mm / mod_height) * mod_height
+
 col_w, col_h = st.columns(2)
 with col_w:
     width_mm = st.number_input("Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input")
