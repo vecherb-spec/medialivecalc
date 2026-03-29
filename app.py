@@ -25,7 +25,7 @@ st.markdown("""
         border: 1px solid #2d3748;
         margin-bottom: 20px;
     }
-    .metric-value { font-size: 26px; font-weight: bold; color: #63b3ed; }
+    .metric-value { font-size: 24px; font-weight: bold; color: #63b3ed; }
     .metric-label { font-size: 13px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
     
     .stButton>button {
@@ -59,16 +59,53 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- БАЗА ДАННЫХ МОДУЛЕЙ (Имитация прайса поставщика) ---
+# --- БАЗА ДАННЫХ МОДУЛЕЙ (Из прайса от 13.03.2026, только 320x160) ---
 MODULES_DB = [
-    {"name": "Qiangli Q3.0 Pro (Indoor)", "env": "Indoor", "pitch": 3.07, "tech": "SMD", "brightness": 800, "max_power": 20.0, "price_rub": 950},
-    {"name": "Qiangli Q2.5 Pro (Indoor)", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 800, "max_power": 22.0, "price_rub": 1150},
-    {"name": "Qiangli Q2.0 Pro (Indoor)", "env": "Indoor", "pitch": 2.0, "tech": "SMD", "brightness": 800, "max_power": 24.0, "price_rub": 1600},
-    {"name": "Qiangli Q1.86 Pro (Indoor)", "env": "Indoor", "pitch": 1.86, "tech": "SMD", "brightness": 600, "max_power": 25.0, "price_rub": 2100},
-    {"name": "Qiangli Q1.53 Pro (Indoor)", "env": "Indoor", "pitch": 1.53, "tech": "SMD", "brightness": 600, "max_power": 28.0, "price_rub": 3200},
-    {"name": "Qiangli Q4.0 (Outdoor)", "env": "Outdoor", "pitch": 4.0, "tech": "SMD", "brightness": 6500, "max_power": 40.0, "price_rub": 2100},
-    {"name": "Qiangli Q3.0 (Outdoor)", "env": "Outdoor", "pitch": 3.0, "tech": "SMD", "brightness": 6000, "max_power": 45.0, "price_rub": 2800},
-    {"name": "Qiangli Q2.5 (Outdoor)", "env": "Outdoor", "pitch": 2.5, "tech": "SMD", "brightness": 5500, "max_power": 50.0, "price_rub": 4200},
+    # OUTDOOR
+    {"name": "Qiangli Q8 Outdoor 7680Hz", "env": "Outdoor", "pitch": 8.0, "tech": "SMD", "brightness": 4500, "max_power": 44.0, "price_usd": 7.87},
+    {"name": "Qiangli Q8 Outdoor 2880Hz", "env": "Outdoor", "pitch": 8.0, "tech": "SMD", "brightness": 4500, "max_power": 44.0, "price_usd": 7.47},
+    {"name": "Qiangli Q6.66 Outdoor 7680Hz", "env": "Outdoor", "pitch": 6.66, "tech": "SMD", "brightness": 5000, "max_power": 46.0, "price_usd": 9.10},
+    {"name": "Qiangli Q6.66 Outdoor 2880Hz", "env": "Outdoor", "pitch": 6.66, "tech": "SMD", "brightness": 4500, "max_power": 46.0, "price_usd": 8.68},
+    {"name": "Qiangli Q5 Outdoor 7680Hz", "env": "Outdoor", "pitch": 5.0, "tech": "SMD", "brightness": 5000, "max_power": 43.0, "price_usd": 9.35},
+    {"name": "Qiangli Q5 Outdoor 2880Hz", "env": "Outdoor", "pitch": 5.0, "tech": "SMD", "brightness": 5000, "max_power": 43.0, "price_usd": 8.90},
+    {"name": "Qiangli Q4 Outdoor 7680Hz", "env": "Outdoor", "pitch": 4.0, "tech": "SMD", "brightness": 5000, "max_power": 47.0, "price_usd": 11.25},
+    {"name": "Qiangli Q4 Outdoor 2880Hz", "env": "Outdoor", "pitch": 4.0, "tech": "SMD", "brightness": 5000, "max_power": 47.0, "price_usd": 10.80},
+    {"name": "Qiangli R4 Outdoor 3840Hz (Гибкий)", "env": "Outdoor", "pitch": 4.0, "tech": "SMD", "brightness": 5000, "max_power": 46.0, "price_usd": 24.58},
+    {"name": "Qiangli Q3.07 Outdoor 7680Hz", "env": "Outdoor", "pitch": 3.07, "tech": "SMD", "brightness": 4500, "max_power": 40.0, "price_usd": 15.79},
+    {"name": "Qiangli Q3.07 Outdoor 2880Hz", "env": "Outdoor", "pitch": 3.07, "tech": "SMD", "brightness": 4200, "max_power": 40.0, "price_usd": 14.97},
+    {"name": "Qiangli Q2.5 Outdoor 7680Hz", "env": "Outdoor", "pitch": 2.5, "tech": "SMD", "brightness": 4500, "max_power": 33.0, "price_usd": 24.30},
+    {"name": "Qiangli Q2.5 Outdoor 3840Hz", "env": "Outdoor", "pitch": 2.5, "tech": "SMD", "brightness": 4500, "max_power": 33.0, "price_usd": 23.90},
+    # INDOOR
+    {"name": "Qiangli Q4 Indoor 6000Hz", "env": "Indoor", "pitch": 4.0, "tech": "SMD", "brightness": 600, "max_power": 24.0, "price_usd": 8.49},
+    {"name": "Qiangli Q4 Indoor 3840Hz", "env": "Indoor", "pitch": 4.0, "tech": "SMD", "brightness": 600, "max_power": 24.0, "price_usd": 8.29},
+    {"name": "Qiangli Q4 Indoor 1920Hz", "env": "Indoor", "pitch": 4.0, "tech": "SMD", "brightness": 450, "max_power": 24.0, "price_usd": 7.40},
+    {"name": "Qiangli Q3.07 Indoor 6000Hz", "env": "Indoor", "pitch": 3.07, "tech": "SMD", "brightness": 600, "max_power": 22.0, "price_usd": 10.77},
+    {"name": "Qiangli Q3.07 Indoor 3840Hz", "env": "Indoor", "pitch": 3.07, "tech": "SMD", "brightness": 600, "max_power": 22.0, "price_usd": 10.40},
+    {"name": "Qiangli Q3.07 Indoor 1920Hz", "env": "Indoor", "pitch": 3.07, "tech": "SMD", "brightness": 500, "max_power": 22.0, "price_usd": 8.80},
+    {"name": "Qiangli Q2.5 Indoor 6000Hz", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 500, "max_power": 24.0, "price_usd": 13.15},
+    {"name": "Qiangli R2.5 Indoor 6000Hz (Гибкий)", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 600, "max_power": 24.0, "price_usd": 15.25},
+    {"name": "Qiangli Q2.5 Indoor 3840Hz", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 450, "max_power": 24.0, "price_usd": 12.30},
+    {"name": "Qiangli R2.5 Indoor 3840Hz (Гибкий)", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 500, "max_power": 24.0, "price_usd": 14.57},
+    {"name": "Qiangli Q2.5 Indoor 1920Hz", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 450, "max_power": 24.0, "price_usd": 11.79},
+    {"name": "Qiangli Q2 Indoor 6000Hz", "env": "Indoor", "pitch": 2.0, "tech": "SMD", "brightness": 600, "max_power": 23.0, "price_usd": 17.25},
+    {"name": "Qiangli R2 Indoor 6000Hz (Гибкий)", "env": "Indoor", "pitch": 2.0, "tech": "SMD", "brightness": 500, "max_power": 23.0, "price_usd": 20.36},
+    {"name": "Qiangli Q2 GOB Indoor 6000Hz", "env": "Indoor", "pitch": 2.0, "tech": "GOB", "brightness": 600, "max_power": 23.0, "price_usd": 21.40},
+    {"name": "Qiangli Q2 Indoor 3840Hz", "env": "Indoor", "pitch": 2.0, "tech": "SMD", "brightness": 450, "max_power": 23.0, "price_usd": 16.30},
+    {"name": "Qiangli R2 Indoor 3840Hz (Гибкий)", "env": "Indoor", "pitch": 2.0, "tech": "SMD", "brightness": 500, "max_power": 23.0, "price_usd": 19.57},
+    {"name": "Qiangli Q1.86 Indoor 6000Hz", "env": "Indoor", "pitch": 1.86, "tech": "SMD", "brightness": 600, "max_power": 30.0, "price_usd": 19.60},
+    {"name": "Qiangli R1.86 Indoor 6000Hz (Гибкий)", "env": "Indoor", "pitch": 1.86, "tech": "SMD", "brightness": 500, "max_power": 23.0, "price_usd": 22.42},
+    {"name": "Qiangli Q1.86 Indoor 3840Hz", "env": "Indoor", "pitch": 1.86, "tech": "SMD", "brightness": 500, "max_power": 23.0, "price_usd": 18.27},
+    {"name": "Qiangli R1.86 Indoor 3840Hz (Гибкий)", "env": "Indoor", "pitch": 1.86, "tech": "SMD", "brightness": 500, "max_power": 23.0, "price_usd": 21.55},
+    {"name": "VISTECH P1.86 COB Indoor 3840Hz", "env": "Indoor", "pitch": 1.86, "tech": "COB", "brightness": 600, "max_power": 30.0, "price_usd": 29.15},
+    {"name": "Qiangli Q1.66 Indoor 3840Hz", "env": "Indoor", "pitch": 1.66, "tech": "SMD", "brightness": 600, "max_power": 30.0, "price_usd": 25.96},
+    {"name": "Qiangli Q1.53 Indoor 6000Hz", "env": "Indoor", "pitch": 1.53, "tech": "SMD", "brightness": 600, "max_power": 30.0, "price_usd": 29.82},
+    {"name": "Qiangli Q1.53 Indoor 3840Hz", "env": "Indoor", "pitch": 1.53, "tech": "SMD", "brightness": 600, "max_power": 30.0, "price_usd": 28.84},
+    {"name": "Qiangli R1.5 Indoor 6000Hz (Гибкий)", "env": "Indoor", "pitch": 1.50, "tech": "SMD", "brightness": 500, "max_power": 23.0, "price_usd": 32.78},
+    {"name": "Qiangli Q1.53 GOB Indoor 6000Hz", "env": "Indoor", "pitch": 1.53, "tech": "GOB", "brightness": 650, "max_power": 30.0, "price_usd": 34.45},
+    {"name": "VISTECH P1.53 COB Indoor 3840Hz", "env": "Indoor", "pitch": 1.53, "tech": "COB", "brightness": 600, "max_power": 30.0, "price_usd": 41.55},
+    {"name": "Qiangli Q1.25 Indoor 6000Hz", "env": "Indoor", "pitch": 1.25, "tech": "SMD", "brightness": 600, "max_power": 30.0, "price_usd": 45.20},
+    {"name": "Qiangli Q1.25 Indoor 3840Hz", "env": "Indoor", "pitch": 1.25, "tech": "SMD", "brightness": 600, "max_power": 30.0, "price_usd": 44.10},
+    {"name": "Qiangli Q1.25 GOB Indoor 6000Hz", "env": "Indoor", "pitch": 1.25, "tech": "GOB", "brightness": 650, "max_power": 30.0, "price_usd": 50.10},
 ]
 
 # --- СПРАВОЧНИКИ ---
@@ -124,10 +161,14 @@ st.sidebar.markdown("---")
 st.sidebar.header("📝 Данные проекта")
 project_name = st.sidebar.text_input("Имя проекта", value="MediaLive - Новый проект")
 client_name = st.sidebar.text_input("Клиент / Заказчик", placeholder="Введите имя клиента")
-price_per_m2 = st.sidebar.number_input("Цена продажи клиенту за м² (₽)", min_value=0, value=150000, step=5000)
+
+st.sidebar.markdown("---")
+st.sidebar.header("💵 Финансы")
+exchange_rate = st.sidebar.number_input("Курс USD (₽) для закупки", min_value=50.0, value=95.0, step=1.0)
+price_per_m2 = st.sidebar.number_input("Цена за м² клиенту (₽)", min_value=0, value=150000, step=5000)
 
 st.title("🖥️ Профессиональный калькулятор LED-экранов")
-st.markdown("Точный расчет комплектующих на базе динамического прайс-листа.")
+st.markdown("Точный расчет комплектующих на базе динамического прайс-листа LEDCapital.")
 
 # ==========================================
 # БЛОК 1: РАЗМЕРЫ И ПРОПОРЦИИ
@@ -149,7 +190,7 @@ if btn_cols[2].button("21:9 (Кино)"): fit_ratio(2.3333333333333335); st.reru
 if btn_cols[3].button("1:1 (Квадрат)"): fit_ratio(1.0); st.rerun()
 
 # ==========================================
-# БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ (ОБНОВЛЕНО: БАЗА ДАННЫХ)
+# БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ (ИНТЕГРАЦИЯ БАЗЫ ДАННЫХ)
 # ==========================================
 st.markdown('<div class="section-header">⚙️ 2. Матрица и Конструкция</div>', unsafe_allow_html=True)
 
@@ -158,30 +199,31 @@ col_mat, col_mount = st.columns(2)
 with col_mat:
     env_key = st.radio("Среда использования", ["Indoor", "Outdoor"], horizontal=True)
     
-    # Фильтруем базу данных по типу Indoor/Outdoor
+    # Фильтруем базу данных по среде
     available_modules = [m for m in MODULES_DB if m["env"] == env_key]
     module_names = [m["name"] for m in available_modules]
     
-    # Выбор конкретного модуля из базы
-    selected_module_name = st.selectbox("Выберите модуль из базы поставщика:", module_names)
+    # Выбор модуля
+    selected_module_name = st.selectbox("Светодиодный модуль (из прайса):", module_names)
     
-    # Извлекаем параметры выбранного модуля
+    # Получаем характеристики выбранного модуля
     selected_module = next(m for m in available_modules if m["name"] == selected_module_name)
     
     pixel_pitch = selected_module["pitch"]
     tech = selected_module["tech"]
     brightness = selected_module["brightness"]
     max_power_module = selected_module["max_power"]
-    module_price_rub = selected_module["price_rub"]
+    price_usd = selected_module["price_usd"]
+    price_rub_per_module = price_usd * exchange_rate
     
-    # Визуальное подтверждение параметров
+    # Инфо-панель с характеристиками
     st.markdown(f"""
-    <div style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 13px; color: #cbd5e0;">
-        <strong>Шаг:</strong> P{pixel_pitch} &nbsp;|&nbsp;
-        <strong>Технология:</strong> {tech} &nbsp;|&nbsp;
-        <strong>Яркость:</strong> {brightness} нит &nbsp;|&nbsp;
-        <strong>Потребление:</strong> {max_power_module} Вт/шт &nbsp;|&nbsp;
-        <strong>Цена закуп:</strong> {module_price_rub} ₽/шт
+    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
+        <span style="color: #a0aec0;">Шаг:</span> <strong>P{pixel_pitch}</strong> &nbsp;|&nbsp;
+        <span style="color: #a0aec0;">Технология:</span> <strong>{tech}</strong> &nbsp;|&nbsp;
+        <span style="color: #a0aec0;">Яркость:</span> <strong>{brightness} нит</strong><br>
+        <span style="color: #a0aec0;">Макс. потребление:</span> <strong>{max_power_module} Вт/шт</strong> &nbsp;|&nbsp;
+        <span style="color: #a0aec0;">Цена (закупка):</span> <strong style="color: #48bb78;">${price_usd:.2f}</strong> ({price_rub_per_module:.0f} ₽)
     </div>
     """, unsafe_allow_html=True)
         
@@ -230,7 +272,9 @@ with col_ctrl1:
     system_type = st.radio("Система", ["Синхронная (Live)", "Асинхронная (Плеер)"], horizontal=True, index=0)
     avail_procs = ["VC10", "VC2", "VC4", "VC6", "VC16", "VC24", "MCTRL300", "MCTRL600", "MCTRL700", "MCTRL4K", "MCTRL R5", "VX400", "VX600 Pro", "VX1000 Pro", "VX2000 Pro", "VX16S"] if "Синхронная" in system_type else ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор / Контроллер", avail_procs, index=0)
-    refresh_rate = st.selectbox("Частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
+    
+    # Частота обновления теперь информационная, так как она зашита в названии модуля из прайса. Но оставим для отчета.
+    refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
     receiving_card = st.selectbox("Приёмная карта (Receiving Card)", list(CARD_MAX_PIXELS.keys()), index=5)
@@ -296,6 +340,7 @@ modules_w = math.ceil(width_mm / 320)
 modules_h = math.ceil(height_mm / 160)
 total_modules = modules_w * modules_h
 area_m2 = (real_width / 1000) * (real_height / 1000)
+
 total_price_rub = area_m2 * price_per_m2
 
 if reserve_modules_choice != "Свой":
@@ -305,14 +350,15 @@ else:
     reserve_modules = reserve_modules_custom
 total_modules_order = total_modules + reserve_modules
 
-# === ФИНАНСЫ (Себестоимость модулей) ===
-total_modules_cost = total_modules_order * module_price_rub
+# === ЗАКУПКА МОДУЛЕЙ (С учетом ЗИП) ===
+total_modules_cost_usd = total_modules_order * price_usd
+total_modules_cost_rub = total_modules_order * price_rub_per_module
 
-# Мощности (max_power_module теперь берется из БД)
+# Мощности
 peak_power_screen_kw = total_modules * max_power_module / 1000
 avg_power_screen_kw = peak_power_screen_kw * 0.35
 
-# Расчет БП ТОЛЬКО по количеству хвостов (модулей на БП)
+# Расчет БП
 num_psu = math.ceil(total_modules / modules_per_psu)
 num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
 
@@ -323,9 +369,8 @@ num_cards_by_pix = math.ceil(total_px / max_pixels_card)
 num_cards = max(num_cards_by_mod, num_cards_by_pix)
 num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
-# Электрика (для автомата и кабеля всё еще считаем пиковую мощность, +20% скрытого запаса на пусковые токи)
+# Электрика
 electrical_power_kw = peak_power_screen_kw * 1.20 
-
 if "Одна фаза" in power_phase:
     current = (electrical_power_kw * 1000) / 220
     cores = 3
@@ -397,12 +442,12 @@ box_volume = num_boxes * 0.06
 # ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
-# 5 Колонок с показателями (ОБНОВЛЕНО: Себестоимость модулей)
+# 5 Колонок с показателями 
 col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
 with col_m1: st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
 with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
 with col_m3: st.markdown(f'<div class="metric-card"><div class="metric-label">Рабочая мощн.</div><div class="metric-value">{avg_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
-with col_m4: st.markdown(f'<div class="metric-card" style="border-color:#4299e1;"><div class="metric-label" style="color:#63b3ed;">Закупка модулей</div><div class="metric-value" style="color:white;">{total_modules_cost:,.0f} ₽</div></div>', unsafe_allow_html=True)
+with col_m4: st.markdown(f'<div class="metric-card" style="border-color:#4299e1;"><div class="metric-label" style="color:#63b3ed;">Закупка модулей</div><div class="metric-value" style="color:white;">{total_modules_cost_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
 with col_m5: st.markdown(f'<div class="metric-card" style="border-color:#48bb78;"><div class="metric-label" style="color:#68d391;">Смета (Продажа)</div><div class="metric-value" style="color:white;">{total_price_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
 
 with st.expander("Характеристики экрана", expanded=True):
@@ -423,7 +468,7 @@ with st.expander("Модули", expanded=True):
     - **Основное количество**: {total_modules} шт.
     - **Резерв (ЗИП)**: {reserve_modules} шт.
     - **Итого для заказа**: **{total_modules_order} шт.**
-    - **Закупочная стоимость**: {total_modules_cost:,.0f} ₽ ({module_price_rub} ₽/шт)
+    - **Закупочная стоимость модулей**: ${total_modules_cost_usd:.2f} ({total_modules_cost_rub:,.0f} ₽)
     """)
 
 if "кабинетах" in mount_type:
@@ -530,7 +575,7 @@ figma_data = {
     "area_m2": round(area_m2, 2), "pixel_pitch": pixel_pitch, "total_modules": total_modules_order,
     "receiving_cards": num_cards_reserve, "power_supplies": num_psu_reserve, "processor": processor,
     "peak_power_kw": round(peak_power_screen_kw, 2), "avg_power_kw": round(avg_power_screen_kw, 2),
-    "total_price_rub": total_price_rub, "module_cost_rub": total_modules_cost
+    "total_price_rub": total_price_rub, "module_cost_usd": total_modules_cost_usd, "module_cost_rub": total_modules_cost_rub
 }
 figma_json = json.dumps(figma_data, indent=4, ensure_ascii=False)
 
