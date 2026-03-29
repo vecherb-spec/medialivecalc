@@ -155,10 +155,16 @@ PROCESSOR_PORTS = {
 }
 
 CARD_MAX_PIXELS = {
-    "A5s Plus": 320*256, "A7s Plus": 512*256, "A8s / A8s-N": 512*384,
-    "A10s Plus-N / A10s Pro": 512*512, "MRV412": 512*512, "MRV416": 512*384,
-    "MRV432": 512*512, "MRV532": 512*512, "NV3210": 512*384,
-    "MRV208-N / MRV208-1": 256*256, "MRV470-1": 512*384, "A4s Plus": 256*256
+    "Novastar MRV 208": 256*256,
+    "Novastar MRV 412": 512*512,
+    "Novastar MRV 416": 512*256,
+    "Novastar MRV 532": 256*384,
+    "Novastar CA50E (COEX)": 512*768,
+    "Novastar A5s Plus": 512*384,
+    "Novastar A7s Plus": 512*512,
+    "Novastar A8s": 512*256,
+    "Novastar A10s Plus": 512*512,
+    "Novastar A10s Pro": 512*512
 }
 
 popular_16_9 = {
@@ -433,7 +439,8 @@ num_psu = math.ceil(total_modules / modules_per_psu)
 num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
 
 # Расчет принимающих карт
-max_pixels_card = CARD_MAX_PIXELS[receiving_card]
+# Мы берем только название (ключ .get('name')), чтобы найти данные в словаре лимитов пикселей
+max_pixels_card = CARD_MAX_PIXELS.get(receiving_card['name'], 256*256)
 num_cards_by_mod = math.ceil(total_modules / modules_per_card)
 num_cards_by_pix = math.ceil(total_px / max_pixels_card)
 num_cards = max(num_cards_by_mod, num_cards_by_pix)
