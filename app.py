@@ -688,7 +688,7 @@ with st.expander("Блоки питания", expanded=True):
 
 with st.expander("Процессор / Контроллер", expanded=True):
     st.markdown(f"""
-    - **Модель**: {processor}
+   - **Модель**: {selected_proc['name']}
     - **Доступно портов**: {available_ports}
     - **Необходимое портов**: {required_ports}
     - **Средняя нагрузка на порт**: {load_per_port:.1f}%
