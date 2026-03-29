@@ -413,11 +413,18 @@ with col_ctrl2:
     card_price_usd = receiving_card["price_usd"]
     card_price_rub = card_price_usd * exchange_rate
 
-    # ИНФО-ПЛАШКА КАРТЫ (единый стандарт для всех моделей)
+    # ЛОГИКА ОТОБРАЖЕНИЯ РАЗРЕШЕНИЯ
+    # Только для 412 и 416 серий показываем расширенное разрешение N
+    if any(model_num in card_name for model_num in ["412", "416"]):
+        res_info = "512х512 (N) / 512х384"
+    else:
+        res_info = "256х256" # Стандарт для младших серий
+
+    # ИНФО-ПЛАШКА КАРТЫ (стиль 1-в-1 как у модуля)
     st.markdown(f"""
     <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
         <span style="color: #a0aec0; font-size: 13px;">
-            Серия: <strong>{receiving_card['type']}</strong> &nbsp;|&nbsp; Модель: <strong>{card_name}</strong> &nbsp;|&nbsp; Разрешение: <strong>512х512 (N) / 512х384</strong>
+            Серия: <strong>{receiving_card['type']}</strong> &nbsp;|&nbsp; Модель: <strong>{card_name}</strong> &nbsp;|&nbsp; Разрешение: <strong>{res_info}</strong>
         </span><br>
         <span style="color: #a0aec0; font-size: 13px;">
             Цена (закупка): <strong style="color: #48bb78;">${card_price_usd:.2f}</strong> ({card_price_rub:,.0f} ₽)
