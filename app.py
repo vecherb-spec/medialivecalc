@@ -349,34 +349,35 @@ with col_ctrl1:
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
-    # Выбор карты с отображением цены в $
+    # Выбор карты
     selected_card = st.selectbox(
         "Приёмная карта (Novastar):", 
         RECEIVING_CARDS_DB,
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
         index=0,
-        key="card_selector_new"
+        key="card_selector_v_safe"
     )
     
+    # Создаем переменные, которые нужны для расчетов ниже по коду
     receiving_card = selected_card
-    # Исправляем ту самую ошибку NameError:
-    modules_per_card = receiving_card["capacity"]
+    modules_per_card = receiving_card.get("capacity", 256) # Берем из базы, если нет - ставим 256
+    card_price_usd = receiving_card.get("price_usd", 0.0)
     
-    # Инфо-плашка для карты
+    # Инфо-плашка
     st.markdown(f"""
     <div style="padding: 8px; border-radius: 6px; background: #1a202c; border: 1px solid #2d3748; font-size: 13px; margin-bottom: 10px;">
-        Цена карты: <span style="color: #48bb78;">${receiving_card['price_usd']:.2f}</span> ({(receiving_card['price_usd'] * exchange_rate):.0f} ₽)
+        Цена карты: <span style="color: #48bb78;">${card_price_usd:.2f}</span> ({(card_price_usd * exchange_rate):.0f} ₽)
     </div>
     """, unsafe_allow_html=True)
 
-    # Логика хаба (наши новые цены 5.29 и 14.86)
+    # Логика хаба (с твоими ценами 5.29 / 14.86)
     hub_price_usd = 0.0
     if receiving_card["type"] == "A":
         selected_hub = st.selectbox(
             "Выберите HUB для серии A:", 
             HUBS_DB,
             format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-            key="hub_selector_final_fix"
+            key="hub_selector_final_v_safe"
         )
         hub_price_usd = selected_hub["price_usd"]
     else:
