@@ -608,7 +608,7 @@ with st.expander("Принимающие карты", expanded=True):
 
 with st.expander("Блоки питания", expanded=True):
     st.markdown(f"""
-    - **Модель БП**: {psu_power}W
+    - **Модель БП**: {sel_psu['name']} ({sel_psu['max_w']}W)
     - **Схема коммутации**: {modules_per_psu} модулей на 1 БП
     - **Пиковое потребление экрана**: {peak_power_screen_kw:.1f} кВт
     - **Рабочее (среднее) потребление**: {avg_power_screen_kw:.1f} кВт
