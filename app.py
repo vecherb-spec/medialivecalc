@@ -59,7 +59,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- БАЗА ДАННЫХ МОДУЛЕЙ (Из прайса от 13.03.2026, только 320x160) ---
+# --- БАЗА ДАННЫХ МОДУЛЕЙ (Из прайса от 13.03.2026, визуально округлено до 2 знаков) ---
 MODULES_DB = [
     # OUTDOOR
     {"name": "Qiangli Q8 Outdoor 7680Hz", "env": "Outdoor", "pitch": 8.0, "tech": "SMD", "brightness": 4500, "max_power": 44.0, "price_usd": 7.87},
@@ -105,7 +105,7 @@ MODULES_DB = [
     {"name": "VISTECH P1.53 COB Indoor 3840Hz", "env": "Indoor", "pitch": 1.53, "tech": "COB", "brightness": 600, "max_power": 30.0, "price_usd": 41.55},
     {"name": "Qiangli Q1.25 Indoor 6000Hz", "env": "Indoor", "pitch": 1.25, "tech": "SMD", "brightness": 600, "max_power": 30.0, "price_usd": 45.20},
     {"name": "Qiangli Q1.25 Indoor 3840Hz", "env": "Indoor", "pitch": 1.25, "tech": "SMD", "brightness": 600, "max_power": 30.0, "price_usd": 44.10},
-    {"name": "Qiangli Q1.25 GOB Indoor 6000Hz", "env": "Indoor", "pitch": 1.25, "tech": "GOB", "brightness": 650, "max_power": 30.0, "price_usd": 50.10},
+    {"name": "Qiangli Q1.25 GOB Indoor 6000Hz", "env": "Indoor", "pitch": 1.25, "tech": "GOB", "brightness": 650, "max_power": 30.0, "price_usd": 50.10}
 ]
 
 # --- СПРАВОЧНИКИ ---
@@ -190,7 +190,7 @@ if btn_cols[2].button("21:9 (Кино)"): fit_ratio(2.3333333333333335); st.reru
 if btn_cols[3].button("1:1 (Квадрат)"): fit_ratio(1.0); st.rerun()
 
 # ==========================================
-# БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ (ИНТЕГРАЦИЯ БАЗЫ ДАННЫХ)
+# БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ
 # ==========================================
 st.markdown('<div class="section-header">⚙️ 2. Матрица и Конструкция</div>', unsafe_allow_html=True)
 
@@ -273,7 +273,7 @@ with col_ctrl1:
     avail_procs = ["VC10", "VC2", "VC4", "VC6", "VC16", "VC24", "MCTRL300", "MCTRL600", "MCTRL700", "MCTRL4K", "MCTRL R5", "VX400", "VX600 Pro", "VX1000 Pro", "VX2000 Pro", "VX16S"] if "Синхронная" in system_type else ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор / Контроллер", avail_procs, index=0)
     
-    # Частота обновления теперь информационная, так как она зашита в названии модуля из прайса. Но оставим для отчета.
+    # Информационное поле о частоте для отчета (частота зашита в название модуля)
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
