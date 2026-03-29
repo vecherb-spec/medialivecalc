@@ -371,22 +371,27 @@ with col_mount:
         magnet_size = st.selectbox("Размер магнита", ["10 мм", "13 мм", "17 мм"], index=1)
 
 # ==========================================
-# ==========================================
 # БЛОК 3: УПРАВЛЕНИЕ И КОНТРОЛЛЕРЫ
 # ==========================================
 st.markdown('<div class="section-header">📺 3. Управление и Контроллеры</div>', unsafe_allow_html=True)
+
+# --- 1. ПРЕДВАРИТЕЛЬНЫЕ РАСЧЕТЫ (Чтобы не было NameError) ---
+# Считаем реальные габариты и пиксели ПЕРЕД выводом интерфейса
+real_width = math.ceil(width_mm / mod_width) * mod_width
+real_height = math.ceil(height_mm / mod_height) * mod_height
+total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
 
 col_ctrl1, col_ctrl2 = st.columns(2)
 
 with col_ctrl1:
     st.markdown("---")
-    # 1. Выбор типа системы
+    # Выбор типа системы
     ctrl_category = st.radio("Тип системы:", ["Синхронная", "Асинхронная"], horizontal=True, key="sys_type_radio")
     
     # Фильтруем базу процессоров
     current_db = SYNC_CONTROLLERS_DB if ctrl_category == "Синхронная" else ASYNC_CONTROLLERS_DB
     
-    # 2. Выбор модели процессора
+    # Выбор модели процессора
     selected_proc = st.selectbox(
         "Модель контроллера/процессора:", 
         current_db,
@@ -400,7 +405,7 @@ with col_ctrl1:
 
 with col_ctrl2:
     st.markdown("---")
-    # 3. Выбор приемной карты
+    # Выбор приемной карты
     selected_card = st.selectbox(
         "Приёмная карта (Novastar):", 
         RECEIVING_CARDS_DB,
@@ -412,74 +417,19 @@ with col_ctrl2:
     card_name = receiving_card["name"]
     card_price_usd = receiving_card["price_usd"]
     card_price_rub = card_price_usd * exchange_rate
-
-    # ЛОГИКА ОТОБРАЖЕНИЯ РАЗРЕШЕНИЯ
-    # Только для 412 и 416 серий показываем расширенное разрешение N
-    if any(model_num in card_name for model_num in ["412", "416"]):
+    
+    # ЛОГИКА РАЗРЕШЕНИЯ (412/416 показывают N, остальные стандарт)
+    if any(m in card_name for m in ["412", "416"]):
         res_info = "512х512 (N) / 512х384"
     else:
-        res_info = "256х256" # Стандарт для младших серий
+        res_info = "256х256"
 
-    # ИНФО-ПЛАШКА КАРТЫ (стиль 1-в-1 как у модуля)
+    # ИНФО-ПЛАШКА КАРТЫ (стиль как у модуля)
     st.markdown(f"""
     <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
         <span style="color: #a0aec0; font-size: 13px;">
             Серия: <strong>{receiving_card['type']}</strong> &nbsp;|&nbsp; Модель: <strong>{card_name}</strong> &nbsp;|&nbsp; Разрешение: <strong>{res_info}</strong>
-        </span><br>
-        <span style="color: #a0aec0; font-size: 13px;">
-            Цена (закупка): <strong style="color: #48bb78;">${card_price_usd:.2f}</strong> ({card_price_rub:,.0f} ₽)
         </span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 4. Логика хаба
-    hub_price_usd = 0.0
-    if receiving_card["type"] == "A":
-        selected_hub = st.selectbox(
-            "Выберите HUB для серии A:", 
-            HUBS_DB,
-            format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-            key="main_hub_select"
-        )
-        hub_price_usd = selected_hub["price_usd"]
-    else:
-        st.info("HUB75 встроен в карту (MRV)")
-
-# 1. Расчет пикселей (проверь, что pixel_pitch определен выше)
-total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-
-# 2. Логика проверки
-required_ports = math.ceil(total_px / 650000)
-load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
-
-# 3. Цвета и тексты
-if required_ports <= available_ports:
-    status_text = "✅ ПОРТОВ ДОСТАТОЧНО"
-    status_color = "#48bb78"  # Зеленый
-    bg_color = "#1a202c"      # Темный фон
-else:
-    status_text = "❌ ВНИМАНИЕ: НЕДОСТАТОЧНО ПОРТОВ!"
-    status_color = "#ff4b4b"  # Ярко-красный (Streamlit Red)
-    bg_color = "#4a1b1b"      # Темно-красный фон для акцента
-
-# 4. Вывод плашки
-st.markdown(f"""
-<div style="padding: 15px 20px; border-radius: 10px; border: 2px solid {status_color}; background-color: {bg_color}; margin-top: 20px;">
-    <div style="color: #a0aec0; font-size: 14px; margin-bottom: 5px;">
-        Статус портов процессора <strong>{processor_name}</strong>:
-    </div>
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div style="color: #f8fafc; font-size: 15px;">
-            Доступно: <strong>{available_ports}</strong> &nbsp;|&nbsp; 
-            Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp; 
-            Нагрузка: <strong>{load_per_port:.1f}%</strong>
-        </div>
-        <div style="color: {status_color}; font-weight: bold; font-size: 16px; letter-spacing: 0.5px;">
-            {status_text}
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 
 # ==========================================
 # БЛОК 4: ПИТАНИЕ И РЕЗЕРВ (ЗИП) - ФИНАЛЬНЫЙ ЧИСТЫЙ ВАРИАНТ
