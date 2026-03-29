@@ -25,8 +25,8 @@ st.markdown("""
         border: 1px solid #2d3748;
         margin-bottom: 20px;
     }
-    .metric-value { font-size: 28px; font-weight: bold; color: #63b3ed; }
-    .metric-label { font-size: 14px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
+    .metric-value { font-size: 26px; font-weight: bold; color: #63b3ed; }
+    .metric-label { font-size: 13px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
     
     .stButton>button {
         background: linear-gradient(90deg, #3182ce, #2b6cb0); 
@@ -280,6 +280,11 @@ else:
     reserve_modules = reserve_modules_custom
 total_modules_order = total_modules + reserve_modules
 
+# Мощности
+max_power_module = 24.0 if "Indoor" in env_key else 45.0
+peak_power_screen_kw = total_modules * max_power_module / 1000
+avg_power_screen_kw = peak_power_screen_kw * 0.35 # Рабочая (средняя) мощность ~35%
+
 # Расчет БП ТОЛЬКО по количеству хвостов (модулей на БП)
 num_psu = math.ceil(total_modules / modules_per_psu)
 num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
@@ -292,10 +297,7 @@ num_cards = max(num_cards_by_mod, num_cards_by_pix)
 num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
 # Электрика (для автомата и кабеля всё еще считаем пиковую мощность, +20% скрытого запаса на пусковые токи)
-max_power_module = 24.0 if "Indoor" in env_key else 45.0
-peak_power_screen_kw = total_modules * max_power_module / 1000
 electrical_power_kw = peak_power_screen_kw * 1.20 
-
 voltage = 220 if "Одна фаза" in power_phase else 380 * math.sqrt(3)
 current = electrical_power_kw * 1000 / voltage
 cable_section = "3×16 мм²" if current < 60 else "3×25 мм²" if current < 100 else "3×35 мм²"
@@ -351,11 +353,14 @@ box_volume = num_boxes * 0.06
 # ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
-col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+# 5 Колонок с показателями
+col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
 with col_m1: st.markdown(f'<div class="metric-card"><div class="metric-label">Площадь</div><div class="metric-value">{area_m2:.2f} м²</div></div>', unsafe_allow_html=True)
 with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
-with col_m3: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощность</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
-with col_m4: st.markdown(f'<div class="metric-card"><div class="metric-label">Смета (Ориентир)</div><div class="metric-value">{total_price_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
+with col_m3: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
+with col_m4: st.markdown(f'<div class="metric-card"><div class="metric-label">Рабочая мощн.</div><div class="metric-value">{avg_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
+with col_m5: st.markdown(f'<div class="metric-card"><div class="metric-label">Смета (Прайс)</div><div class="metric-value">{total_price_rub:,.0f} ₽</div></div>', unsafe_allow_html=True)
+
 
 with st.expander("Характеристики экрана", expanded=True):
     st.markdown(f"""
@@ -399,7 +404,8 @@ with st.expander("Блоки питания", expanded=True):
     - **Модель БП**: {psu_power}W
     - **Схема коммутации**: {modules_per_psu} модулей на 1 БП
     - **Пиковое потребление экрана**: {peak_power_screen_kw:.1f} кВт
-    - **Основное количество**: {num_psu} шт.
+    - **Рабочее (среднее) потребление**: {avg_power_screen_kw:.1f} кВт
+    - **Основное количество БП**: {num_psu} шт.
     - **Итого БП к заказу (с ЗИП)**: **{num_psu_reserve} шт.**
     """)
 
@@ -414,7 +420,7 @@ with st.expander("Процессор / Контроллер", expanded=True):
 with st.expander("Вводная Сеть", expanded=True):
     st.markdown(f"""
     - **Тип сети**: {power_phase}
-    - **Ток**: {current:.1f} А
+    - **Ток**: {current:.1f} А (с учетом пусковых запасов)
     - **Рекомендуемый кабель ВВГ**: {cable_section}
     - **Номинал автомата**: {breaker} А (тип C)
     """)
@@ -478,6 +484,7 @@ figma_data = {
     "screen_dimensions_mm": f"{real_width}x{real_height}", "resolution_px": f"{int(real_width/pixel_pitch)}x{int(real_height/pixel_pitch)}",
     "area_m2": round(area_m2, 2), "pixel_pitch": pixel_pitch, "total_modules": total_modules_order,
     "receiving_cards": num_cards_reserve, "power_supplies": num_psu_reserve, "processor": processor,
+    "peak_power_kw": round(peak_power_screen_kw, 2), "avg_power_kw": round(avg_power_screen_kw, 2),
     "total_price_rub": total_price_rub
 }
 figma_json = json.dumps(figma_data, indent=4, ensure_ascii=False)
