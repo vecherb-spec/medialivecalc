@@ -530,15 +530,32 @@ num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
 num_hubs = num_cards_reserve if receiving_card["type"] == "A" else 0
 
 # --- 5. ФИНАНСЫ (USD) ---
-buy_mods_total = total_modules_order * price_usd
+
+# 1. Сначала определяем цену модуля для расчетов (берем ту, что введена выше)
+module_price_usd = price_usd  # Теперь NameError исчезнет
+
+# 2. Считаем закупку по категориям
+buy_mods_total = total_modules_order * module_price_usd
 buy_cards_total = num_cards_reserve * receiving_card["price_usd"]
 buy_hubs_total = num_hubs * hub_price_usd
 buy_psu_total = num_psu_reserve * sel_psu["price_usd"]
 buy_processor_total = proc_price_usd
 
-total_buy_usd = buy_cards_total + buy_psu_total + buy_hubs_total + buy_processor_total # + остальные комплектующие
+# 3. Итоговая сумма закупки (включая модули и процессор)
+total_buy_usd = (
+    buy_mods_total + 
+    buy_cards_total + 
+    buy_psu_total + 
+    buy_hubs_total + 
+    buy_processor_total
+)
+
+# 4. Пересчет модулей для отчета (как у тебя в коде)
 total_modules_cost_usd = total_modules * module_price_usd
 total_modules_cost_rub = total_modules_cost_usd * exchange_rate
+
+# 5. Общая закупка в рублях
+total_buy_rub = total_buy_usd * exchange_rate
 
 # --- 6. ЭЛЕКТРИКА (ТЕПЕРЬ РАБОТАЕТ) ---
 electrical_power_kw = peak_power_screen_kw * 1.20
