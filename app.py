@@ -401,7 +401,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
     
-    refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
+refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
     # Выбор карты
