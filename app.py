@@ -84,7 +84,7 @@ MODULES_DB = [
     {"name": "Qiangli Q3.07 Indoor 1920Hz", "env": "Indoor", "pitch": 3.07, "tech": "SMD", "brightness": 500, "max_power": 22.0, "price_usd": 8.80},
     {"name": "Qiangli Q2.5 Indoor 6000Hz", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 500, "max_power": 24.0, "price_usd": 13.15},
     {"name": "Qiangli R2.5 Indoor 6000Hz (Гибкий)", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 600, "max_power": 24.0, "price_usd": 15.25},
-    {"name": "Qiangli Q2.5 Indoor 3840Hz", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 450, "max_power": 24.0, "price_usd": 12.30},
+    {"name": "Qiangli Q2.5 Indoor 3840Hz", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 450, "max_power": 24.0, "price_usd": 12.55}, # <--- ИСПРАВЛЕНА ЦЕНА
     {"name": "Qiangli R2.5 Indoor 3840Hz (Гибкий)", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 500, "max_power": 24.0, "price_usd": 14.57},
     {"name": "Qiangli Q2.5 Indoor 1920Hz", "env": "Indoor", "pitch": 2.5, "tech": "SMD", "brightness": 450, "max_power": 24.0, "price_usd": 11.79},
     {"name": "Qiangli Q2 Indoor 6000Hz", "env": "Indoor", "pitch": 2.0, "tech": "SMD", "brightness": 600, "max_power": 23.0, "price_usd": 17.25},
@@ -273,7 +273,6 @@ with col_ctrl1:
     avail_procs = ["VC10", "VC2", "VC4", "VC6", "VC16", "VC24", "MCTRL300", "MCTRL600", "MCTRL700", "MCTRL4K", "MCTRL R5", "VX400", "VX600 Pro", "VX1000 Pro", "VX2000 Pro", "VX16S"] if "Синхронная" in system_type else ["TB10 Plus", "TB30", "TB40", "TB50", "TB60"]
     processor = st.selectbox("Процессор / Контроллер", avail_procs, index=0)
     
-    # Информационное поле о частоте для отчета (частота зашита в название модуля)
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
@@ -350,7 +349,7 @@ else:
     reserve_modules = reserve_modules_custom
 total_modules_order = total_modules + reserve_modules
 
-# === ЗАКУПКА МОДУЛЕЙ (С учетом ЗИП) ===
+# === ЗАКУПКА МОДУЛЕЙ ===
 total_modules_cost_usd = total_modules_order * price_usd
 total_modules_cost_rub = total_modules_order * price_rub_per_module
 
@@ -442,7 +441,6 @@ box_volume = num_boxes * 0.06
 # ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
-# 5 Колонок с показателями 
 col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
 with col_m1: st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
 with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
