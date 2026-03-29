@@ -349,25 +349,36 @@ with col_ctrl1:
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
-    # 1. Сначала создаем список имен для выбора
-    card_names = [c["name"] for c in RECEIVING_CARDS_DB]
-    selected_card_name = st.selectbox("Приёмная карта (Novastar):", card_names, index=1)
+    # Выбор карты с отображением цены в $
+    selected_card = st.selectbox(
+        "Приёмная карта (Novastar):", 
+        RECEIVING_CARDS_DB,
+        format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
+        index=0,
+        key="card_selector_new"
+    )
     
-    # 2. ТУТ ВАЖНО: Находим весь объект карты по выбранному имени
-    receiving_card = next(c for c in RECEIVING_CARDS_DB if c["name"] == selected_card_name)
+    receiving_card = selected_card
+    # Исправляем ту самую ошибку NameError:
+    modules_per_card = receiving_card["capacity"]
     
-    # 3. Только ТЕПЕРЬ можно спрашивать ["type"]
+    # Инфо-плашка для карты
+    st.markdown(f"""
+    <div style="padding: 8px; border-radius: 6px; background: #1a202c; border: 1px solid #2d3748; font-size: 13px; margin-bottom: 10px;">
+        Цена карты: <span style="color: #48bb78;">${receiving_card['price_usd']:.2f}</span> ({(receiving_card['price_usd'] * exchange_rate):.0f} ₽)
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Логика хаба (наши новые цены 5.29 и 14.86)
     hub_price_usd = 0.0
-    if receiving_card.get("type") == "A":
+    if receiving_card["type"] == "A":
         selected_hub = st.selectbox(
             "Выберите HUB для серии A:", 
             HUBS_DB,
             format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-            key="hub_selector_v_fixed"
+            key="hub_selector_final_fix"
         )
         hub_price_usd = selected_hub["price_usd"]
-        
-        st.markdown(f"<div style='font-size: 13px; color: #a0aec0; margin-top: -10px;'>Цена за шт: ${hub_price_usd:.2f}</div>", unsafe_allow_html=True)
     else:
         st.info("HUB75 встроен в MRV")
 
