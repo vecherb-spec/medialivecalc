@@ -269,6 +269,13 @@ exchange_rate = st.sidebar.number_input(
     step=0.1,
     help="Курс автоматически парсится с сайта ЦБ РФ + добавляется 1%, согласно правилам прайс-листа."
 )
+
+# --- ДОБАВЛЯЕМ КОЭФФИЦИЕНТ НАЦЕНКИ ---
+margin_percent = st.sidebar.number_input("Наценка на железо (%)", min_value=0, value=30, step=5)
+margin = 1 + (margin_percent / 100) # Это создаст ту самую переменную 'margin' (например, 1.3)
+
+st.sidebar.markdown("---")
+# Оставляем цену за м2, если она тебе нужна для других расчетов
 price_per_m2 = st.sidebar.number_input("Цена за м² клиенту (₽)", min_value=0, value=150000, step=5000)
 
 st.title("🖥️ Профессиональный калькулятор LED-экранов")
