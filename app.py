@@ -349,25 +349,25 @@ with col_ctrl1:
     refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
-    # (Выбор приёмной карты Novastar остаётся без изменений)
+    # 1. Сначала создаем список имен для выбора
+    card_names = [c["name"] for c in RECEIVING_CARDS_DB]
+    selected_card_name = st.selectbox("Приёмная карта (Novastar):", card_names, index=1)
     
+    # 2. ТУТ ВАЖНО: Находим весь объект карты по выбранному имени
+    receiving_card = next(c for c in RECEIVING_CARDS_DB if c["name"] == selected_card_name)
+    
+    # 3. Только ТЕПЕРЬ можно спрашивать ["type"]
     hub_price_usd = 0.0
-    if receiving_card["type"] == "A":
-        # Список выбора: Название — $Цена
+    if receiving_card.get("type") == "A":
         selected_hub = st.selectbox(
             "Выберите HUB для серии A:", 
             HUBS_DB,
             format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-            key="hub_selector_final_user_prices"
+            key="hub_selector_v_fixed"
         )
         hub_price_usd = selected_hub["price_usd"]
         
-        # Инфо-плашка с ценой в рублях под списком
-        st.markdown(f"""
-        <div style="font-size: 13px; color: #a0aec0; margin-top: -10px; margin-bottom: 10px;">
-            Цена за шт: <span style="color: #48bb78;">${hub_price_usd:.2f}</span> ({(hub_price_usd * exchange_rate):.0f} ₽)
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 13px; color: #a0aec0; margin-top: -10px;'>Цена за шт: ${hub_price_usd:.2f}</div>", unsafe_allow_html=True)
     else:
         st.info("HUB75 встроен в MRV")
 
