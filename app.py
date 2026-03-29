@@ -77,18 +77,23 @@ CARD_MAX_PIXELS = {
     "MRV208-N / MRV208-1": 256*256, "MRV470-1": 512*384, "A4s Plus": 256*256
 }
 
+# ИСПРАВЛЕННЫЕ ПРАВИЛЬНЫЕ РАЗМЕРЫ (Кратны 320х160)
 popular_16_9 = {
-    "2560 × 1440": (2560, 1440), "3200 × 1800": (3200, 1800),
-    "3840 × 2160": (3840, 2160), "4120 × 2340": (4120, 2340),
-    "4800 × 2700": (4800, 2700), "5120 × 2880": (5120, 2880),
-    "6080 × 3420": (6080, 3420), "Свой размер (вручную)": (None, None)
+    "2560 × 1440 мм (8×9 шт) | Идеально 16:9": (2560, 1440),
+    "2880 × 1600 мм (9×10 шт) | ~16:9": (2880, 1600),
+    "3200 × 1760 мм (10×11 шт) | ~16:9": (3200, 1760),
+    "3840 × 2240 мм (12×14 шт) | ~16:9": (3840, 2240),
+    "4800 × 2720 мм (15×17 шт) | ~16:9": (4800, 2720),
+    "5120 × 2880 мм (16×18 шт) | Идеально 16:9": (5120, 2880),
+    "6080 × 3360 мм (19×21 шт) | ~16:9": (6080, 3360),
+    "7680 × 4320 мм (24×27 шт) | Идеально 16:9": (7680, 4320),
+    "Свой размер (вручную)": (None, None)
 }
 
 # --- ИНИЦИАЛИЗАЦИЯ STATE ---
-# Используем width_input напрямую, чтобы избежать конфликта ключей
 if "width_input" not in st.session_state: st.session_state.width_input = 3840
 if "height_mm" not in st.session_state: st.session_state.height_mm = 2240
-if "previous_selected" not in st.session_state: st.session_state.previous_selected = "3840 × 2160"
+if "previous_selected" not in st.session_state: st.session_state.previous_selected = "3840 × 2240 мм (12×14 шт) | ~16:9"
 
 def fit_ratio(ratio):
     ideal = st.session_state.width_input / ratio
@@ -97,11 +102,11 @@ def fit_ratio(ratio):
     st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
 
 # Обработка выбора популярного размера до рендера инпутов
-selected_label = st.sidebar.selectbox("📐 Быстрый размер 16:9", list(popular_16_9.keys()), index=2)
+selected_label = st.sidebar.selectbox("📐 Быстрый размер (16:9)", list(popular_16_9.keys()), index=3)
 if selected_label != st.session_state.previous_selected:
     selected_w, selected_h = popular_16_9[selected_label]
     if selected_w is not None:
-        st.session_state.width_input = selected_w  # Обновляем напрямую ключ виджета
+        st.session_state.width_input = selected_w 
         st.session_state.height_mm = selected_h
     st.session_state.previous_selected = selected_label
     st.rerun()
