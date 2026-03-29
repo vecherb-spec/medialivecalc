@@ -453,6 +453,18 @@ with col_ctrl2:
     # 4. Логика хаба
     hub_price_usd = 0.0
     if receiving_card["type"] == "A":
+        selected_hub = st.selectbox(
+            "Выберите HUB для серии A:", 
+            HUBS_DB,
+            format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
+            key="main_hub_select"
+        )
+        hub_price_usd = selected_hub["price_usd"]
+    else:
+        st.info("HUB75 встроен в карту (MRV)")
+
+# РАСЧЕТЫ ДОЛЖНЫ ИДТИ ПОСЛЕ БЛОКА IF С ТЕМ ЖЕ ОТСТУПОМ, ЧТО И ВЕСЬ БЛОК
+real_width = math.ceil(width_mm / 320) * 320
 
 # РАСЧЕТ И СТАТУС ПОРТОВ (единственная инфо-панель для контроллера)
 real_width = math.ceil(width_mm / 320) * 320
