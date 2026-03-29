@@ -164,11 +164,10 @@ with col_mat:
         if env_key == "Outdoor":
             sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], index=1)
     with c_bright:
-        # ДОБАВЛЕН ВЫБОР ЯРКОСТИ
         if env_key == "Indoor":
-            brightness = st.selectbox("Яркость (нит)", [600, 800, 1000, 1200, 1500], index=1) # 800 по умолчанию
+            brightness = st.selectbox("Яркость (нит)", [600, 800, 1000, 1200, 1500], index=1)
         else:
-            brightness = st.selectbox("Яркость (нит)", [4500, 5500, 6000, 6500, 8000, 10000], index=3) # 6500 по умолчанию
+            brightness = st.selectbox("Яркость (нит)", [4500, 5500, 6000, 6500, 8000, 10000], index=3)
 
 with col_mount:
     mount_type = st.radio("Тип монтажа", ["Монолитный (Магниты/Профиль)", "В кабинетах"], horizontal=True, index=0)
@@ -289,7 +288,7 @@ total_modules_order = total_modules + reserve_modules
 # Мощности
 max_power_module = 24.0 if "Indoor" in env_key else 45.0
 peak_power_screen_kw = total_modules * max_power_module / 1000
-avg_power_screen_kw = peak_power_screen_kw * 0.35 # Рабочая (средняя) мощность ~35%
+avg_power_screen_kw = peak_power_screen_kw * 0.35
 
 # Расчет БП ТОЛЬКО по количеству хвостов (модулей на БП)
 num_psu = math.ceil(total_modules / modules_per_psu)
@@ -302,12 +301,40 @@ num_cards_by_pix = math.ceil(total_px / max_pixels_card)
 num_cards = max(num_cards_by_mod, num_cards_by_pix)
 num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
-# Электрика (для автомата и кабеля всё еще считаем пиковую мощность, +20% скрытого запаса на пусковые токи)
-electrical_power_kw = peak_power_screen_kw * 1.20 
-voltage = 220 if "Одна фаза" in power_phase else 380 * math.sqrt(3)
-current = electrical_power_kw * 1000 / voltage
-cable_section = "3×16 мм²" if current < 60 else "3×25 мм²" if current < 100 else "3×35 мм²"
-breaker = math.ceil(current * 1.25)
+# --- ИСПРАВЛЕННАЯ ЭЛЕКТРИКА (Ток, сечение, автомат) ---
+electrical_power_kw = peak_power_screen_kw * 1.20 # +20% на пусковые токи
+
+if "Одна фаза" in power_phase:
+    current = (electrical_power_kw * 1000) / 220
+    cores = 3
+else:
+    current = (electrical_power_kw * 1000) / (380 * math.sqrt(3))
+    cores = 5
+
+# Подбор сечения по ПУЭ (медь, открытая/закрытая проводка - усредненно)
+if current <= 15:
+    sq = "1.5"
+elif current <= 21:
+    sq = "2.5"
+elif current <= 27:
+    sq = "4"
+elif current <= 34:
+    sq = "6"
+elif current <= 50:
+    sq = "10"
+elif current <= 70:
+    sq = "16"
+elif current <= 85:
+    sq = "25"
+else:
+    sq = "35"
+
+cable_section = f"{cores}×{sq} мм²"
+
+# Подбор стандартного номинала автомата (тип C)
+target_breaker = current * 1.25
+standard_breakers = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250]
+breaker = next((b for b in standard_breakers if b >= target_breaker), math.ceil(target_breaker))
 
 # Механика
 vert_profiles = modules_w + 1
@@ -359,7 +386,6 @@ box_volume = num_boxes * 0.06
 # ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
-# 5 Колонок с показателями
 col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
 with col_m1: st.markdown(f'<div class="metric-card"><div class="metric-label">Площадь</div><div class="metric-value">{area_m2:.2f} м²</div></div>', unsafe_allow_html=True)
 with col_m2: st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
@@ -425,7 +451,7 @@ with st.expander("Процессор / Контроллер", expanded=True):
 with st.expander("Вводная Сеть", expanded=True):
     st.markdown(f"""
     - **Тип сети**: {power_phase}
-    - **Ток**: {current:.1f} А (с учетом пусковых запасов)
+    - **Ток**: {current:.1f} А (расчетный)
     - **Рекомендуемый кабель ВВГ**: {cable_section}
     - **Номинал автомата**: {breaker} А (тип C)
     """)
