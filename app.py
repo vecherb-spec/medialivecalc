@@ -371,72 +371,60 @@ with col_mount:
         magnet_size = st.selectbox("Размер магнита", ["10 мм", "13 мм", "17 мм"], index=1)
 
 # ==========================================
-# БЛОК 3: УПРАВЛЕНИЕ И КОММУТАЦИЯ
 # ==========================================
-st.subheader("📺 Видеопроцессор / Контроллер")
+# БЛОК 3: УПРАВЛЕНИЕ И КОНТРОЛЛЕРЫ
+# ==========================================
+st.markdown('<div class="section-header">📺 3. Управление и Контроллеры</div>', unsafe_allow_html=True)
 
-# Переключатель типа
-ctrl_type = st.radio("Тип управления:", ["Синхронный", "Асинхронный"], horizontal=True)
+# СОЗДАЕМ КОЛОНКИ (это исправит ошибку NameError)
+col_ctrl1, col_ctrl2 = st.columns(2)
 
-if ctrl_type == "Синхронный":
-    db = SYNC_CONTROLLERS_DB
-else:
-    db = ASYNC_CONTROLLERS_DB
-
-# Выбор конкретной модели
-selected_proc = st.selectbox(
-    "Выберите модель:", 
-    db, 
-    format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-    key="unique_proc_selector"
-)
-
-# Сохраняем цену для расчетов
-proc_price_usd = selected_proc["price_usd"]
-
-# Инфо-плашка
-st.markdown(f"""
-<div style="padding: 10px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; font-size: 14px;">
-    Закупка: <strong style="color: #48bb78;">${proc_price_usd:.2f}</strong> ({(proc_price_usd * exchange_rate):.0f} ₽)
-</div>
-""", unsafe_allow_html=True)
+with col_ctrl1:
+    st.markdown("---")
+    # 1. Выбор категории системы
+    ctrl_category = st.radio("Тип системы:", ["Синхронная", "Асинхронная"], horizontal=True, key="sys_type_radio")
     
-refresh_rate = st.selectbox("Целевая частота обновления (Hz)", [1920, 2880, 3840, 6000, 7680], index=2)
+    # Фильтруем базу процессоров
+    current_db = SYNC_CONTROLLERS_DB if ctrl_category == "Синхронная" else ASYNC_CONTROLLERS_DB
+    
+    # 2. Выбор модели процессора
+    selected_proc = st.selectbox(
+        "Модель контроллера/процессора:", 
+        current_db,
+        format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
+        key="main_proc_select"
+    )
+    proc_price_usd = selected_proc["price_usd"]
+    
+    # Настройки отображения (частота и скан)
+    scan_mode = st.selectbox("Метод сканирования (Scan):", [16, 20, 22, 32], index=3)
+    refresh_rate = st.selectbox("Частота обновления (Hz):", [1920, 2880, 3840, 6000, 7680], index=2)
 
 with col_ctrl2:
-    # Выбор карты
+    st.markdown("---")
+    # 3. Выбор приемной карты (Novastar)
     selected_card = st.selectbox(
         "Приёмная карта (Novastar):", 
         RECEIVING_CARDS_DB,
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-        index=0,
-        key="card_selector_v_safe"
+        key="main_card_select"
     )
-    
-    # Создаем переменные, которые нужны для расчетов ниже по коду
     receiving_card = selected_card
-    modules_per_card = receiving_card.get("capacity", 256) # Берем из базы, если нет - ставим 256
-    card_price_usd = receiving_card.get("price_usd", 0.0)
-    
-    # Инфо-плашка
-    st.markdown(f"""
-    <div style="padding: 8px; border-radius: 6px; background: #1a202c; border: 1px solid #2d3748; font-size: 13px; margin-bottom: 10px;">
-        Цена карты: <span style="color: #48bb78;">${card_price_usd:.2f}</span> ({(card_price_usd * exchange_rate):.0f} ₽)
-    </div>
-    """, unsafe_allow_html=True)
+    modules_per_card = receiving_card.get("capacity", 256)
+    card_price_usd = receiving_card["price_usd"]
 
-    # Логика хаба (с твоими ценами 5.29 / 14.86)
+    # 4. Логика хаба (наши цены 5.29 / 14.86)
     hub_price_usd = 0.0
     if receiving_card["type"] == "A":
         selected_hub = st.selectbox(
             "Выберите HUB для серии A:", 
             HUBS_DB,
             format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-            key="hub_selector_final_v_safe"
+            key="main_hub_select"
         )
         hub_price_usd = selected_hub["price_usd"]
     else:
-        st.info("HUB75 встроен в MRV")
+        st.info("HUB75 встроен в карту (MRV)")
 
 real_width = math.ceil(width_mm / 320) * 320
 real_height = math.ceil(height_mm / 160) * 160
