@@ -380,13 +380,13 @@ col_ctrl1, col_ctrl2 = st.columns(2)
 
 with col_ctrl1:
     st.markdown("---")
-    # Выбор типа системы
+    # 1. Выбор типа системы
     ctrl_category = st.radio("Тип системы:", ["Синхронная", "Асинхронная"], horizontal=True, key="sys_type_radio")
     
     # Фильтруем базу процессоров
     current_db = SYNC_CONTROLLERS_DB if ctrl_category == "Синхронная" else ASYNC_CONTROLLERS_DB
     
-    # Выбор модели процессора
+    # 2. Выбор модели процессора
     selected_proc = st.selectbox(
         "Модель контроллера/процессора:", 
         current_db,
@@ -394,24 +394,13 @@ with col_ctrl1:
         key="main_proc_select"
     )
     
-    # ПЛАШКА ДЛЯ КОНТРОЛЛЕРА
-    st.markdown(f"""
-    <div style="padding: 15px; border-radius: 10px; background-color: #1e293b; border-left: 5px solid #3b82f6; margin-top: 10px; margin-bottom: 20px;">
-        <div style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Закупка (Контроллер)</div>
-        <div style="display: flex; align-items: baseline; gap: 10px;">
-            <span style="color: #f8fafc; font-size: 1.4rem; font-weight: bold;">${selected_proc['price_usd']:.2f}</span>
-            <span style="color: #60a5fa; font-size: 1.1rem;">({(selected_proc['price_usd'] * exchange_rate):,.0f} ₽)</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Переменные для отчета
     processor_name = selected_proc["name"]
     proc_price_usd = selected_proc["price_usd"]
+    available_ports = PROCESSOR_PORTS.get(processor_name, 1)
 
 with col_ctrl2:
     st.markdown("---")
-    # Выбор приемной карты
+    # 3. Выбор приемной карты
     selected_card = st.selectbox(
         "Приёмная карта (Novastar):", 
         RECEIVING_CARDS_DB,
@@ -419,24 +408,25 @@ with col_ctrl2:
         key="main_card_select"
     )
     
-    # ПЛАШКА ДЛЯ ПРИЕМНОЙ КАРТЫ
-    st.markdown(f"""
-    <div style="padding: 15px; border-radius: 10px; background-color: #1e293b; border-left: 5px solid #10b981; margin-top: 10px; margin-bottom: 20px;">
-        <div style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Закупка (1 карта)</div>
-        <div style="display: flex; align-items: baseline; gap: 10px;">
-            <span style="color: #f8fafc; font-size: 1.4rem; font-weight: bold;">${selected_card['price_usd']:.2f}</span>
-            <span style="color: #34d399; font-size: 1.1rem;">({(selected_card['price_usd'] * exchange_rate):,.0f} ₽)</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Переменные для расчетов
     receiving_card = selected_card
     card_name = receiving_card["name"]
     card_price_usd = receiving_card["price_usd"]
+    card_price_rub = card_price_usd * exchange_rate
     modules_per_card = receiving_card.get("capacity", 256)
 
-    # Логика хаба
+    # ИНФО-ПЛАШКА КАРТЫ (стиль как у модуля)
+    st.markdown(f"""
+    <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
+        <span style="color: #a0aec0; font-size: 13px;">
+            Серия: <strong>{receiving_card['type']}</strong> &nbsp;|&nbsp; Модель: <strong>{card_name}</strong> &nbsp;|&nbsp; Лимит: <strong>{modules_per_card} мод.</strong>
+        </span><br>
+        <span style="color: #a0aec0; font-size: 13px;">
+            Разрешение (max): <strong>512x256</strong> &nbsp;|&nbsp; Цена (закупка): <strong style="color: #48bb78;">${card_price_usd:.2f}</strong> ({card_price_rub:,.0f} ₽)
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 4. Логика хаба
     hub_price_usd = 0.0
     if receiving_card["type"] == "A":
         selected_hub = st.selectbox(
@@ -449,13 +439,12 @@ with col_ctrl2:
     else:
         st.info("HUB75 встроен в карту (MRV)")
 
-# РАСЧЕТ ПОРТОВ (Остается без изменений под плашками)
+# РАСЧЕТ И СТАТУС ПОРТОВ (единственная инфо-панель для контроллера)
 real_width = math.ceil(width_mm / 320) * 320
 real_height = math.ceil(height_mm / 160) * 160
 total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
 
 required_ports = math.ceil(total_px / 650000)
-available_ports = PROCESSOR_PORTS.get(selected_proc["name"], 1)
 load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
 
 status_text = "✅ Портов достаточно" if required_ports <= available_ports else "❌ ВНИМАНИЕ: Недостаточно портов!"
@@ -463,7 +452,7 @@ status_color = "#48bb78" if required_ports <= available_ports else "#f56565"
 
 st.markdown(f"""
 <div style="padding: 12px 20px; border-radius: 8px; border-left: 4px solid {status_color}; background: #1a202c; margin-top: 10px;">
-    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{selected_proc['name']}</strong>:</span><br>
+    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{processor_name}</strong>:</span><br>
     Доступно: <strong>{available_ports}</strong> &nbsp;|&nbsp;
     Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp;
     Нагрузка на порт: <strong>{load_per_port:.1f}%</strong> &nbsp;&nbsp;➔&nbsp;&nbsp;
