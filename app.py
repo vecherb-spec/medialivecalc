@@ -994,7 +994,7 @@ st.sidebar.caption(f"Заклёпка Sormat M6 (Lemana): {rivet_m6_price_source
 
 # --- ДОБАВЛЯЕМ КОЭФФИЦИЕНТ НАЦЕНКИ ---
 margin_percent = st.sidebar.number_input(
-    "Наценка на железо (%)", min_value=0, value=30, step=5, key="calc_margin_pct"
+    "Наценка на экран и каркас (%)", min_value=0, value=30, step=5, key="calc_margin_pct"
 )
 margin = 1 + (margin_percent / 100)  # Это создаст ту самую переменную 'margin' (например, 1.3)
 
@@ -1719,9 +1719,15 @@ buy_components_usd = total_buy_usd - buy_frame_usd
 buy_frame_rub = buy_frame_usd * exchange_rate
 buy_components_rub = buy_components_usd * exchange_rate
 
-# Наценка применяется только к железу; логистика/монтаж добавляются отдельными строками.
-sale_hardware_usd = total_buy_usd * margin
-sale_hardware_rub = sale_hardware_usd * exchange_rate
+# Наценка: отдельно на комплектующие и отдельно на каркас/крепёж.
+sale_components_usd = buy_components_usd * margin
+sale_components_rub = sale_components_usd * exchange_rate
+sale_frame_usd = buy_frame_usd * margin
+sale_frame_rub = sale_frame_usd * exchange_rate
+sale_hardware_usd = sale_components_usd + sale_frame_usd
+sale_hardware_rub = sale_components_rub + sale_frame_rub
+
+# Прибыль считаем только по железу (без логистики и монтажа).
 profit_hardware_usd = sale_hardware_usd - total_buy_usd
 profit_hardware_rub = profit_hardware_usd * exchange_rate
 
@@ -1741,8 +1747,8 @@ sale_total_usd = commercial_subtotal_usd + vat_amount_usd
 sale_total_rub = commercial_subtotal_rub + vat_amount_rub
 profit_usd = profit_hardware_usd
 profit_rub = profit_hardware_rub
-total_profit_usd = profit_hardware_usd + extras_usd
-total_profit_rub = profit_hardware_rub + extras_rub
+expense_total_usd = total_buy_usd + extras_usd
+expense_total_rub = total_buy_rub + extras_rub
 
 # --- 6. ЭЛЕКТРИКА (ТЕПЕРЬ РАБОТАЕТ) ---
 electrical_power_kw = peak_power_screen_kw * 1.20
@@ -1879,13 +1885,17 @@ _buy_frame_main, _buy_frame_sub = _format_money_lines(buy_frame_usd, buy_frame_r
 _sale_main, _sale_sub = _format_money_lines(sale_total_usd, sale_total_rub)
 _extras_main, _extras_sub = _format_money_lines(extras_usd, extras_rub)
 _vat_main, _vat_sub = _format_money_lines(vat_amount_usd, vat_amount_rub)
+_sale_components_main, _sale_components_sub = _format_money_lines(
+    sale_components_usd, sale_components_rub
+)
+_sale_frame_main, _sale_frame_sub = _format_money_lines(sale_frame_usd, sale_frame_rub)
 _installation_main, _installation_sub = _format_money_lines(
     installation_rub / exchange_rate if exchange_rate else 0.0, installation_rub
 )
 _logistics_main, _logistics_sub = _format_money_lines(
     logistics_rub / exchange_rate if exchange_rate else 0.0, logistics_rub
 )
-_profit_main, _profit_sub = _format_money_lines(total_profit_usd, total_profit_rub)
+_profit_main, _profit_sub = _format_money_lines(profit_hardware_usd, profit_hardware_rub)
 _sale_title = "Итоговая стоимость (с НДС)" if vat_rate > 0 else "Итоговая стоимость (без НДС)"
 
 col_f1, col_f2, col_f3, col_f4, col_f5, col_f6 = st.columns(6)
@@ -1896,8 +1906,8 @@ with col_f1:
 <div class="finance-metric-card" style="border-left: 4px solid #3b82f6;">
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Комплектующие</div>
     <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_buy_comp_main}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">{_buy_comp_sub}</span>
+        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_components_main}</span><br>
+        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_comp_main}</span>
     </div>
 </div>
 """,
@@ -1910,8 +1920,8 @@ with col_f2:
 <div class="finance-metric-card" style="border-left: 4px solid #d97706;">
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Каркас и крепеж</div>
     <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_buy_frame_main}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">{_buy_frame_sub}</span>
+        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_frame_main}</span><br>
+        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_frame_main}</span>
     </div>
 </div>
 """,
@@ -1969,12 +1979,12 @@ with col_f6:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #a855f7;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Итоговая прибыль</div>
+    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Чистая прибыль</div>
     <div style="margin-top: 8px;">
         <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_profit_main}</span><br>
         <span style="color: #c4b5fd; font-size: 0.95rem; font-weight: bold;">{_profit_sub}</span>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Маржа на железо + монтаж + логистика (без НДС)</div>
+    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Только экран и каркас (без логистики и монтажа)</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -2230,8 +2240,8 @@ figma_data = {
     "sale_hardware_rub": round(sale_hardware_rub, 2),
     "profit_hardware_usd": round(profit_hardware_usd, 2),
     "profit_hardware_rub": round(profit_hardware_rub, 2),
-    "total_profit_usd": round(total_profit_usd, 2),
-    "total_profit_rub": round(total_profit_rub, 2),
+    "expense_total_usd": round(expense_total_usd, 2),
+    "expense_total_rub": round(expense_total_rub, 2),
     "logistics_rub": round(logistics_rub, 2),
     "installation_rub": round(installation_rub, 2),
     "extras_usd": round(extras_usd, 2),
