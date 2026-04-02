@@ -1,7 +1,9 @@
 import streamlit as st
 import math
 import json
+import re
 import datetime
+from typing import Optional
 import urllib.request
 import xml.etree.ElementTree as ET
 
@@ -78,6 +80,177 @@ def get_cbr_usd_rate():
         return 95.0
     except Exception:
         return 95.0 # Резервный курс при ошибке сети
+
+
+# Профиль 40×20×1,5: в продаже только хлыст 6 м; в смете — ₽/п.м × (число хлыстов × 6).
+PROFILE_40X20_STICK_M = 6.0
+PROFILE_40X20_RUB_M_FALLBACK = 189.0
+
+# Саморез 4,2×16 с прессшайбой (к профилю); в магазине обычно упаковка — ориентир ₽/шт.
+SCREW_4X16_PRESS_RUB_EACH_FALLBACK = 1.5
+
+# Заклёпка резьбовая Sormat M6 + винт M6×16 DIN 912 оцинк. (каркас монолита, 1+1 на узел).
+RIVET_M6_SORMAT_RUB_EACH_FALLBACK = 12.0
+BOLT_M6_6x16_DIN912_RUB_EACH_FALLBACK = 8.5
+LEMANA_RIVET_M6_SORMAT_URL = "https://lemanapro.ru/product/zaklepka-sormat-m6-mm-87937034/"
+LEMANA_BOLT_M6_6x16_DIN912_URL = (
+    "https://lemanapro.ru/product/vint-din-912-6x16-mm-ocinkovannyy-24-sht-89397382/"
+)
+
+# Металлические пластины под БП (1 шт. на БП с ЗИП); фикс. 150 ₽/шт, только в смете «Каркас».
+METAL_PLATE_RUB_EACH = 150.0
+
+PETROVICH_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+PETROVICH_PRICE_PATTERNS = (
+    r'"price"\s*:\s*(\d{2,5})\s*[,}]',
+    r'data-price="(\d{3,5})"',
+    r'itemprop="price"\s+content="(\d+)"',
+)
+
+
+def _petrovich_first_listed_price_raw(urls: tuple) -> Optional[int]:
+    """Первая похожая на цену цифра в HTML выдачи/каталога Петровича."""
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": PETROVICH_UA})
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                html = resp.read().decode("utf-8", errors="ignore")
+            for pat in PETROVICH_PRICE_PATTERNS:
+                m = re.search(pat, html)
+                if m:
+                    raw = int(m.group(1))
+                    if 10 <= raw <= 50000:
+                        return raw
+        except Exception:
+            continue
+    return None
+
+
+def _html_first_price_int(html: str) -> Optional[int]:
+    """Первая целая цена в HTML (карточка товара)."""
+    for pat in PETROVICH_PRICE_PATTERNS:
+        m = re.search(pat, html)
+        if m:
+            raw = int(m.group(1))
+            if 10 <= raw <= 50000:
+                return raw
+    return None
+
+
+@st.cache_data(ttl=86400)
+def get_profile_40x20_rub_per_m_petrovich():
+    """
+    Пытается взять цену с petrovich.ru (поиск профтрубы 40×20), кэш 24 ч.
+    Если вёрстка/сеть изменились — смотрите поле в сайдбаре и правьте URL/regex или вводите цену вручную.
+    Возвращает (₽ за п.м., короткая подпись источника).
+    """
+    src_fail = "резерв (парсер/сеть)"
+    urls = (
+        "https://www.petrovich.ru/search/?search=truba+profilnaya+40+20+1.5",
+        "https://www.petrovich.ru/search/?search=%D1%82%D1%80%D1%83%D0%B1%D0%B0+%D0%BF%D1%80%D0%BE%D1%84%D0%B8%D0%BB%D1%8C%D0%BD%D0%B0%D1%8F+40+20+1.5",
+    )
+    raw = _petrovich_first_listed_price_raw(urls)
+    if raw is not None:
+        if raw >= 400:
+            return (round(raw / PROFILE_40X20_STICK_M, 2), "petrovich.ru (из цены хлыста ÷6)")
+        return (float(raw), "petrovich.ru")
+    return (float(PROFILE_40X20_RUB_M_FALLBACK), src_fail)
+
+
+@st.cache_data(ttl=86400)
+def get_screw_4x16_press_rub_each_petrovich():
+    """
+    Цена самореза 4,2×16 с прессшайбой (сверло), кэш 24 ч.
+    В выдаче Петровича чаще цена за упаковку — делим на типичное число шт. в уп.
+    """
+    src_fail = "резерв (парсер/сеть)"
+    urls = (
+        "https://www.petrovich.ru/search/?search=samorez+4.2x16+press+shayba",
+        "https://www.petrovich.ru/search/?search=samorez+4.2+16+sv+press",
+        "https://www.petrovich.ru/search/?search=%D1%81%D0%B0%D0%BC%D0%BE%D1%80%D0%B5%D0%B7+4%D1%8516+%D0%BF%D1%80%D0%B5%D1%81%D1%81%D1%88%D0%B0%D0%B9%D0%B1%D0%B0",
+    )
+    raw = _petrovich_first_listed_price_raw(urls)
+    if raw is None:
+        return (float(SCREW_4X16_PRESS_RUB_EACH_FALLBACK), src_fail)
+    if raw >= 800:
+        return (round(raw / 1000.0, 4), "petrovich.ru (цена ÷1000 шт/уп)")
+    if raw >= 400:
+        return (round(raw / 500.0, 4), "petrovich.ru (цена ÷500 шт/уп)")
+    if raw >= 150:
+        return (round(raw / 200.0, 4), "petrovich.ru (цена ÷200 шт/уп)")
+    if raw >= 70:
+        return (round(raw / 100.0, 4), "petrovich.ru (цена ÷100 шт/уп)")
+    if raw >= 25:
+        return (round(raw / 50.0, 4), "petrovich.ru (цена ÷50 шт/уп)")
+    if raw >= 12:
+        return (round(raw / 20.0, 4), "petrovich.ru (цена ÷20 шт/уп)")
+    return (float(raw), "petrovich.ru (как за 1 шт)")
+
+
+@st.cache_data(ttl=86400)
+def get_rivet_m6_sormat_rub_each_lemana():
+    """
+    Заклёпка резьбовая Sormat M6, кэш 24 ч.
+    Карточка: lemanapro.ru (число шт. в уп. из текста страницы или 1 шт.).
+    """
+    src_fail = "резерв (Lemana/сеть)"
+    url = LEMANA_RIVET_M6_SORMAT_URL
+    pack = 1
+    m_url = re.search(r"-(\d+)-sht", url, re.I)
+    if m_url:
+        pack = max(1, int(m_url.group(1)))
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": PETROVICH_UA})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        m_pack = re.search(r"(\d+)\s*шт", html[:120000], re.I)
+        if m_pack:
+            pack = max(1, int(m_pack.group(1)))
+        raw = _html_first_price_int(html)
+        if raw is None:
+            m = re.search(r'"finalPrice"\s*:\s*(\d{2,6})', html)
+            if m:
+                raw = int(m.group(1))
+        if raw is not None and 5 <= raw <= 50000 and pack > 0:
+            return (round(raw / float(pack), 4), f"lemanapro.ru (уп. {pack} шт, Sormat M6)")
+    except Exception:
+        pass
+    return (float(RIVET_M6_SORMAT_RUB_EACH_FALLBACK), src_fail)
+
+
+@st.cache_data(ttl=86400)
+def get_bolt_m6_6x16_din912_zinc_rub_each_lemana():
+    """
+    Винт M6×16 DIN 912 оцинк., кэш 24 ч.
+    Карточка: lemanapro.ru (упаковка в URL, напр. 24 шт).
+    """
+    src_fail = "резерв (Lemana/сеть)"
+    url = LEMANA_BOLT_M6_6x16_DIN912_URL
+    pack = 24
+    m_url = re.search(r"-(\d+)-sht", url, re.I)
+    if m_url:
+        pack = max(1, int(m_url.group(1)))
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": PETROVICH_UA})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        m_pack = re.search(r"(\d+)\s*шт", html[:120000], re.I)
+        if m_pack:
+            pack = max(1, int(m_pack.group(1)))
+        raw = _html_first_price_int(html)
+        if raw is None:
+            m = re.search(r'"finalPrice"\s*:\s*(\d{2,6})', html)
+            if m:
+                raw = int(m.group(1))
+        if raw is not None and 15 <= raw <= 50000 and pack > 0:
+            return (round(raw / float(pack), 4), f"lemanapro.ru (уп. {pack} шт, DIN 912 6×16)")
+    except Exception:
+        pass
+    return (float(BOLT_M6_6x16_DIN912_RUB_EACH_FALLBACK), src_fail)
+
 
 # --- БАЗА ДАННЫХ МОДУЛЕЙ (USD: прайс LEDCapital «Комплектующие» 23.03.2026) ---
 MODULES_DB = [
@@ -349,6 +522,10 @@ st.sidebar.header("💵 Финансы")
 
 # Получаем актуальный курс
 current_cbr_rate = get_cbr_usd_rate()
+_profile_auto_rub_m, profile_price_source_note = get_profile_40x20_rub_per_m_petrovich()
+_screw_auto_rub_each, screw_4x16_price_source_note = get_screw_4x16_press_rub_each_petrovich()
+_rivet_m6_auto_rub, rivet_m6_price_source_note = get_rivet_m6_sormat_rub_each_lemana()
+_bolt_m6_auto_rub, bolt_m6_6x16_price_source_note = get_bolt_m6_6x16_din912_zinc_rub_each_lemana()
 
 exchange_rate = st.sidebar.number_input(
     "Курс USD (₽) для закупки (ЦБ + 1%)", 
@@ -357,6 +534,59 @@ exchange_rate = st.sidebar.number_input(
     step=0.1,
     help="Курс автоматически парсится с сайта ЦБ РФ + добавляется 1%, согласно правилам прайс-листа."
 )
+
+profile_40x20_rub_m = st.sidebar.number_input(
+    "Профиль 40×20×1,5 монолит (₽/п.м)",
+    min_value=0.0,
+    value=float(_profile_auto_rub_m),
+    step=1.0,
+    key="profile_40x20_rub_m_sidebar",
+    help=(
+        "Закупка: только хлысты по 6 м. Сумма = ceil(нужные м / 6) × 6 × ₽/м (остаток после пила уже в стоимости). "
+        "Цена подставляется из Петровича не чаще 1 раза в сутки (кэш); при сбое — резерв, правьте вручную."
+    ),
+)
+st.sidebar.caption(f"Профиль: {profile_price_source_note} · кэш 24 ч")
+
+screw_4x16_press_rub_each = st.sidebar.number_input(
+    "Саморез 4,2×16 прессшайба, сверло (₽/шт)",
+    min_value=0.0,
+    value=float(_screw_auto_rub_each),
+    step=0.05,
+    format="%.3f",
+    key="screw_4x16_rub_each_sidebar",
+    help=(
+        "Монолит: крепление к профилю (основные + запас 10%). Цена из Петровича не чаще 1 раза в сутки; "
+        "в выдаче часто цена за упаковку — в коде деление на типичное число шт."
+    ),
+)
+st.sidebar.caption(f"Саморезы: {screw_4x16_price_source_note} · кэш 24 ч")
+
+rivet_m6_threaded_rub_each = st.sidebar.number_input(
+    "Заклёпка резьбовая M6 Sormat (₽/шт)",
+    min_value=0.0,
+    value=float(_rivet_m6_auto_rub),
+    step=0.5,
+    format="%.3f",
+    key="rivet_m6_rub_each_sidebar",
+    help=(
+        "Монолит: по 1 шт. на узел каркаса (вместе с винтом M6). Авто — карточка Lemana Pro, кэш 24 ч: "
+        + LEMANA_RIVET_M6_SORMAT_URL
+    ),
+)
+bolt_m6_6x16_din912_rub_each = st.sidebar.number_input(
+    "Винт M6×16 DIN 912, оцинк. (₽/шт)",
+    min_value=0.0,
+    value=float(_bolt_m6_auto_rub),
+    step=0.05,
+    format="%.3f",
+    key="bolt_m6_6x16_rub_each_sidebar",
+    help=(
+        "Монолит: по 1 шт. на узел. Авто — карточка Lemana Pro (24 шт/уп), кэш 24 ч: "
+        + LEMANA_BOLT_M6_6x16_DIN912_URL
+    ),
+)
+st.sidebar.caption(f"Заклёпка Sormat M6 (Lemana): {rivet_m6_price_source_note} · Винт M6×16: {bolt_m6_6x16_price_source_note}")
 
 # --- ДОБАВЛЯЕМ КОЭФФИЦИЕНТ НАЦЕНКИ ---
 margin_percent = st.sidebar.number_input("Наценка на железо (%)", min_value=0, value=30, step=5)
@@ -519,7 +749,7 @@ with col_mount:
         <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
             <span style="color: #a0aec0;">Цена за шт:</span>
             <strong style="color: #48bb78;">${selected_power_jumper["price_usd"]:.2f}</strong> ({_pj_rub:.2f} ₽)<br>
-            <span style="color: #a0aec0; font-size: 13px;">Количество = (число БП с ЗИП − 1), стоимость — в «Общая закупка».</span>
+            <span style="color: #a0aec0; font-size: 13px;">Количество = (число БП с ЗИП − 1) + <strong>1 запасная</strong> при включённом ЗИП; стоимость — в «Общая закупка».</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -687,35 +917,30 @@ with col_zip:
                 st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
                 reserve_psu_cards = st.checkbox("+1 БП и Карта", value=True)
                 reserve_patch = st.checkbox("Двойной запас патч-кордов", value=False)
+                if "Монолитный" in mount_type:
+                    st.caption("Монолит: в заказ к ЗИП добавляется **+1 силовая перемычка** между БП (запасная).")
 
     st.markdown("**Патч-корды** (учёт в «Общая закупка»)")
-    if "Монолитный" in mount_type:
-        selected_patch_cord = PATCH_CORDS_DB[0]
-        _p_rub = selected_patch_cord["price_usd"] * exchange_rate
-        st.caption("Монолитный монтаж: в смете только **1 м**.")
-        st.markdown(f"""
-        <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-            <span style="color: #a0aec0;">Позиция:</span> <strong>{selected_patch_cord["name"]}</strong><br>
-            <span style="color: #a0aec0;">Цена за шт:</span>
-            <strong style="color: #48bb78;">${selected_patch_cord["price_usd"]:.2f}</strong> ({_p_rub:.2f} ₽)
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        selected_patch_cord = st.selectbox(
-            "Модель патч-корда (из прайса):",
-            PATCH_CORDS_DB,
-            index=1,
-            format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
-            key="patch_cord_product_select",
-            help="Для монтажа в кабинетах обычно запас по длине; в прайсе второй тип — **1,5 м** (не 1,2 м).",
-        )
-        _p_rub = selected_patch_cord["price_usd"] * exchange_rate
-        st.markdown(f"""
-        <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-            <span style="color: #a0aec0;">Цена за шт:</span>
-            <strong style="color: #48bb78;">${selected_patch_cord["price_usd"]:.2f}</strong> ({_p_rub:.2f} ₽)
-        </div>
-        """, unsafe_allow_html=True)
+    _patch_default_ix = 0 if "Монолитный" in mount_type else 1
+    selected_patch_cord = st.selectbox(
+        "Модель патч-корда (из прайса):",
+        PATCH_CORDS_DB,
+        index=_patch_default_ix,
+        format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
+        key="patch_cord_product_select",
+        help=(
+            "Монолит: по умолчанию **1 м**; при необходимости выберите **1,5 м** из прайса. "
+            "Кабинеты: обычно запас по длине (**1,5 м** в прайсе, не 1,2 м)."
+        ),
+    )
+    _p_rub = selected_patch_cord["price_usd"] * exchange_rate
+    st.markdown(f"""
+    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
+        <span style="color: #a0aec0;">Позиция:</span> <strong>{selected_patch_cord["name"]}</strong><br>
+        <span style="color: #a0aec0;">Цена за шт:</span>
+        <strong style="color: #48bb78;">${selected_patch_cord["price_usd"]:.2f}</strong> ({_p_rub:.2f} ₽)
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("**Кабели питания приёмных карт → БП** (учёт в «Общая закупка»)")
     selected_card_power_cable = st.selectbox(
@@ -787,11 +1012,19 @@ buy_card_power_cables_total = num_card_power_cables_order * selected_card_power_
 num_psu = math.ceil(total_modules / modules_per_psu)
 num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
 
-num_power_jumpers = (
-    max(0, num_psu_reserve - 1)
-    if ("Монолитный" in mount_type and selected_power_jumper is not None)
-    else 0
-)
+num_plates = num_psu_reserve
+vinths = num_plates * 4
+reserve_vinths = math.ceil(vinths * 0.1)
+num_screws_4x16_order = vinths + reserve_vinths
+
+if "Монолитный" in mount_type and selected_power_jumper is not None:
+    num_power_jumpers_for_chain = max(0, num_psu_reserve - 1)
+    num_power_jumpers_zip_spare = 1 if reserve_enabled else 0
+    num_power_jumpers = num_power_jumpers_for_chain + num_power_jumpers_zip_spare
+else:
+    num_power_jumpers_for_chain = 0
+    num_power_jumpers_zip_spare = 0
+    num_power_jumpers = 0
 buy_power_jumpers_total = (
     num_power_jumpers * selected_power_jumper["price_usd"] if selected_power_jumper else 0.0
 )
@@ -810,6 +1043,54 @@ buy_magnets_total = num_magnets * magnet_unit_price_usd
 magnet_packs_order = (
     math.ceil(num_magnets / selected_magnet["pack_qty"]) if selected_magnet and num_magnets else 0
 )
+
+# --- 4c. Профиль 40×20 (только монолит): суммарная длина отрезов; в продаже только хлыст 6 м
+vert_profiles = modules_w + 1
+vert_length = real_height - 40
+horiz_profiles = 2 if real_height <= 3000 else 3
+horiz_length = real_width - 60
+total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
+
+fasteners_m6 = horiz_profiles * vert_profiles
+reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
+num_m6_rivet_bolt_each = fasteners_m6 + reserve_fasteners
+
+if "Монолитный" in mount_type:
+    profile_cut_m = total_profile_length
+    profile_sticks_6m = math.ceil(profile_cut_m / PROFILE_40X20_STICK_M) if profile_cut_m > 0 else 0
+    profile_purchased_m = profile_sticks_6m * PROFILE_40X20_STICK_M
+    profile_waste_m = max(0.0, profile_purchased_m - profile_cut_m)
+    buy_profile_rub = profile_purchased_m * profile_40x20_rub_m
+    buy_profile_usd = buy_profile_rub / exchange_rate if exchange_rate else 0.0
+else:
+    buy_profile_rub = 0.0
+    buy_profile_usd = 0.0
+    profile_sticks_6m = 0
+    profile_purchased_m = 0.0
+    profile_waste_m = 0.0
+    profile_cut_m = 0.0
+
+if "Монолитный" in mount_type:
+    buy_screws_4x16_rub = num_screws_4x16_order * screw_4x16_press_rub_each
+    buy_screws_4x16_usd = buy_screws_4x16_rub / exchange_rate if exchange_rate else 0.0
+    buy_rivet_m6_rub = num_m6_rivet_bolt_each * rivet_m6_threaded_rub_each
+    buy_bolt_m6_6x16_rub = num_m6_rivet_bolt_each * bolt_m6_6x16_din912_rub_each
+    buy_m6_frame_rub = buy_rivet_m6_rub + buy_bolt_m6_6x16_rub
+    buy_m6_frame_usd = buy_m6_frame_rub / exchange_rate if exchange_rate else 0.0
+else:
+    buy_screws_4x16_rub = 0.0
+    buy_screws_4x16_usd = 0.0
+    buy_rivet_m6_rub = 0.0
+    buy_bolt_m6_6x16_rub = 0.0
+    buy_m6_frame_rub = 0.0
+    buy_m6_frame_usd = 0.0
+
+if "Монолитный" in mount_type:
+    buy_metal_plates_rub = num_plates * METAL_PLATE_RUB_EACH
+    buy_metal_plates_usd = buy_metal_plates_rub / exchange_rate if exchange_rate else 0.0
+else:
+    buy_metal_plates_rub = 0.0
+    buy_metal_plates_usd = 0.0
 
 # --- 5. ФИНАНСЫ (USD) ---
 
@@ -833,7 +1114,11 @@ total_buy_usd = (
     buy_magnets_total +
     buy_patch_cords_total +
     buy_card_power_cables_total +
-    buy_power_jumpers_total
+    buy_power_jumpers_total +
+    buy_profile_usd +
+    buy_screws_4x16_usd +
+    buy_m6_frame_usd +
+    buy_metal_plates_usd
 )
 
 # 4. Пересчет модулей для отчета (как у тебя в коде)
@@ -866,19 +1151,7 @@ target_breaker = current * 1.25
 standard_breakers = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250]
 breaker = next((b for b in standard_breakers if b >= target_breaker), math.ceil(target_breaker))
 
-# Механика
-vert_profiles = modules_w + 1
-vert_length = real_height - 40
-horiz_profiles = 2 if real_height <= 3000 else 3
-horiz_length = real_width - 60
-total_profile_length = (vert_profiles * vert_length + horiz_profiles * horiz_length) / 1000
-
-fasteners_m6 = horiz_profiles * vert_profiles
-reserve_fasteners = math.ceil(fasteners_m6 * 0.03)
-
-num_plates = num_psu_reserve
-vinths = num_plates * 4
-reserve_vinths = math.ceil(vinths * 0.1)
+# Механика (длины профиля и fasteners_m6 — см. блок 4c выше)
 
 # Коммутация
 num_cables = max(0, num_psu_reserve - 1)
@@ -937,7 +1210,7 @@ with col_f1:
             <span style="color: #94a3b8; font-size: 1.2rem;">({total_buy_rub:,.0f} ₽)</span>
         </div>
         <div style="font-size: 0.75rem; color: #718096; border-top: 1px solid #2d3748; padding-top: 8px;">
-            {total_modules_order} мод. | {num_psu_reserve} БП | {num_cards_reserve} карт | {num_hubs} хаб.{f" | {num_magnets} магн." if num_magnets else ""} | {patch_cords} патч-к. | {num_card_power_cables_order} каб. пит. карт{f" | {num_power_jumpers} перем." if num_power_jumpers else ""}
+            {total_modules_order} мод. | {num_psu_reserve} БП | {num_cards_reserve} карт | {num_hubs} хаб.{f" | {num_magnets} магн." if num_magnets else ""} | {patch_cords} патч-к. | {num_card_power_cables_order} каб. пит. карт{f" | {num_power_jumpers} перем." if num_power_jumpers else ""}{f" | профиль {profile_purchased_m:.1f} м п.к." if profile_purchased_m > 0 else ""}{f" | самор. {num_screws_4x16_order} шт." if buy_screws_4x16_usd > 0 else ""}{f" | M6 узл. {num_m6_rivet_bolt_each}" if buy_m6_frame_usd > 0 else ""}{f" | пласт. {num_plates}" if ("Монолитный" in mount_type and buy_metal_plates_usd > 0) else ""}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -998,30 +1271,6 @@ with st.expander("Принимающие карты", expanded=True):
     - **Итого с учетом ЗИП**: **{num_cards_reserve} шт.**
     """)
 
-with st.expander("Патч-корды", expanded=True):
-    st.markdown(f"""
-    - **Позиция**: {selected_patch_cord['name']}
-    - **Количество**: **{patch_cords} шт.** (по числу карт с ЗИП × {"2" if reserve_patch else "1"})
-    - **Закупка**: ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
-    """)
-
-with st.expander("Кабели питания карт", expanded=True):
-    st.markdown(f"""
-    - **Позиция**: {selected_card_power_cable['name']}
-    - **Количество**: **{num_card_power_cables_order} шт.** ({num_power_cables} по картам + {reserve_power_cables} запас 10%)
-    - **Закупка**: ${selected_card_power_cable['price_usd']:.2f}/шт → **${buy_card_power_cables_total:.2f}** ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
-    """)
-
-if "Монолитный" in mount_type and selected_magnet is not None:
-    with st.expander("Магниты", expanded=True):
-        st.markdown(f"""
-        - **Модель**: {selected_magnet['name']}
-        - **Норма**: **{magnets_per_module}** шт. на модуль
-        - **Количество**: **{num_magnets} шт.** ({total_modules} × {magnets_per_module})
-        - **Заказ пачками**: ~**{magnet_packs_order}** пачек по {selected_magnet['pack_qty']} шт.
-        - **Цена закупки**: ${magnet_unit_price_usd:.4f}/шт (${buy_magnets_total:.2f} всего, {buy_magnets_total * exchange_rate:,.0f} ₽)
-        """)
-
 with st.expander("Блоки питания", expanded=True):
     st.markdown(f"""
     - **Модель БП**: {sel_psu['name']} ({sel_psu['max_w']}W)
@@ -1049,32 +1298,66 @@ with st.expander("Вводная Сеть", expanded=True):
     """)
 
 if "Монолитный" in mount_type:
+    if selected_magnet is not None:
+        _report_magnet_block = f"""
+        - **Магниты** — **{selected_magnet['name']}**
+          - **Норма**: **{magnets_per_module}** шт. на модуль
+          - **Количество**: **{num_magnets} шт.** ({total_modules} × {magnets_per_module})
+          - **Заказ пачками**: ~**{magnet_packs_order}** пачек по {selected_magnet['pack_qty']} шт.
+          - **Цена закупки**: ${magnet_unit_price_usd:.4f}/шт → **${buy_magnets_total:.2f}** ({buy_magnets_total * exchange_rate:,.0f} ₽)"""
+    else:
+        _report_magnet_block = """
+        - **Магниты**: не заданы"""
     with st.expander("Каркас и крепёж (Монолитный)", expanded=True):
+        _waste_pct = (
+            (100.0 * profile_waste_m / profile_purchased_m) if profile_purchased_m > 0 else 0.0
+        )
         st.markdown(f"""
         - **Вертикальные профили**: {vert_profiles} шт. (длина на отрез {vert_length} мм, общая {vert_profiles * vert_length / 1000:.2f} м)
         - **Горизонтальные профили**: {horiz_profiles} шт. (длина на отрез {horiz_length} мм, общая {horiz_profiles * horiz_length / 1000:.2f} м)
-        - **Винты M6 + резьбовые заклёпки M6**: {fasteners_m6} шт. + {reserve_fasteners} шт. (запас 3%)
-        - **Магниты** ({selected_magnet["name"] if selected_magnet else "—"}): **{num_magnets} шт.** ({magnets_per_module} на модуль; в смете **${buy_magnets_total:.2f}**)
-        - **Металлические пластины**: {num_plates} шт. (по количеству БП)
-        - **Винты 4×16 со сверлом к профилям**: {vinths} шт. + {reserve_vinths} шт. (запас 10%)
+        - **Профиль 40×20×1,5 мм** (только хлысты **6 м**, **{profile_40x20_rub_m:.0f} ₽/п.м** в сайдбаре; автоцена: {profile_price_source_note}):
+          нужно **{profile_cut_m:.2f} м** по раскрою → **{profile_sticks_6m}** хлыстов × 6 м = **{profile_purchased_m:.2f} м** к оплате;
+          остаток **~{profile_waste_m:.2f} м** (~{_waste_pct:.1f}% от купленной длины) уже в сумме — **{buy_profile_rub:,.0f} ₽** (**${buy_profile_usd:.2f}** в закупке)
+        - **Узлы каркаса (заклёпка Sormat M6 + винт M6×16)**: {fasteners_m6} узл. + {reserve_fasteners} запас (3%) = **{num_m6_rivet_bolt_each}** комплектов (по 1 заклёпке + 1 винту)
+          - Заклёпка резьбовая **Sormat M6**: **{rivet_m6_threaded_rub_each:.3f} ₽/шт** ({rivet_m6_price_source_note}; [Lemana Pro]({LEMANA_RIVET_M6_SORMAT_URL})) → **{buy_rivet_m6_rub:,.0f} ₽**
+          - Винт **M6×16 DIN 912** оцинк.: **{bolt_m6_6x16_din912_rub_each:.3f} ₽/шт** ({bolt_m6_6x16_price_source_note}; [Lemana Pro]({LEMANA_BOLT_M6_6x16_DIN912_URL})) → **{buy_bolt_m6_6x16_rub:,.0f} ₽**
+          - **Итого M6**: **{buy_m6_frame_rub:,.0f} ₽** (**${buy_m6_frame_usd:.2f}** в закупке)
+        {_report_magnet_block}
+        - **Металлические пластины под БП**: **{num_plates} шт.** (по числу БП с ЗИП) × **{METAL_PLATE_RUB_EACH:.0f} ₽/шт** → **{buy_metal_plates_rub:,.0f} ₽** (**${buy_metal_plates_usd:.2f}** в общей закупке)
+        - **Саморезы 4,2×16 с прессшайбой (сверло) к профилю**: {vinths} шт. + {reserve_vinths} шт. запас (10%) = **{num_screws_4x16_order} шт.** — **{screw_4x16_press_rub_each:.3f} ₽/шт** ({screw_4x16_price_source_note}) → **{buy_screws_4x16_rub:,.0f} ₽** (**${buy_screws_4x16_usd:.2f}** в закупке)
         """)
 
-with st.expander("Внутренняя коммутация", expanded=True):
+with st.expander("Коммутация", expanded=True):
     if "Монолитный" in mount_type:
         _pj_name = selected_power_jumper["name"] if selected_power_jumper else "—"
+        _pj_zip_note = (
+            f" + **{num_power_jumpers_zip_spare} шт. запас ЗИП**"
+            if num_power_jumpers_zip_spare
+            else ""
+        )
         st.markdown(f"""
+        **Силовая (между БП, монолит)**
         - **Силовые перемычки** ({_pj_name}): **{num_power_jumpers} шт.**
-          (между БП в шлейф: {num_psu_reserve} БП → {num_power_jumpers} перемычек)
+          (шлейф {num_psu_reserve} БП: **{num_power_jumpers_for_chain} шт.**{_pj_zip_note})
           — **${buy_power_jumpers_total:.2f}** в закупке ({buy_power_jumpers_total * exchange_rate:,.0f} ₽)
-        - **Патч-корды RJ45** ({selected_patch_cord['name']}): {patch_cords} шт. — **${buy_patch_cords_total:.2f}** в закупке
-        - **Кабели питания карт** ({selected_card_power_cable['name']}): {num_card_power_cables_order} шт. — **${buy_card_power_cables_total:.2f}** в закупке ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
+
+        **Слаботочка и питание карт**
+        - **Патч-корды RJ45** — {selected_patch_cord['name']}: **{patch_cords} шт.**
+          (число карт с ЗИП × {"2" if reserve_patch else "1"}) — ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
+        - **Кабели питания карт → БП** — {selected_card_power_cable['name']}: **{num_card_power_cables_order} шт.**
+          ({num_power_cables} по картам + {reserve_power_cables} запас 10%) — ${selected_card_power_cable['price_usd']:.2f}/шт → **${buy_card_power_cables_total:.2f}** ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
         """)
     else:
         st.markdown(f"""
+        **Силовая (кабинеты)**
         - **Силовые кабели 220 В (шлейфы)**: {num_cables} шт., общая длина ~{num_cables * 0.8:.1f} м
         - **Наконечники НВИ**: {nvi} шт. + {reserve_nvi} шт. (запас 10%)
-        - **Патч-корды RJ45** ({selected_patch_cord['name']}): {patch_cords} шт. — **${buy_patch_cords_total:.2f}** в закупке
-        - **Кабели питания карт** ({selected_card_power_cable['name']}): {num_card_power_cables_order} шт. — **${buy_card_power_cables_total:.2f}** в закупке ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
+
+        **Слаботочка и питание карт**
+        - **Патч-корды RJ45** — {selected_patch_cord['name']}: **{patch_cords} шт.**
+          (число карт с ЗИП × {"2" if reserve_patch else "1"}) — ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
+        - **Кабели питания карт → БП** — {selected_card_power_cable['name']}: **{num_card_power_cables_order} шт.**
+          ({num_power_cables} по картам + {reserve_power_cables} запас 10%) — ${selected_card_power_cable['price_usd']:.2f}/шт → **${buy_card_power_cables_total:.2f}** ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
         """)
 
 with st.expander("Весовые характеристики", expanded=True):
@@ -1127,8 +1410,39 @@ figma_data = {
     "card_power_cable_model": selected_card_power_cable["name"],
     "card_power_cables_cost_usd": round(buy_card_power_cables_total, 2),
     "power_jumpers_qty": num_power_jumpers,
+    "power_jumpers_for_psu_chain_qty": num_power_jumpers_for_chain,
+    "power_jumpers_zip_spare_qty": num_power_jumpers_zip_spare,
     "power_jumper_model": selected_power_jumper["name"] if selected_power_jumper else None,
     "power_jumpers_cost_usd": round(buy_power_jumpers_total, 2),
+    "profile_40x20_stick_length_m": PROFILE_40X20_STICK_M,
+    "profile_40x20_sticks_6m": profile_sticks_6m,
+    "profile_purchased_m": round(profile_purchased_m, 3),
+    "profile_cut_m": round(profile_cut_m, 3),
+    "profile_waste_m": round(profile_waste_m, 3),
+    "profile_rub_per_m": round(profile_40x20_rub_m, 2),
+    "profile_price_source": profile_price_source_note,
+    "profile_cost_rub": round(buy_profile_rub, 2),
+    "profile_cost_usd": round(buy_profile_usd, 2),
+    "screw_4x16_press_qty": num_screws_4x16_order,
+    "screw_4x16_press_rub_each": round(screw_4x16_press_rub_each, 4),
+    "screw_4x16_price_source": screw_4x16_price_source_note,
+    "screw_4x16_cost_rub": round(buy_screws_4x16_rub, 2),
+    "screw_4x16_cost_usd": round(buy_screws_4x16_usd, 2),
+    "m6_frame_joint_qty": num_m6_rivet_bolt_each,
+    "rivet_m6_threaded_rub_each": round(rivet_m6_threaded_rub_each, 4),
+    "rivet_m6_sormat_lemana_url": LEMANA_RIVET_M6_SORMAT_URL,
+    "rivet_m6_price_source": rivet_m6_price_source_note,
+    "rivet_m6_cost_rub": round(buy_rivet_m6_rub, 2),
+    "bolt_m6_6x16_din912_rub_each": round(bolt_m6_6x16_din912_rub_each, 4),
+    "bolt_m6_6x16_price_source": bolt_m6_6x16_price_source_note,
+    "bolt_m6_6x16_lemana_url": LEMANA_BOLT_M6_6x16_DIN912_URL,
+    "bolt_m6_6x16_cost_rub": round(buy_bolt_m6_6x16_rub, 2),
+    "m6_frame_total_rub": round(buy_m6_frame_rub, 2),
+    "m6_frame_total_usd": round(buy_m6_frame_usd, 2),
+    "metal_plates_qty": num_plates if "Монолитный" in mount_type else 0,
+    "metal_plate_rub_each": METAL_PLATE_RUB_EACH,
+    "metal_plates_cost_rub": round(buy_metal_plates_rub, 2),
+    "metal_plates_cost_usd": round(buy_metal_plates_usd, 2),
     "peak_power_kw": round(peak_power_screen_kw, 2), "avg_power_kw": round(avg_power_screen_kw, 2),
     "total_price_rub": total_price_rub, "module_cost_usd": total_modules_cost_usd, "module_cost_rub": total_modules_cost_rub
 }
