@@ -21,7 +21,7 @@ except ImportError:
     suggested_pdf_filename = None
 
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
-st.set_page_config(page_title="LED Screen Pro Calculator | MediaLive", layout="wide", page_icon="🖥️")
+st.set_page_config(page_title="Medilive Led Calc", layout="wide", page_icon="🖥️")
 
 
 def _ui_bordered_container():
