@@ -65,7 +65,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- ФУНКЦИЯ ПАРСИНГА КУРСА ЦБ РФ (+1%) ---
-@st.cache_data(ttl=3600) # Кэшируем результат на 1 час
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_cbr_usd_rate():
     try:
         url = "http://www.cbr.ru/scripts/XML_daily.asp"
@@ -140,7 +140,7 @@ def _html_first_price_int(html: str) -> Optional[int]:
     return None
 
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=86400, show_spinner=False)
 def get_profile_40x20_rub_per_m_petrovich():
     """
     Пытается взять цену с petrovich.ru (поиск профтрубы 40×20), кэш 24 ч.
@@ -160,7 +160,7 @@ def get_profile_40x20_rub_per_m_petrovich():
     return (float(PROFILE_40X20_RUB_M_FALLBACK), src_fail)
 
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=86400, show_spinner=False)
 def get_screw_4x16_press_rub_each_petrovich():
     """
     Цена самореза 4,2×16 с прессшайбой (сверло), кэш 24 ч.
@@ -190,7 +190,7 @@ def get_screw_4x16_press_rub_each_petrovich():
     return (float(raw), "petrovich.ru (как за 1 шт)")
 
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=86400, show_spinner=False)
 def get_rivet_m6_sormat_rub_each_lemana():
     """
     Заклёпка резьбовая Sormat M6, кэш 24 ч.
@@ -221,7 +221,7 @@ def get_rivet_m6_sormat_rub_each_lemana():
     return (float(RIVET_M6_SORMAT_RUB_EACH_FALLBACK), src_fail)
 
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=86400, show_spinner=False)
 def get_bolt_m6_6x16_din912_zinc_rub_each_lemana():
     """
     Винт M6×16 DIN 912 оцинк., кэш 24 ч.
@@ -459,6 +459,44 @@ PROCESSOR_PORTS = {
     "MCTRL4K": 16,
 }
 
+# Правило расчёта нагрузки GigE → приёмные карты (как в расчёте required_ports).
+PROCESSOR_LOAD_PX_PER_PORT = 650_000
+
+# Краткая подпись «поддерживаемое разрешение» для инфоплашки (офиц. спецификации уточняйте под ревизию).
+PROCESSOR_RESOLUTION_NOTE = {
+    "Novastar MSD 300": "1920×1200@60; кастом до 3840 px по стороне",
+    "Novastar MSD 600": "1920×1200@60; кастом до 3840 px по стороне",
+    "Novastar MCTRL 300": "1920×1200@60; кастом до 3840 px по стороне",
+    "Novastar MCTRL 500": "1920×1200@60; кастом до 3840 px по стороне",
+    "Novastar MCTRL 600": "1920×1200@60; кастом до 3840 px по стороне",
+    "Novastar MCTRL 700": "1920×1200@60; кастом до 3840 px по стороне",
+    "Novastar MCTRL 660": "до 4096×2160@60 (уточняйте по ревизии)",
+    "Novastar MCTRL 660 Pro": "до 4096×2160@60 (уточняйте по ревизии)",
+    "Novastar MX30": "до 7680×4320@30 (8K-класс; уточняйте по ревизии)",
+    "Novastar MX40 Pro": "составной холст до 16K×8K class (уточняйте по ревизии)",
+    "Novastar MCTRL R5": "до 4096×2160@60 (5G; уточняйте по ревизии)",
+    "Novastar MCTRL 4K": "до 4096×2160@60 (4×10G / 16×GigE; уточняйте)",
+    "NovaPro UHD JR": "до 8K class / UHD (уточняйте по ревизии)",
+    "NovaPro UHD": "до 8K class / UHD (уточняйте по ревизии)",
+    "VX400": "видеопроцессор: до 4K / по спецификации серии VX",
+    "VX600": "видеопроцессор: до 4K / по спецификации серии VX",
+    "VX1000": "видеопроцессор: до 4K+ / по спецификации серии VX",
+    "VC2": "до 1920×1200@60; кастом до 3840 px по стороне",
+    "VC4": "до 1920×1200@60; кастом до 3840 px по стороне",
+    "VC6 Pro": "до 1920×1200@60; кастом до 3840 px по стороне",
+    "VC10": "до 1920×1200@60; кастом до 3840 px по стороне",
+    "VC10 Pro": "до 1920×1200@60; кастом до 3840 px по стороне",
+    "VC16": "до 1920×1200@60; кастом до 3840 px по стороне",
+    "T30": "асинхронный контроллер — по паспорту модели",
+    "T50": "асинхронный контроллер — по паспорту модели",
+    "TB10 Plus": "асинхронный контроллер — по паспорту модели",
+    "TB20 Plus": "асинхронный контроллер — по паспорту модели",
+    "TB30": "асинхронный контроллер — по паспорту модели",
+    "TB40": "асинхронный контроллер — по паспорту модели",
+    "TB50": "асинхронный контроллер — по паспорту модели",
+    "TB60": "асинхронный контроллер — по паспорту модели",
+}
+
 
 def get_processor_output_ports(processor_name: str) -> tuple[int, bool]:
     """Возвращает (число портов, найдено ли имя в справочнике)."""
@@ -469,7 +507,7 @@ def get_processor_output_ports(processor_name: str) -> tuple[int, bool]:
 CARD_MAX_PIXELS = {
     "Novastar MRV 208": (256, 256),
     "Novastar MRV 412": (512, 512),
-    "Novastar MRV 416": (512, 256),
+    "Novastar MRV 416": (512, 512),
     "Novastar MRV 532": (256, 384),
     "Novastar CA50E (COEX)": (512, 768),
     "Novastar A5s Plus": (512, 384),
@@ -731,28 +769,6 @@ with col_mount:
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("**Силовые перемычки** (между БП в шлейф, из прайса)")
-        _pj_default_ix = next(
-            (i for i, p in enumerate(POWER_JUMPERS_MONOLITH_DB) if p["length_cm"] == 70),
-            3,
-        )
-        selected_power_jumper = st.selectbox(
-            "Длина перемычки:",
-            POWER_JUMPERS_MONOLITH_DB,
-            index=_pj_default_ix,
-            format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
-            key="main_power_jumper_select",
-            help="Для монолита по умолчанию **70 см**. Кабинетный расчёт перемычек добавим отдельно.",
-        )
-        _pj_rub = selected_power_jumper["price_usd"] * exchange_rate
-        st.markdown(f"""
-        <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-            <span style="color: #a0aec0;">Цена за шт:</span>
-            <strong style="color: #48bb78;">${selected_power_jumper["price_usd"]:.2f}</strong> ({_pj_rub:.2f} ₽)<br>
-            <span style="color: #a0aec0; font-size: 13px;">Количество = (число БП с ЗИП − 1) + <strong>1 запасная</strong> при включённом ЗИП; стоимость — в «Общая закупка».</span>
-        </div>
-        """, unsafe_allow_html=True)
-
 # ==========================================
 # ==========================================
 # БЛОК 3: УПРАВЛЕНИЕ И КОНТРОЛЛЕРЫ
@@ -780,6 +796,33 @@ with col_ctrl1:
     processor_name = selected_proc["name"]
     proc_price_usd = selected_proc["price_usd"]
     available_ports, ports_catalog_hit = get_processor_output_ports(processor_name)
+    _proc_cap_px = available_ports * PROCESSOR_LOAD_PX_PER_PORT
+    _proc_mln = _proc_cap_px / 1_000_000
+    _proc_cap_mln_str = (
+        f"{_proc_mln:.2f}".replace(".", ",").rstrip("0").rstrip(",") + " млн"
+    )
+    _proc_res_note = PROCESSOR_RESOLUTION_NOTE.get(
+        processor_name, "Уточняйте по паспорту выбранной модели."
+    )
+    st.markdown(f"""
+    <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.65; margin-bottom: 10px;">
+        <span style="color: #a0aec0; font-size: 13px;">
+            <strong style="color: #e2e8f0;">Процессор</strong> — {processor_name}
+        </span><br>
+        <span style="color: #a0aec0; font-size: 13px;">
+            Выходов Gigabit Ethernet (справочник): <strong style="color: #e2e8f0;">{available_ports}</strong>
+            {" ⚠ не в справочнике портов — для расчёта принят 1" if not ports_catalog_hit else ""}
+        </span><br>
+        <span style="color: #a0aec0; font-size: 13px;">
+            Поддерживаемое кол-во пикселей (оценка, {PROCESSOR_LOAD_PX_PER_PORT // 1000}k px/порт):
+            <strong style="color: #48bb78;">{_proc_cap_mln_str}</strong>
+            <span style="color: #718096;">({_proc_cap_px:,} пикс.)</span>
+        </span><br>
+        <span style="color: #a0aec0; font-size: 13px;">
+            Поддерживаемое разрешение (справка): <strong style="color: #e2e8f0;">{_proc_res_note}</strong>
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
 with col_ctrl2:
     st.markdown("---")
@@ -854,8 +897,12 @@ real_width = math.ceil(width_mm / 320) * 320
 real_height = math.ceil(height_mm / 160) * 160
 total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
 
-required_ports = math.ceil(total_px / 650000)
-load_per_port = (total_px / (available_ports * 650000)) * 100 if available_ports > 0 else 100.0
+required_ports = math.ceil(total_px / PROCESSOR_LOAD_PX_PER_PORT)
+load_per_port = (
+    (total_px / (available_ports * PROCESSOR_LOAD_PX_PER_PORT)) * 100
+    if available_ports > 0
+    else 100.0
+)
 
 status_text = "✅ Портов достаточно" if required_ports <= available_ports else "❌ ВНИМАНИЕ: Недостаточно портов!"
 status_color = "#48bb78" if required_ports <= available_ports else "#f56565"
@@ -898,6 +945,29 @@ with col_pwr:
     
     modules_per_psu = st.selectbox("Модулей на 1 БП:", [4, 6, 8, 10, 12, 16], index=2, key="final_m_per_p")
     power_phase = st.radio("Вводная сеть:", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True, key="final_phase")
+
+    if "Монолитный" in mount_type:
+        st.markdown("**Силовые перемычки** (между БП в шлейф, из прайса)")
+        _pj_default_ix = next(
+            (i for i, p in enumerate(POWER_JUMPERS_MONOLITH_DB) if p["length_cm"] == 70),
+            3,
+        )
+        selected_power_jumper = st.selectbox(
+            "Длина перемычки:",
+            POWER_JUMPERS_MONOLITH_DB,
+            index=_pj_default_ix,
+            format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
+            key="main_power_jumper_select",
+            help="Для монолита по умолчанию **70 см**. Кабинетный расчёт перемычек добавим отдельно.",
+        )
+        _pj_rub = selected_power_jumper["price_usd"] * exchange_rate
+        st.markdown(f"""
+        <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
+            <span style="color: #a0aec0;">Цена за шт:</span>
+            <strong style="color: #48bb78;">${selected_power_jumper["price_usd"]:.2f}</strong> ({_pj_rub:.2f} ₽)<br>
+            <span style="color: #a0aec0; font-size: 13px;">Количество = (число БП с ЗИП − 1) + <strong>1 запасная</strong> при включённом ЗИП; стоимость — в «Общая закупка».</span>
+        </div>
+        """, unsafe_allow_html=True)
 
 with col_zip:
     reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
