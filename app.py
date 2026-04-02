@@ -1973,23 +1973,6 @@ with col_f2:
 with col_f3:
     st.markdown(
         f"""
-<div class="finance-metric-card" style="border-left: 4px solid #48bb78;">
-    <div class="finance-metric-head">{_sale_title}</div>
-    <div class="finance-metric-body">
-        <div class="finance-main-number">{_sale_main}</div>
-        <div class="finance-sub-number" style="color: #48bb78; font-weight: bold;">{_sale_sub}</div>
-    </div>
-    <div class="finance-footnote">
-        Наценка {int((margin - 1) * 100)}% · доп. услуги {_extras_main}
-    </div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-with col_f4:
-    st.markdown(
-        f"""
 <div class="finance-metric-card" style="border-left: 4px solid #0ea5e9;">
     <div class="finance-metric-head">Монтаж</div>
     <div class="finance-metric-body">
@@ -2002,7 +1985,7 @@ with col_f4:
         unsafe_allow_html=True,
     )
 
-with col_f5:
+with col_f4:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #06b6d4;">
@@ -2012,6 +1995,23 @@ with col_f5:
         <div class="finance-sub-number" style="color: #67e8f9; font-weight: bold;">{_logistics_sub}</div>
     </div>
     <div class="finance-footnote">Отдельная строка клиентского бюджета</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+with col_f5:
+    st.markdown(
+        f"""
+<div class="finance-metric-card" style="border-left: 4px solid #48bb78;">
+    <div class="finance-metric-head">{_sale_title}</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_sale_main}</div>
+        <div class="finance-sub-number" style="color: #48bb78; font-weight: bold;">{_sale_sub}</div>
+    </div>
+    <div class="finance-footnote">
+        Наценка {int((margin - 1) * 100)}% · доп. услуги {_extras_main}
+    </div>
 </div>
 """,
         unsafe_allow_html=True,
