@@ -3,6 +3,7 @@ import math
 import json
 import re
 import datetime
+from pathlib import Path
 from typing import Optional
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -451,6 +452,164 @@ def magnet_unit_usd(m):
     return m["pack_price_usd"] / m["pack_qty"]
 
 
+# --- Сохранение / загрузка сессии (JSON в каталоге led_calc_sessions) ---
+SESSION_SNAPSHOT_VERSION = 1
+SESSIONS_DIR = Path(__file__).resolve().parent / "led_calc_sessions"
+SESSION_STATE_KEYS_TO_PERSIST: frozenset[str] = frozenset(
+    {
+        "width_input",
+        "height_mm",
+        "calc_quick_size_label",
+        "calc_project_name",
+        "calc_client_name",
+        "calc_exchange_rate",
+        "calc_margin_pct",
+        "calc_price_m2",
+        "profile_40x20_rub_m_sidebar",
+        "screw_4x16_rub_each_sidebar",
+        "rivet_m6_rub_each_sidebar",
+        "bolt_m6_6x16_rub_each_sidebar",
+        "calc_env_key",
+        "calc_tech_key",
+        "calc_module_name",
+        "calc_sensor",
+        "calc_mount_type",
+        "calc_cabinet_model",
+        "calc_cabinet_w",
+        "calc_cabinet_h",
+        "calc_cabinet_weight",
+        "main_magnet_select",
+        "magnets_per_module_input",
+        "sys_type_radio",
+        "main_proc_select",
+        "hot_backup_gige",
+        "main_card_select",
+        "mods_per_card_select",
+        "main_hub_select",
+        "final_psu_selector",
+        "final_m_per_p",
+        "final_phase",
+        "calc_reserve_enabled",
+        "calc_reserve_modules_choice",
+        "calc_reserve_modules_custom",
+        "calc_reserve_psu_cards",
+        "main_power_jumper_select",
+        "patch_cord_product_select",
+        "card_power_cable_select",
+    }
+)
+
+
+def _session_safe_slug(name: str) -> str:
+    raw = (name or "").strip()
+    s = re.sub(r"[^\w\-.()\s\u0400-\u04FF]", "_", raw, flags=re.UNICODE)
+    s = re.sub(r"\s+", "_", s).strip("_") or "session"
+    return s[:120]
+
+
+def _deep_jsonable(v):
+    if isinstance(v, dict):
+        return {str(k): _deep_jsonable(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_deep_jsonable(x) for x in v]
+    if isinstance(v, (str, int, float, bool)) or v is None:
+        return v
+    return str(v)
+
+
+def _pick_row_by_name(rows, name: Optional[str], fallback_index: int = 0):
+    if not rows:
+        return None
+    if name:
+        for r in rows:
+            if r.get("name") == name:
+                return r
+    idx = max(0, min(fallback_index, len(rows) - 1))
+    return rows[idx]
+
+
+def coerce_session_object_references() -> None:
+    ss = st.session_state
+    if "main_proc_select" in ss and isinstance(ss["main_proc_select"], dict):
+        cat = ss.get("sys_type_radio", "Синхронная")
+        pdb = SYNC_CONTROLLERS_DB if cat == "Синхронная" else ASYNC_CONTROLLERS_DB
+        fixed = _pick_row_by_name(pdb, ss["main_proc_select"].get("name"))
+        if fixed is not None:
+            ss["main_proc_select"] = fixed
+    if "main_card_select" in ss and isinstance(ss["main_card_select"], dict):
+        fixed = _pick_row_by_name(RECEIVING_CARDS_DB, ss["main_card_select"].get("name"))
+        if fixed is not None:
+            ss["main_card_select"] = fixed
+    if "main_magnet_select" in ss and isinstance(ss["main_magnet_select"], dict):
+        fixed = _pick_row_by_name(MAGNETS_DB, ss["main_magnet_select"].get("name"))
+        if fixed is not None:
+            ss["main_magnet_select"] = fixed
+    if "final_psu_selector" in ss and isinstance(ss["final_psu_selector"], dict):
+        fixed = _pick_row_by_name(PSU_DB, ss["final_psu_selector"].get("name"))
+        if fixed is not None:
+            ss["final_psu_selector"] = fixed
+    if "main_hub_select" in ss and isinstance(ss["main_hub_select"], dict):
+        fixed = _pick_row_by_name(HUBS_DB, ss["main_hub_select"].get("name"))
+        if fixed is not None:
+            ss["main_hub_select"] = fixed
+    if "main_power_jumper_select" in ss and isinstance(ss["main_power_jumper_select"], dict):
+        fixed = _pick_row_by_name(
+            POWER_JUMPERS_MONOLITH_DB, ss["main_power_jumper_select"].get("name")
+        )
+        if fixed is not None:
+            ss["main_power_jumper_select"] = fixed
+    if "patch_cord_product_select" in ss and isinstance(ss["patch_cord_product_select"], dict):
+        fixed = _pick_row_by_name(PATCH_CORDS_DB, ss["patch_cord_product_select"].get("name"))
+        if fixed is not None:
+            ss["patch_cord_product_select"] = fixed
+    if "card_power_cable_select" in ss and isinstance(ss["card_power_cable_select"], dict):
+        fixed = _pick_row_by_name(CARD_POWER_CABLES_DB, ss["card_power_cable_select"].get("name"))
+        if fixed is not None:
+            ss["card_power_cable_select"] = fixed
+
+
+def collect_session_snapshot() -> dict:
+    state = {}
+    for k in SESSION_STATE_KEYS_TO_PERSIST:
+        if k in st.session_state:
+            state[k] = _deep_jsonable(st.session_state[k])
+    return {
+        "version": SESSION_SNAPSHOT_VERSION,
+        "saved_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "state": state,
+    }
+
+
+def persist_session_to_file(stem: str) -> tuple[bool, str]:
+    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    path = SESSIONS_DIR / f"{_session_safe_slug(stem)}.json"
+    try:
+        path.write_text(
+            json.dumps(collect_session_snapshot(), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        return True, str(path)
+    except OSError as e:
+        return False, str(e)
+
+
+def load_session_payload_from_file(stem: str) -> tuple[Optional[dict], Optional[str]]:
+    path = SESSIONS_DIR / f"{stem}.json"
+    if not path.is_file():
+        return None, "Файл не найден"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return None, str(e)
+    ver = data.get("version", 0)
+    if ver > SESSION_SNAPSHOT_VERSION:
+        return None, "Версия сессии новее, чем у калькулятора"
+    state = data.get("state")
+    if not isinstance(state, dict):
+        return None, "Некорректный формат state"
+    return state, None
+
+
 # --- СПРАВОЧНИКИ ---
 # Число Gigabit Ethernet выходов под нагрузку на приёмные карты (основной контур).
 # Ключи совпадают с полю name в SYNC_CONTROLLERS_DB / ASYNC_CONTROLLERS_DB.
@@ -574,9 +733,26 @@ popular_16_9 = {
 }
 
 # --- ИНИЦИАЛИЗАЦИЯ STATE ---
-if "width_input" not in st.session_state: st.session_state.width_input = 3840
-if "height_mm" not in st.session_state: st.session_state.height_mm = 2240
-if "previous_selected" not in st.session_state: st.session_state.previous_selected = "3840 × 2240 мм (12×14 шт) | ~16:9"
+_pop16_keys = list(popular_16_9.keys())
+if "width_input" not in st.session_state:
+    st.session_state.width_input = 3840
+if "height_mm" not in st.session_state:
+    st.session_state.height_mm = 2240
+if "calc_quick_size_label" not in st.session_state:
+    st.session_state.calc_quick_size_label = _pop16_keys[3]
+if "_prev_quick_size_label" not in st.session_state:
+    st.session_state._prev_quick_size_label = st.session_state.calc_quick_size_label
+
+if "_session_payload_to_apply" in st.session_state:
+    _payload = st.session_state.pop("_session_payload_to_apply")
+    for _k, _v in _payload.items():
+        if _k in SESSION_STATE_KEYS_TO_PERSIST:
+            st.session_state[_k] = _v
+    coerce_session_object_references()
+    st.session_state._prev_quick_size_label = st.session_state.get(
+        "calc_quick_size_label", _pop16_keys[3]
+    )
+    st.rerun()
 
 def fit_ratio(ratio):
     ideal = st.session_state.width_input / ratio
@@ -585,20 +761,71 @@ def fit_ratio(ratio):
     st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
 
 # Обработка выбора популярного размера
-selected_label = st.sidebar.selectbox("📐 Быстрый размер (16:9)", list(popular_16_9.keys()), index=3)
-if selected_label != st.session_state.previous_selected:
-    selected_w, selected_h = popular_16_9[selected_label]
-    if selected_w is not None:
-        st.session_state.width_input = selected_w 
-        st.session_state.height_mm = selected_h
-    st.session_state.previous_selected = selected_label
+st.sidebar.selectbox("📐 Быстрый размер (16:9)", _pop16_keys, key="calc_quick_size_label")
+if st.session_state.calc_quick_size_label != st.session_state._prev_quick_size_label:
+    _sw, _sh = popular_16_9[st.session_state.calc_quick_size_label]
+    if _sw is not None:
+        st.session_state.width_input = _sw
+        st.session_state.height_mm = _sh
+    st.session_state._prev_quick_size_label = st.session_state.calc_quick_size_label
     st.rerun()
 
 # --- БОКОВАЯ ПАНЕЛЬ: ПРОЕКТ И ФИНАНСЫ ---
 st.sidebar.markdown("---")
 st.sidebar.header("📝 Данные проекта")
-project_name = st.sidebar.text_input("Имя проекта", value="MediaLive - Новый проект")
-client_name = st.sidebar.text_input("Клиент / Заказчик", placeholder="Введите имя клиента")
+if "calc_project_name" not in st.session_state:
+    st.session_state.calc_project_name = "MediaLive - Новый проект"
+project_name = st.sidebar.text_input("Имя проекта", key="calc_project_name")
+if "calc_client_name" not in st.session_state:
+    st.session_state.calc_client_name = ""
+client_name = st.sidebar.text_input("Клиент / Заказчик", placeholder="Введите имя клиента", key="calc_client_name")
+
+st.sidebar.markdown("---")
+st.sidebar.header("💾 Сессия")
+SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+_saved_session_names = sorted(p.stem for p in SESSIONS_DIR.glob("*.json"))
+if "calc_session_new_name" not in st.session_state:
+    st.session_state.calc_session_new_name = ""
+st.sidebar.text_input(
+    "Имя для сохранения",
+    placeholder="например зал_А_вариант_1",
+    key="calc_session_new_name",
+    help="Файл появится в папке led_calc_sessions рядом с app.py",
+)
+if _saved_session_names:
+    st.sidebar.selectbox(
+        "Сохранённые сессии",
+        options=_saved_session_names,
+        key="calc_session_pick",
+    )
+else:
+    st.sidebar.caption("Пока нет файлов — введите имя и нажмите «Сохранить».")
+_b_save, _b_load = st.sidebar.columns(2)
+with _b_save:
+    if st.button("Сохранить", use_container_width=True, key="calc_session_btn_save"):
+        _name = (st.session_state.calc_session_new_name or "").strip() or "session"
+        _ok, _msg = persist_session_to_file(_name)
+        if _ok:
+            st.sidebar.success("Сохранено")
+            st.rerun()
+        else:
+            st.sidebar.error(f"Ошибка: {_msg}")
+with _b_load:
+    _load_clicked = st.button(
+        "Загрузить",
+        use_container_width=True,
+        key="calc_session_btn_load",
+        disabled=not _saved_session_names,
+    )
+if _load_clicked and _saved_session_names:
+    _stem = st.session_state.get("calc_session_pick")
+    if _stem:
+        _data, _err = load_session_payload_from_file(_stem)
+        if _err:
+            st.sidebar.error(_err)
+        else:
+            st.session_state["_session_payload_to_apply"] = _data
+            st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.header("💵 Финансы")
@@ -610,12 +837,14 @@ _screw_auto_rub_each, screw_4x16_price_source_note = get_screw_4x16_press_rub_ea
 _rivet_m6_auto_rub, rivet_m6_price_source_note = get_rivet_m6_sormat_rub_each_lemana()
 _bolt_m6_auto_rub, bolt_m6_6x16_price_source_note = get_bolt_m6_6x16_din912_zinc_rub_each_lemana()
 
+if "calc_exchange_rate" not in st.session_state:
+    st.session_state.calc_exchange_rate = float(current_cbr_rate)
 exchange_rate = st.sidebar.number_input(
-    "Курс USD (₽) для закупки (ЦБ + 1%)", 
-    min_value=50.0, 
-    value=float(current_cbr_rate), 
+    "Курс USD (₽) для закупки (ЦБ + 1%)",
+    min_value=50.0,
     step=0.1,
-    help="Курс автоматически парсится с сайта ЦБ РФ + добавляется 1%, согласно правилам прайс-листа."
+    key="calc_exchange_rate",
+    help="Курс автоматически парсится с сайта ЦБ РФ + добавляется 1%, согласно правилам прайс-листа.",
 )
 
 profile_40x20_rub_m = st.sidebar.number_input(
@@ -672,12 +901,16 @@ bolt_m6_6x16_din912_rub_each = st.sidebar.number_input(
 st.sidebar.caption(f"Заклёпка Sormat M6 (Lemana): {rivet_m6_price_source_note} · Винт M6×16: {bolt_m6_6x16_price_source_note}")
 
 # --- ДОБАВЛЯЕМ КОЭФФИЦИЕНТ НАЦЕНКИ ---
-margin_percent = st.sidebar.number_input("Наценка на железо (%)", min_value=0, value=30, step=5)
-margin = 1 + (margin_percent / 100) # Это создаст ту самую переменную 'margin' (например, 1.3)
+margin_percent = st.sidebar.number_input(
+    "Наценка на железо (%)", min_value=0, value=30, step=5, key="calc_margin_pct"
+)
+margin = 1 + (margin_percent / 100)  # Это создаст ту самую переменную 'margin' (например, 1.3)
 
 st.sidebar.markdown("---")
 # Оставляем цену за м2, если она тебе нужна для других расчетов
-price_per_m2 = st.sidebar.number_input("Цена за м² клиенту (₽)", min_value=0, value=150000, step=5000)
+price_per_m2 = st.sidebar.number_input(
+    "Цена за м² клиенту (₽)", min_value=0, value=150000, step=5000, key="calc_price_m2"
+)
 
 st.title("🖥️ Профессиональный калькулятор LED-экранов")
 st.markdown("Точный расчет комплектующих на базе динамического прайс-листа LEDCapital.")
@@ -691,8 +924,9 @@ col_w, col_h = st.columns(2)
 with col_w:
     width_mm = st.number_input("Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input")
 with col_h:
-    height_mm = st.number_input("Высота экрана (мм) [Шаг 160]", min_value=160, step=160, value=st.session_state.height_mm)
-    st.session_state.height_mm = height_mm
+    height_mm = st.number_input(
+        "Высота экрана (мм) [Шаг 160]", min_value=160, step=160, key="height_mm"
+    )
 
 st.markdown("<span style='font-size: 14px; color: #a0aec0;'>Быстрая подгонка высоты под пропорции:</span>", unsafe_allow_html=True)
 btn_cols = st.columns(4)
@@ -711,14 +945,20 @@ col_mat, col_mount = st.columns(2)
 with col_mat:
     c_env, c_tech = st.columns(2)
     with c_env:
-        env_key = st.radio("Среда использования", ["Indoor", "Outdoor"], horizontal=True, index=0)
+        if "calc_env_key" not in st.session_state:
+            st.session_state.calc_env_key = "Indoor"
+        env_key = st.radio(
+            "Среда использования", ["Indoor", "Outdoor"], horizontal=True, key="calc_env_key"
+        )
     with c_tech:
         tech_options = sorted(
             set(m["tech"] for m in MODULES_DB if m["env"] == env_key),
             key=lambda t: (0 if t == "SMD" else 1, t),
         )
-        tech_key = st.selectbox("Технология", tech_options, index=0)
-    
+        if "calc_tech_key" not in st.session_state or st.session_state.calc_tech_key not in tech_options:
+            st.session_state.calc_tech_key = tech_options[0] if tech_options else "SMD"
+        tech_key = st.selectbox("Технология", tech_options, key="calc_tech_key")
+
     # Фильтруем базу данных по среде И технологии
     available_modules = [m for m in MODULES_DB if m["env"] == env_key and m["tech"] == tech_key]
     module_names = [m["name"] for m in available_modules]
@@ -728,8 +968,10 @@ with col_mat:
         if _default_module_name in module_names
         else 0
     )
+    if "calc_module_name" not in st.session_state or st.session_state.calc_module_name not in module_names:
+        st.session_state.calc_module_name = module_names[_mod_ix] if module_names else ""
     selected_module_name = st.selectbox(
-        "Светодиодный модуль (из прайса):", module_names, index=_mod_ix
+        "Светодиодный модуль (из прайса):", module_names, key="calc_module_name"
     )
     
     # Получаем характеристики выбранного модуля
@@ -755,10 +997,21 @@ with col_mat:
         
     sensor = "Нет"
     if env_key == "Outdoor":
-        sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], index=1)
+        if "calc_sensor" not in st.session_state:
+            st.session_state.calc_sensor = "Есть (NS060)"
+        sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], key="calc_sensor")
+    else:
+        sensor = st.session_state.get("calc_sensor", "Нет")
 
 with col_mount:
-    mount_type = st.radio("Тип монтажа", ["Монолитный (Магниты/Профиль)", "В кабинетах"], horizontal=True, index=0)
+    if "calc_mount_type" not in st.session_state:
+        st.session_state.calc_mount_type = "Монолитный (Магниты/Профиль)"
+    mount_type = st.radio(
+        "Тип монтажа",
+        ["Монолитный (Магниты/Профиль)", "В кабинетах"],
+        horizontal=True,
+        key="calc_mount_type",
+    )
     selected_magnet = None
     magnets_per_module = 0
     selected_power_jumper = None
@@ -772,14 +1025,25 @@ with col_mount:
             "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
             "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
             "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
-            "Custom (введите размер и вес вручную)"
+            "Custom (введите размер и вес вручную)",
         ]
-        cabinet_model = st.selectbox("Модель кабинета", cabinet_options, index=0)
+        if "calc_cabinet_model" not in st.session_state or st.session_state.calc_cabinet_model not in cabinet_options:
+            st.session_state.calc_cabinet_model = cabinet_options[0]
+        cabinet_model = st.selectbox("Модель кабинета", cabinet_options, key="calc_cabinet_model")
         if "Custom" in cabinet_model:
             cc1, cc2, cc3 = st.columns(3)
-            with cc1: cabinet_width = st.number_input("Ширина (мм)", min_value=320, value=640)
-            with cc2: cabinet_height = st.number_input("Высота (мм)", min_value=160, value=480)
-            with cc3: cabinet_weight_per = st.number_input("Вес (кг)", min_value=1.0, value=20.0)
+            with cc1:
+                if "calc_cabinet_w" not in st.session_state:
+                    st.session_state.calc_cabinet_w = 640
+                cabinet_width = st.number_input("Ширина (мм)", min_value=320, key="calc_cabinet_w")
+            with cc2:
+                if "calc_cabinet_h" not in st.session_state:
+                    st.session_state.calc_cabinet_h = 480
+                cabinet_height = st.number_input("Высота (мм)", min_value=160, key="calc_cabinet_h")
+            with cc3:
+                if "calc_cabinet_weight" not in st.session_state:
+                    st.session_state.calc_cabinet_weight = 20.0
+                cabinet_weight_per = st.number_input("Вес (кг)", min_value=1.0, key="calc_cabinet_weight")
         else:
             cab_map = {
                 "QM": (640, 480, 20.0), "MG": (960, 960, 40.0), 
@@ -1045,20 +1309,34 @@ with col4_pwr:
 with col4_zip:
     with _ui_bordered_container():
         st.markdown('<p class="section4-subtitle">ЗИП и резерв</p>', unsafe_allow_html=True)
-        reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
+        if "calc_reserve_enabled" not in st.session_state:
+            st.session_state.calc_reserve_enabled = True
+        reserve_enabled = st.checkbox(
+            "Включить комплекты ЗИП (Резерв)", key="calc_reserve_enabled"
+        )
         reserve_modules_choice = "5%"
         reserve_modules_custom = 0
         reserve_psu_cards = False
         if reserve_enabled:
             zc1, zc2 = st.columns(2)
             with zc1:
+                if "calc_reserve_modules_choice" not in st.session_state:
+                    st.session_state.calc_reserve_modules_choice = "5%"
                 reserve_modules_choice = st.selectbox(
-                    "Резерв модулей", ["3%", "5%", "10%", "Свой"], index=1
+                    "Резерв модулей",
+                    ["3%", "5%", "10%", "Свой"],
+                    key="calc_reserve_modules_choice",
                 )
                 if reserve_modules_choice == "Свой":
-                    reserve_modules_custom = st.number_input("Кол-во шт.", min_value=0)
+                    if "calc_reserve_modules_custom" not in st.session_state:
+                        st.session_state.calc_reserve_modules_custom = 0
+                    reserve_modules_custom = st.number_input(
+                        "Кол-во шт.", min_value=0, key="calc_reserve_modules_custom"
+                    )
             with zc2:
-                reserve_psu_cards = st.checkbox("+1 БП и Карта", value=True)
+                if "calc_reserve_psu_cards" not in st.session_state:
+                    st.session_state.calc_reserve_psu_cards = True
+                reserve_psu_cards = st.checkbox("+1 БП и Карта", key="calc_reserve_psu_cards")
                 st.caption(
                     "При ЗИП: **+1 силовая перемычка** между БП (монолит) и **+1 патч-корд** в комплект."
                 )
