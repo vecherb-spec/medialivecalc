@@ -62,12 +62,12 @@ st.markdown("""
     }
     .spec-summary-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-        gap: 14px 18px;
-        margin-top: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+        gap: 16px 20px;
+        margin-top: 14px;
     }
-    .spec-summary-cell-label { font-size: 0.7rem; color: #718096; text-transform: uppercase; letter-spacing: 0.04em; }
-    .spec-summary-cell-val { font-size: 0.95rem; color: #e2e8f0; font-weight: 600; margin-top: 2px; }
+    .spec-summary-cell-label { font-size: 0.8rem; color: #718096; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.35; }
+    .spec-summary-cell-val { font-size: 1.08rem; color: #e2e8f0; font-weight: 600; margin-top: 4px; line-height: 1.3; }
     .section4-panel {
         background: #161b22;
         border: 1px solid #2d3748;
@@ -1409,8 +1409,8 @@ st.markdown("---")
 
 st.markdown(
     f"""
-<div style="padding: 14px 18px; border-radius: 10px; background: #1a202c; border: 1px solid #2d3748; margin-bottom: 16px;">
-    <div style="color: #a0aec0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Сводка по количеству</div>
+<div style="padding: 16px 20px; border-radius: 10px; background: #1a202c; border: 1px solid #2d3748; margin-bottom: 16px;">
+    <div style="color: #a0aec0; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1px;">Сводка по количеству</div>
     <div class="spec-summary-grid">{_spec_qty_grid_html}</div>
 </div>
 """,
