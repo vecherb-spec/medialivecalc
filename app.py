@@ -610,6 +610,24 @@ def load_session_payload_from_file(stem: str) -> tuple[Optional[dict], Optional[
     return state, None
 
 
+def delete_session_file(stem: str) -> tuple[bool, Optional[str]]:
+    path = SESSIONS_DIR / f"{stem}.json"
+    if not path.is_file():
+        return False, "Файл не найден"
+    try:
+        path.unlink()
+        return True, None
+    except OSError as e:
+        return False, str(e)
+
+
+def _sidebar_sessions_panel():
+    try:
+        return st.sidebar.container(border=True)
+    except TypeError:
+        return st.sidebar.container()
+
+
 # --- СПРАВОЧНИКИ ---
 # Число Gigabit Ethernet выходов под нагрузку на приёмные карты (основной контур).
 # Ключи совпадают с полю name в SYNC_CONTROLLERS_DB / ASYNC_CONTROLLERS_DB.
@@ -792,31 +810,63 @@ st.sidebar.text_input(
     key="calc_session_new_name",
     help="Файл появится в папке led_calc_sessions рядом с app.py",
 )
-if _saved_session_names:
-    st.sidebar.selectbox(
-        "Сохранённые сессии",
-        options=_saved_session_names,
-        key="calc_session_pick",
+if st.sidebar.button("Сохранить", use_container_width=True, key="calc_session_btn_save"):
+    _name = (st.session_state.calc_session_new_name or "").strip() or "session"
+    _ok, _msg = persist_session_to_file(_name)
+    if _ok:
+        st.session_state.calc_session_new_name = ""
+        st.sidebar.success("Сохранено")
+        st.rerun()
+    else:
+        st.sidebar.error(f"Ошибка: {_msg}")
+
+_load_clicked = False
+_del_clicked = False
+with _sidebar_sessions_panel():
+    st.markdown(
+        '<p style="margin:0 0 10px 0;color:#94a3b8;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;">'
+        "Сохранённые сессии</p>",
+        unsafe_allow_html=True,
     )
-else:
-    st.sidebar.caption("Пока нет файлов — введите имя и нажмите «Сохранить».")
-_b_save, _b_load = st.sidebar.columns(2)
-with _b_save:
-    if st.button("Сохранить", use_container_width=True, key="calc_session_btn_save"):
-        _name = (st.session_state.calc_session_new_name or "").strip() or "session"
-        _ok, _msg = persist_session_to_file(_name)
-        if _ok:
-            st.sidebar.success("Сохранено")
-            st.rerun()
+    if _saved_session_names:
+        if (
+            "calc_session_pick" not in st.session_state
+            or st.session_state.calc_session_pick not in _saved_session_names
+        ):
+            st.session_state.calc_session_pick = _saved_session_names[0]
+        st.radio(
+            "Выберите файл",
+            _saved_session_names,
+            key="calc_session_pick",
+            label_visibility="collapsed",
+        )
+        _b_load_col, _b_del_col = st.columns(2)
+        with _b_load_col:
+            _load_clicked = st.button(
+                "Загрузить",
+                use_container_width=True,
+                key="calc_session_btn_load",
+            )
+        with _b_del_col:
+            _del_clicked = st.button(
+                "Удалить",
+                use_container_width=True,
+                key="calc_session_btn_delete",
+            )
+    else:
+        st.caption("Пока нет файлов — введите имя выше и нажмите «Сохранить».")
+
+if _del_clicked and _saved_session_names:
+    _stem = st.session_state.get("calc_session_pick")
+    if _stem:
+        _ok_del, _err_del = delete_session_file(_stem)
+        if not _ok_del:
+            st.sidebar.error(_err_del or "Не удалось удалить")
         else:
-            st.sidebar.error(f"Ошибка: {_msg}")
-with _b_load:
-    _load_clicked = st.button(
-        "Загрузить",
-        use_container_width=True,
-        key="calc_session_btn_load",
-        disabled=not _saved_session_names,
-    )
+            st.session_state.pop("calc_session_pick", None)
+            st.sidebar.success("Удалено")
+            st.rerun()
+
 if _load_clicked and _saved_session_names:
     _stem = st.session_state.get("calc_session_pick")
     if _stem:
