@@ -21,7 +21,7 @@ except ImportError:
     suggested_pdf_filename = None
 
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
-st.set_page_config(page_title="LED Screen Pro Calculator | MediaLive", layout="wide", page_icon="🖥️")
+st.set_page_config(page_title="Medilive Led Calc", layout="wide", page_icon="🖥️")
 
 
 def _ui_bordered_container():
@@ -970,7 +970,7 @@ price_per_m2 = st.sidebar.number_input(
     "Цена за м² клиенту (₽)", min_value=0, value=150000, step=5000, key="calc_price_m2"
 )
 
-st.title("🖥️ Профессиональный калькулятор LED-экранов")
+st.title("🖥️ Medilive Led Calc")
 st.markdown("Точный расчет комплектующих на базе динамического прайс-листа LEDCapital.")
 
 # ==========================================
