@@ -802,6 +802,9 @@ st.sidebar.markdown("---")
 st.sidebar.header("💾 Сессия")
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 _saved_session_names = sorted(p.stem for p in SESSIONS_DIR.glob("*.json"))
+# Сброс имени файла только в начале прогона (нельзя писать в key виджета после его отрисовки)
+if st.session_state.pop("_reset_calc_session_new_name", False):
+    st.session_state.calc_session_new_name = ""
 if "calc_session_new_name" not in st.session_state:
     st.session_state.calc_session_new_name = ""
 st.sidebar.text_input(
@@ -814,7 +817,7 @@ if st.sidebar.button("Сохранить", use_container_width=True, key="calc_s
     _name = (st.session_state.calc_session_new_name or "").strip() or "session"
     _ok, _msg = persist_session_to_file(_name)
     if _ok:
-        st.session_state.calc_session_new_name = ""
+        st.session_state["_reset_calc_session_new_name"] = True
         st.sidebar.success("Сохранено")
         st.rerun()
     else:
