@@ -125,6 +125,18 @@ st.markdown("""
         margin-top: 8px;
         line-height: 1.35;
     }
+    .config-block-caption {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+    }
+    .config-subtitle {
+        color: #a0aec0;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0 0 10px 0;
+    }
     
     div[data-testid="stExpander"] {
         background-color: #1a202c;
@@ -1036,152 +1048,159 @@ with _ui_bordered_container():
 # ==========================================
 st.markdown('<div class="section-header">⚙️ 2. Матрица и Конструкция</div>', unsafe_allow_html=True)
 
-col_mat, col_mount = st.columns(2)
-
-with col_mat:
-    c_env, c_tech = st.columns(2)
-    with c_env:
-        if "calc_env_key" not in st.session_state:
-            st.session_state.calc_env_key = "Indoor"
-        env_key = st.radio(
-            "Среда использования", ["Indoor", "Outdoor"], horizontal=True, key="calc_env_key"
-        )
-    with c_tech:
-        tech_options = sorted(
-            set(m["tech"] for m in MODULES_DB if m["env"] == env_key),
-            key=lambda t: (0 if t == "SMD" else 1, t),
-        )
-        if "calc_tech_key" not in st.session_state or st.session_state.calc_tech_key not in tech_options:
-            st.session_state.calc_tech_key = tech_options[0] if tech_options else "SMD"
-        tech_key = st.selectbox("Технология", tech_options, key="calc_tech_key")
-
-    # Фильтруем базу данных по среде И технологии
-    available_modules = [m for m in MODULES_DB if m["env"] == env_key and m["tech"] == tech_key]
-    module_names = [m["name"] for m in available_modules]
-    _default_module_name = "Qiangli Q2.5 Indoor 3840Hz"
-    _mod_ix = (
-        module_names.index(_default_module_name)
-        if _default_module_name in module_names
-        else 0
+with _ui_bordered_container():
+    st.markdown(
+        '<div class="config-block-caption">Выберите параметры матрицы и вариант конструкции экрана.</div>',
+        unsafe_allow_html=True,
     )
-    if "calc_module_name" not in st.session_state or st.session_state.calc_module_name not in module_names:
-        st.session_state.calc_module_name = module_names[_mod_ix] if module_names else ""
-    selected_module_name = st.selectbox(
-        "Светодиодный модуль (из прайса):", module_names, key="calc_module_name"
-    )
-    
-    # Получаем характеристики выбранного модуля
-    selected_module = next(m for m in available_modules if m["name"] == selected_module_name)
-    
-    pixel_pitch = selected_module["pitch"]
-    tech = selected_module["tech"]
-    brightness = selected_module["brightness"]
-    max_power_module = selected_module["max_power"]
-    price_usd = selected_module["price_usd"]
-    price_rub_per_module = price_usd * exchange_rate
-    
-    # Инфо-панель с характеристиками
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Шаг:</span> <strong>P{pixel_pitch}</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Тип:</span> <strong>{tech}</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Яркость:</span> <strong>{brightness} нит</strong><br>
-        <span style="color: #a0aec0;">Макс. потребление:</span> <strong>{max_power_module} Вт/шт</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Цена (закупка):</span> <strong style="color: #48bb78;">${price_usd:.2f}</strong> ({price_rub_per_module:.0f} ₽)
-    </div>
-    """, unsafe_allow_html=True)
+    col_mat, col_mount = st.columns(2, gap="large")
+
+    with col_mat:
+        st.markdown('<p class="config-subtitle">Матрица LED</p>', unsafe_allow_html=True)
+        c_env, c_tech = st.columns(2, gap="small")
+        with c_env:
+            if "calc_env_key" not in st.session_state:
+                st.session_state.calc_env_key = "Indoor"
+            env_key = st.radio(
+                "Среда использования", ["Indoor", "Outdoor"], horizontal=True, key="calc_env_key"
+            )
+        with c_tech:
+            tech_options = sorted(
+                set(m["tech"] for m in MODULES_DB if m["env"] == env_key),
+                key=lambda t: (0 if t == "SMD" else 1, t),
+            )
+            if "calc_tech_key" not in st.session_state or st.session_state.calc_tech_key not in tech_options:
+                st.session_state.calc_tech_key = tech_options[0] if tech_options else "SMD"
+            tech_key = st.selectbox("Технология", tech_options, key="calc_tech_key")
+
+        # Фильтруем базу данных по среде И технологии
+        available_modules = [m for m in MODULES_DB if m["env"] == env_key and m["tech"] == tech_key]
+        module_names = [m["name"] for m in available_modules]
+        _default_module_name = "Qiangli Q2.5 Indoor 3840Hz"
+        _mod_ix = (
+            module_names.index(_default_module_name)
+            if _default_module_name in module_names
+            else 0
+        )
+        if "calc_module_name" not in st.session_state or st.session_state.calc_module_name not in module_names:
+            st.session_state.calc_module_name = module_names[_mod_ix] if module_names else ""
+        selected_module_name = st.selectbox(
+            "Светодиодный модуль (из прайса):", module_names, key="calc_module_name"
+        )
         
-    sensor = "Нет"
-    if env_key == "Outdoor":
-        if "calc_sensor" not in st.session_state:
-            st.session_state.calc_sensor = "Есть (NS060)"
-        sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], key="calc_sensor")
-    else:
-        sensor = st.session_state.get("calc_sensor", "Нет")
-
-with col_mount:
-    if "calc_mount_type" not in st.session_state:
-        st.session_state.calc_mount_type = "Монолитный (Магниты/Профиль)"
-    mount_type = st.radio(
-        "Тип монтажа",
-        ["Монолитный (Магниты/Профиль)", "В кабинетах"],
-        horizontal=True,
-        key="calc_mount_type",
-    )
-    selected_magnet = None
-    magnets_per_module = 0
-    selected_power_jumper = None
-
-    cabinet_model = "Монолит"
-    cabinet_width, cabinet_height, cabinet_weight_per = 640, 480, 20.0
-    
-    if "кабинетах" in mount_type:
-        cabinet_options = [
-            "QM Series (640×480 мм, indoor, ~20 кг)",
-            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
-            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
-            "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
-            "Custom (введите размер и вес вручную)",
-        ]
-        if "calc_cabinet_model" not in st.session_state or st.session_state.calc_cabinet_model not in cabinet_options:
-            st.session_state.calc_cabinet_model = cabinet_options[0]
-        cabinet_model = st.selectbox("Модель кабинета", cabinet_options, key="calc_cabinet_model")
-        if "Custom" in cabinet_model:
-            cc1, cc2, cc3 = st.columns(3)
-            with cc1:
-                if "calc_cabinet_w" not in st.session_state:
-                    st.session_state.calc_cabinet_w = 640
-                cabinet_width = st.number_input("Ширина (мм)", min_value=320, key="calc_cabinet_w")
-            with cc2:
-                if "calc_cabinet_h" not in st.session_state:
-                    st.session_state.calc_cabinet_h = 480
-                cabinet_height = st.number_input("Высота (мм)", min_value=160, key="calc_cabinet_h")
-            with cc3:
-                if "calc_cabinet_weight" not in st.session_state:
-                    st.session_state.calc_cabinet_weight = 20.0
-                cabinet_weight_per = st.number_input("Вес (кг)", min_value=1.0, key="calc_cabinet_weight")
-        else:
-            cab_map = {
-                "QM": (640, 480, 20.0), "MG": (960, 960, 40.0), 
-                "QF": (500, 500, 13.5), "QS": (960, 960, 45.0)
-            }
-            key_prefix = cabinet_model.split()[0]
-            cabinet_width, cabinet_height, cabinet_weight_per = cab_map.get(key_prefix, (640, 480, 20.0))
-    else:
-        selected_magnet = st.selectbox(
-            "Магниты (из прайса):",
-            MAGNETS_DB,
-            format_func=lambda m: (
-                f"{m['name']} — ${magnet_unit_usd(m):.4f}/шт "
-                f"(пачка {m['pack_qty']} шт → ${m['pack_price_usd']:.2f})"
-            ),
-            index=3,
-            key="main_magnet_select",
-            help="Стоимость входит в «Общая закупка». Количество = число модулей × норма ниже.",
-        )
-        magnets_per_module = st.number_input(
-            "Магнитов на 1 модуль (320×160 мм)",
-            min_value=0,
-            max_value=24,
-            value=4,
-            step=1,
-            key="magnets_per_module_input",
-            help="Типично 4 шт. на модуль; задайте свою норму под конструкцию.",
-        )
-        _mu = magnet_unit_usd(selected_magnet)
-        _mag_rub = _mu * exchange_rate
+        # Получаем характеристики выбранного модуля
+        selected_module = next(m for m in available_modules if m["name"] == selected_module_name)
+        
+        pixel_pitch = selected_module["pitch"]
+        tech = selected_module["tech"]
+        brightness = selected_module["brightness"]
+        max_power_module = selected_module["max_power"]
+        price_usd = selected_module["price_usd"]
+        price_rub_per_module = price_usd * exchange_rate
+        
+        # Инфо-панель с характеристиками
         st.markdown(f"""
-        <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
-            <span style="color: #a0aec0; font-size: 13px;">
-                Закупочная цена: <strong style="color: #48bb78;">${_mu:.4f}</strong> за шт.
-                &nbsp;({_mag_rub:.2f} ₽/шт)
-            </span><br>
-            <span style="color: #a0aec0; font-size: 13px;">
-                Пачка: <strong>{selected_magnet['pack_qty']} шт</strong> по
-                <strong style="color: #48bb78;">${selected_magnet['pack_price_usd']:.2f}</strong>
-            </span>
+        <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
+            <span style="color: #a0aec0;">Шаг:</span> <strong>P{pixel_pitch}</strong> &nbsp;|&nbsp;
+            <span style="color: #a0aec0;">Тип:</span> <strong>{tech}</strong> &nbsp;|&nbsp;
+            <span style="color: #a0aec0;">Яркость:</span> <strong>{brightness} нит</strong><br>
+            <span style="color: #a0aec0;">Макс. потребление:</span> <strong>{max_power_module} Вт/шт</strong> &nbsp;|&nbsp;
+            <span style="color: #a0aec0;">Цена (закупка):</span> <strong style="color: #48bb78;">${price_usd:.2f}</strong> ({price_rub_per_module:.0f} ₽)
         </div>
         """, unsafe_allow_html=True)
+            
+        sensor = "Нет"
+        if env_key == "Outdoor":
+            if "calc_sensor" not in st.session_state:
+                st.session_state.calc_sensor = "Есть (NS060)"
+            sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], key="calc_sensor")
+        else:
+            sensor = st.session_state.get("calc_sensor", "Нет")
+
+    with col_mount:
+        st.markdown('<p class="config-subtitle">Монтаж и конструкция</p>', unsafe_allow_html=True)
+        if "calc_mount_type" not in st.session_state:
+            st.session_state.calc_mount_type = "Монолитный (Магниты/Профиль)"
+        mount_type = st.radio(
+            "Тип монтажа",
+            ["Монолитный (Магниты/Профиль)", "В кабинетах"],
+            horizontal=True,
+            key="calc_mount_type",
+        )
+        selected_magnet = None
+        magnets_per_module = 0
+        selected_power_jumper = None
+
+        cabinet_model = "Монолит"
+        cabinet_width, cabinet_height, cabinet_weight_per = 640, 480, 20.0
+        
+        if "кабинетах" in mount_type:
+            cabinet_options = [
+                "QM Series (640×480 мм, indoor, ~20 кг)",
+                "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
+                "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
+                "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
+                "Custom (введите размер и вес вручную)",
+            ]
+            if "calc_cabinet_model" not in st.session_state or st.session_state.calc_cabinet_model not in cabinet_options:
+                st.session_state.calc_cabinet_model = cabinet_options[0]
+            cabinet_model = st.selectbox("Модель кабинета", cabinet_options, key="calc_cabinet_model")
+            if "Custom" in cabinet_model:
+                cc1, cc2, cc3 = st.columns(3)
+                with cc1:
+                    if "calc_cabinet_w" not in st.session_state:
+                        st.session_state.calc_cabinet_w = 640
+                    cabinet_width = st.number_input("Ширина (мм)", min_value=320, key="calc_cabinet_w")
+                with cc2:
+                    if "calc_cabinet_h" not in st.session_state:
+                        st.session_state.calc_cabinet_h = 480
+                    cabinet_height = st.number_input("Высота (мм)", min_value=160, key="calc_cabinet_h")
+                with cc3:
+                    if "calc_cabinet_weight" not in st.session_state:
+                        st.session_state.calc_cabinet_weight = 20.0
+                    cabinet_weight_per = st.number_input("Вес (кг)", min_value=1.0, key="calc_cabinet_weight")
+            else:
+                cab_map = {
+                    "QM": (640, 480, 20.0), "MG": (960, 960, 40.0), 
+                    "QF": (500, 500, 13.5), "QS": (960, 960, 45.0)
+                }
+                key_prefix = cabinet_model.split()[0]
+                cabinet_width, cabinet_height, cabinet_weight_per = cab_map.get(key_prefix, (640, 480, 20.0))
+        else:
+            selected_magnet = st.selectbox(
+                "Магниты (из прайса):",
+                MAGNETS_DB,
+                format_func=lambda m: (
+                    f"{m['name']} — ${magnet_unit_usd(m):.4f}/шт "
+                    f"(пачка {m['pack_qty']} шт → ${m['pack_price_usd']:.2f})"
+                ),
+                index=3,
+                key="main_magnet_select",
+                help="Стоимость входит в «Общая закупка». Количество = число модулей × норма ниже.",
+            )
+            magnets_per_module = st.number_input(
+                "Магнитов на 1 модуль (320×160 мм)",
+                min_value=0,
+                max_value=24,
+                value=4,
+                step=1,
+                key="magnets_per_module_input",
+                help="Типично 4 шт. на модуль; задайте свою норму под конструкцию.",
+            )
+            _mu = magnet_unit_usd(selected_magnet)
+            _mag_rub = _mu * exchange_rate
+            st.markdown(f"""
+            <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
+                <span style="color: #a0aec0; font-size: 13px;">
+                    Закупочная цена: <strong style="color: #48bb78;">${_mu:.4f}</strong> за шт.
+                    &nbsp;({_mag_rub:.2f} ₽/шт)
+                </span><br>
+                <span style="color: #a0aec0; font-size: 13px;">
+                    Пачка: <strong>{selected_magnet['pack_qty']} шт</strong> по
+                    <strong style="color: #48bb78;">${selected_magnet['pack_price_usd']:.2f}</strong>
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ==========================================
 # ==========================================
