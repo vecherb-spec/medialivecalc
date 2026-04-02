@@ -264,7 +264,9 @@ def publish_json_for_figma(payload: dict) -> tuple[Optional[str], Optional[str]]
     напрямую вставить в Figma-плагин (поле URL).
     """
     endpoint = "https://jsonblob.com/api/jsonBlob"
-    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    # JSON to Figma чаще ожидает корневой массив объектов.
+    publish_payload = payload if isinstance(payload, list) else [payload]
+    body = json.dumps(publish_payload, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
         endpoint,
         data=body,
