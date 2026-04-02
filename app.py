@@ -258,6 +258,32 @@ def _html_first_price_int(html: str) -> Optional[int]:
     return None
 
 
+def publish_json_for_figma_api(payload: dict) -> tuple[Optional[str], Optional[str]]:
+    """
+    Публикует JSON в paste.rs и возвращает публичный API URL.
+    Подходит для вставки в JSON-to-Figma плагин (режим URL).
+    """
+    try:
+        publish_payload = payload if isinstance(payload, list) else [payload]
+        req = urllib.request.Request(
+            "https://paste.rs",
+            data=json.dumps(publish_payload, ensure_ascii=False).encode("utf-8"),
+            method="POST",
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "Accept": "text/plain",
+                "User-Agent": "MediaLive-LED-Calc/1.0",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            url = resp.read().decode("utf-8", errors="ignore").strip()
+        if not url.startswith("http"):
+            return None, "Сервис не вернул валидный URL"
+        return url, None
+    except Exception as e:
+        return None, str(e)
+
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_profile_40x20_rub_per_m_petrovich():
     """
@@ -2379,6 +2405,18 @@ with col_exp1:
         key="download_figma_json",
         help="Скачайте файл и импортируйте его в JSON to Figma через 'From local file'.",
     )
+    if st.button("🌐 Получить API URL для Figma", use_container_width=True):
+        _api_url, _api_err = publish_json_for_figma_api(figma_data)
+        if _api_err:
+            st.error(f"Не удалось опубликовать API URL: {_api_err}")
+        else:
+            st.session_state["figma_api_url"] = _api_url
+            st.success("API URL готов")
+    _figma_api_url = st.session_state.get("figma_api_url")
+    if _figma_api_url:
+        st.caption("API URL для JSON to Figma:")
+        st.code(_figma_api_url, language="text")
+        st.markdown(f"[Проверить API URL]({_figma_api_url})")
 
 with col_exp2:
     st.markdown("**Сохранение в базу Google Sheets**")
