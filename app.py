@@ -63,9 +63,45 @@ st.markdown("""
         height: 210px;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        justify-content: flex-start;
         box-sizing: border-box;
         margin-bottom: 12px;
+    }
+    .finance-metric-head {
+        color: #a0aec0;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        min-height: 2.6em;
+        line-height: 1.3;
+    }
+    .finance-metric-body {
+        margin-top: 8px;
+        min-height: 3.8em;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+    .finance-main-number {
+        color: #f8fafc;
+        font-size: 1.35rem;
+        font-weight: bold;
+        line-height: 1.2;
+        min-height: 1.2em;
+    }
+    .finance-sub-number {
+        color: #94a3b8;
+        font-size: 0.95rem;
+        line-height: 1.2;
+        min-height: 1.2em;
+    }
+    .finance-footnote {
+        font-size: 0.7rem;
+        color: #718096;
+        margin-top: auto;
+        padding-top: 8px;
+        line-height: 1.3;
+        min-height: 2.6em;
     }
     .spec-summary-grid {
         display: grid;
@@ -1908,12 +1944,12 @@ with col_f1:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #3b82f6;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Комплектующие</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_components_main}</span>
-        <span style="color: #7dd3fc; font-size: 0.88rem;">{_sale_components_usd_paren}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_comp_main} {_buy_components_usd_paren}</span>
+    <div class="finance-metric-head">Комплектующие</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_sale_components_main} <span style="color: #7dd3fc; font-size: 0.88rem;">{_sale_components_usd_paren}</span></div>
+        <div class="finance-sub-number">Закупка: {_buy_comp_main} {_buy_components_usd_paren}</div>
     </div>
+    <div class="finance-footnote">&nbsp;</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1923,12 +1959,12 @@ with col_f2:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #d97706;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Каркас и крепеж</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_frame_main}</span>
-        <span style="color: #fcd34d; font-size: 0.88rem;">{_sale_frame_usd_paren}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_frame_main} {_buy_frame_usd_paren}</span>
+    <div class="finance-metric-head">Каркас и крепеж</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_sale_frame_main} <span style="color: #fcd34d; font-size: 0.88rem;">{_sale_frame_usd_paren}</span></div>
+        <div class="finance-sub-number">Закупка: {_buy_frame_main} {_buy_frame_usd_paren}</div>
     </div>
+    <div class="finance-footnote">&nbsp;</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1938,12 +1974,12 @@ with col_f3:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #48bb78;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">{_sale_title}</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_main}</span><br>
-        <span style="color: #48bb78; font-size: 0.95rem; font-weight: bold;">{_sale_sub}</span>
+    <div class="finance-metric-head">{_sale_title}</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_sale_main}</div>
+        <div class="finance-sub-number" style="color: #48bb78; font-weight: bold;">{_sale_sub}</div>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">
+    <div class="finance-footnote">
         Наценка {int((margin - 1) * 100)}% · доп. услуги {_extras_main}
     </div>
 </div>
@@ -1955,12 +1991,12 @@ with col_f4:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #0ea5e9;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Монтаж</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_installation_main}</span><br>
-        <span style="color: #93c5fd; font-size: 0.95rem; font-weight: bold;">{_installation_sub}</span>
+    <div class="finance-metric-head">Монтаж</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_installation_main}</div>
+        <div class="finance-sub-number" style="color: #93c5fd; font-weight: bold;">{_installation_sub}</div>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Отдельная строка клиентского бюджета</div>
+    <div class="finance-footnote">Отдельная строка клиентского бюджета</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1970,12 +2006,12 @@ with col_f5:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #06b6d4;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Логистика</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_logistics_main}</span><br>
-        <span style="color: #67e8f9; font-size: 0.95rem; font-weight: bold;">{_logistics_sub}</span>
+    <div class="finance-metric-head">Логистика</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_logistics_main}</div>
+        <div class="finance-sub-number" style="color: #67e8f9; font-weight: bold;">{_logistics_sub}</div>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Отдельная строка клиентского бюджета</div>
+    <div class="finance-footnote">Отдельная строка клиентского бюджета</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1985,12 +2021,12 @@ with col_f6:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #a855f7;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Чистая прибыль</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_profit_main}</span><br>
-        <span style="color: #c4b5fd; font-size: 0.95rem; font-weight: bold;">{_profit_sub}</span>
+    <div class="finance-metric-head">Чистая прибыль</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_profit_main}</div>
+        <div class="finance-sub-number" style="color: #c4b5fd; font-weight: bold;">{_profit_sub}</div>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Только экран и каркас (без логистики и монтажа)</div>
+    <div class="finance-footnote">Только экран и каркас (без логистики и монтажа)</div>
 </div>
 """,
         unsafe_allow_html=True,
