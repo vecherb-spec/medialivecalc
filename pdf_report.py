@@ -8,10 +8,19 @@ from __future__ import annotations
 import os
 import re
 import sys
+import urllib.request
 from pathlib import Path
 from typing import Any, List, Tuple
 
 FONT_FAMILY = "MLReport"  # произвольное имя семейства для add_font
+EMBEDDED_FONTS_DIR = Path(__file__).resolve().parent / "fonts"
+NOTO_REGULAR_TTF = EMBEDDED_FONTS_DIR / "NotoSans-Regular.ttf"
+NOTO_BOLD_TTF = EMBEDDED_FONTS_DIR / "NotoSans-Bold.ttf"
+
+NOTO_FONT_URLS = {
+    "regular": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf",
+    "bold": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf",
+}
 
 
 def _bold_candidate(regular: Path) -> Path | None:
@@ -42,8 +51,11 @@ def _font_candidates() -> list[Path]:
     here = Path(__file__).resolve().parent
     out.extend(
         [
+            here / "fonts" / "NotoSans-Regular.ttf",
             here / "fonts" / "DejaVuSans.ttf",
             here / "DejaVu-sans" / "DejaVuSans.ttf",
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"),
         ]
     )
     try:
@@ -65,7 +77,6 @@ def _font_candidates() -> list[Path]:
     else:
         out.extend(
             [
-                Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
                 Path("/usr/local/share/fonts/dejavu/DejaVuSans.ttf"),
                 Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
             ]
@@ -81,7 +92,27 @@ def _resolve_font_paths() -> Tuple[str, str]:
             reg = str(cand.resolve())
             bol = str(bd.resolve()) if bd and bd.is_file() else reg
             return reg, bol
+    _download_noto_fonts_if_missing()
+    if NOTO_REGULAR_TTF.is_file():
+        reg = str(NOTO_REGULAR_TTF.resolve())
+        bol = str(NOTO_BOLD_TTF.resolve()) if NOTO_BOLD_TTF.is_file() else reg
+        return reg, bol
     return "", ""
+
+
+def _download_noto_fonts_if_missing() -> None:
+    """Скачивает Noto Sans в локальную папку fonts как fallback."""
+    try:
+        EMBEDDED_FONTS_DIR.mkdir(parents=True, exist_ok=True)
+        if not NOTO_REGULAR_TTF.is_file():
+            with urllib.request.urlopen(NOTO_FONT_URLS["regular"], timeout=20) as resp:
+                NOTO_REGULAR_TTF.write_bytes(resp.read())
+        if not NOTO_BOLD_TTF.is_file():
+            with urllib.request.urlopen(NOTO_FONT_URLS["bold"], timeout=20) as resp:
+                NOTO_BOLD_TTF.write_bytes(resp.read())
+    except Exception:
+        # Если сеть недоступна — оставляем текущую логику fallback по системным шрифтам.
+        return
 
 
 def _safe_filename(name: str) -> str:
