@@ -801,6 +801,7 @@ with col_ctrl1:
     _proc_cap_mln_str = (
         f"{_proc_mln:.2f}".replace(".", ",").rstrip("0").rstrip(",") + " млн"
     )
+    _proc_cap_px_spaced = f"{_proc_cap_px:,}".replace(",", " ")
     _proc_res_note = PROCESSOR_RESOLUTION_NOTE.get(
         processor_name, "Уточняйте по паспорту выбранной модели."
     )
@@ -816,7 +817,7 @@ with col_ctrl1:
         <span style="color: #a0aec0; font-size: 13px;">
             Поддерживаемое кол-во пикселей (оценка, {PROCESSOR_LOAD_PX_PER_PORT // 1000}k px/порт):
             <strong style="color: #48bb78;">{_proc_cap_mln_str}</strong>
-            <span style="color: #718096;">({_proc_cap_px:,} пикс.)</span>
+            <span style="color: #718096;">({_proc_cap_px_spaced} пикс.)</span>
         </span><br>
         <span style="color: #a0aec0; font-size: 13px;">
             Поддерживаемое разрешение (справка): <strong style="color: #e2e8f0;">{_proc_res_note}</strong>
