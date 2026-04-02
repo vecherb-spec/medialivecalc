@@ -60,10 +60,10 @@ st.markdown("""
         border-radius: 10px;
         background: #1a202c;
         border: 1px solid #2d3748;
-        min-height: 128px;
+        height: 210px;
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;
+        justify-content: space-between;
         box-sizing: border-box;
         margin-bottom: 12px;
     }
