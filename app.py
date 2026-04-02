@@ -279,6 +279,8 @@ def publish_json_for_figma(payload: dict) -> tuple[Optional[str], Optional[str]]
         with urllib.request.urlopen(req, timeout=15) as resp:
             location = resp.headers.get("Location")
             if location:
+                if location.startswith("/"):
+                    location = "https://jsonblob.com" + location
                 return location, None
             # Fallback: если заголовок отсутствует, попробуем распарсить тело.
             raw = resp.read().decode("utf-8", errors="ignore")
