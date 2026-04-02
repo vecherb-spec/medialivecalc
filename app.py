@@ -107,6 +107,24 @@ st.markdown("""
         padding-bottom: 0.5rem;
         border-bottom: 1px solid #2d3748;
     }
+    .size-block-caption {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+    }
+    .size-subtitle {
+        color: #a0aec0;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0 0 8px 0;
+    }
+    .ratio-hint {
+        color: #718096;
+        font-size: 0.78rem;
+        margin-top: 8px;
+        line-height: 1.35;
+    }
     
     div[data-testid="stExpander"] {
         background-color: #1a202c;
@@ -978,27 +996,40 @@ st.markdown("Точный расчет комплектующих на базе 
 # ==========================================
 st.markdown('<div class="section-header">📏 1. Размеры экрана</div>', unsafe_allow_html=True)
 
-col_size_inputs, col_ratio_buttons = st.columns([3, 2])
-with col_size_inputs:
-    width_mm = st.number_input(
-        "Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input"
+with _ui_bordered_container():
+    st.markdown(
+        '<div class="size-block-caption">Задайте размеры экрана вручную или выберите готовую пропорцию.</div>',
+        unsafe_allow_html=True,
     )
-    height_mm = st.number_input(
-        "Высота экрана (мм) [Шаг 160]", min_value=160, step=160, key="height_mm"
-    )
-with col_ratio_buttons:
-    if st.button("16:9", use_container_width=True):
-        fit_ratio(1.7777777777777777)
-        st.rerun()
-    if st.button("4:3", use_container_width=True):
-        fit_ratio(1.3333333333333333)
-        st.rerun()
-    if st.button("21:9", use_container_width=True):
-        fit_ratio(2.3333333333333335)
-        st.rerun()
-    if st.button("1:1", use_container_width=True):
-        fit_ratio(1.0)
-        st.rerun()
+    col_size_inputs, col_ratio_buttons = st.columns([3, 2], gap="large")
+    with col_size_inputs:
+        st.markdown('<p class="size-subtitle">Габариты экрана</p>', unsafe_allow_html=True)
+        width_mm = st.number_input(
+            "Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input"
+        )
+        height_mm = st.number_input(
+            "Высота экрана (мм) [Шаг 160]", min_value=160, step=160, key="height_mm"
+        )
+    with col_ratio_buttons:
+        st.markdown('<p class="size-subtitle">Быстрые пропорции</p>', unsafe_allow_html=True)
+        r1c1, r1c2 = st.columns(2, gap="small")
+        if r1c1.button("16:9", key="ratio_btn_16_9", use_container_width=True):
+            fit_ratio(1.7777777777777777)
+            st.rerun()
+        if r1c2.button("4:3", key="ratio_btn_4_3", use_container_width=True):
+            fit_ratio(1.3333333333333333)
+            st.rerun()
+        r2c1, r2c2 = st.columns(2, gap="small")
+        if r2c1.button("21:9", key="ratio_btn_21_9", use_container_width=True):
+            fit_ratio(2.3333333333333335)
+            st.rerun()
+        if r2c2.button("1:1", key="ratio_btn_1_1", use_container_width=True):
+            fit_ratio(1.0)
+            st.rerun()
+        st.markdown(
+            '<div class="ratio-hint">Высота подгоняется автоматически с шагом 160 мм.</div>',
+            unsafe_allow_html=True,
+        )
 
 # ==========================================
 # БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ
