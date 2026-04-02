@@ -953,34 +953,6 @@ if not ports_catalog_hit:
         "Добавьте строку в `PROCESSOR_PORTS` в `app.py`."
     )
 
-# РАСЧЕТЫ ДОЛЖНЫ ИДТИ ПОСЛЕ БЛОКА IF С ТЕМ ЖЕ ОТСТУПОМ, ЧТО И ВЕСЬ БЛОК
-real_width = math.ceil(width_mm / 320) * 320
-
-# РАСЧЕТ И СТАТУС ПОРТОВ (единственная инфо-панель для контроллера)
-real_width = math.ceil(width_mm / 320) * 320
-real_height = math.ceil(height_mm / 160) * 160
-total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-
-required_ports = math.ceil(total_px / PROCESSOR_LOAD_PX_PER_PORT)
-load_per_port = (
-    (total_px / (available_ports * PROCESSOR_LOAD_PX_PER_PORT)) * 100
-    if available_ports > 0
-    else 100.0
-)
-
-status_text = "✅ Портов достаточно" if required_ports <= available_ports else "❌ ВНИМАНИЕ: Недостаточно портов!"
-status_color = "#48bb78" if required_ports <= available_ports else "#f56565"
-
-st.markdown(f"""
-<div style="padding: 12px 20px; border-radius: 8px; border-left: 4px solid {status_color}; background: #1a202c; margin-top: 10px;">
-    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{processor_name}</strong>:</span><br>
-    Доступно: <strong>{available_ports}</strong> &nbsp;|&nbsp;
-    Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp;
-    Нагрузка на порт: <strong>{load_per_port:.1f}%</strong> &nbsp;&nbsp;➔&nbsp;&nbsp;
-    <span style="color: {status_color}; font-weight: bold;">{status_text}</span>
-</div>
-""", unsafe_allow_html=True)
-
 # ==========================================
 # БЛОК 4: ПИТАНИЕ И РЕЗЕРВ (ЗИП) - ФИНАЛЬНЫЙ ЧИСТЫЙ ВАРИАНТ
 # ==========================================
@@ -989,7 +961,7 @@ st.markdown('<div class="section-header">⚡ 4. Питание сети и ЗИ�
 col4_pwr, col4_zip = st.columns(2)
 with col4_pwr:
     with _ui_bordered_container():
-        st.markdown('<p class="section4-subtitle">Блок питания</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section4-subtitle">1. Блок питания</p>', unsafe_allow_html=True)
         selected_psu = st.selectbox(
             "Модель БП (из прайса):",
             PSU_DB,
@@ -1023,12 +995,12 @@ with col4_pwr:
 
 with col4_zip:
     with _ui_bordered_container():
-        st.markdown('<p class="section4-subtitle">ЗИП и резерв</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section4-subtitle">2. ЗИП и резерв</p>', unsafe_allow_html=True)
         reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
         reserve_modules_choice = "5%"
         reserve_modules_custom = 0
         reserve_psu_cards = False
-        reserve_patch = False
+        hot_backup = False
         if reserve_enabled:
             zc1, zc2 = st.columns(2)
             with zc1:
@@ -1039,11 +1011,22 @@ with col4_zip:
                     reserve_modules_custom = st.number_input("Кол-во шт.", min_value=0)
             with zc2:
                 reserve_psu_cards = st.checkbox("+1 БП и Карта", value=True)
-                reserve_patch = st.checkbox("Двойной запас патч-кордов", value=False)
                 if "Монолитный" in mount_type:
                     st.caption("+1 силовая перемычка в заказ при ЗИП (монолит).")
+            st.caption(
+                "При включённом ЗИП в заказ добавляется **+1 патч-корд** (запас к основному количеству по картам)."
+            )
+        backup_mode = st.radio(
+            "Режим резервирования контроллера",
+            ["Обычный", "Hot backup"],
+            horizontal=True,
+            index=0,
+            key="processor_hot_backup_mode",
+            help="Hot backup: при проверке портов учётная ёмкость процессора ×2 (дублирование линий).",
+        )
+        hot_backup = backup_mode == "Hot backup"
 
-st.markdown('<p class="section4-subtitle" style="margin-top:6px;">Коммутация</p>', unsafe_allow_html=True)
+st.markdown('<p class="section4-subtitle" style="margin-top:6px;">3. Коммутация</p>', unsafe_allow_html=True)
 col4_j, col4_p, col4_c = st.columns(3)
 with col4_j:
     with _ui_bordered_container():
@@ -1061,15 +1044,6 @@ with col4_j:
                 key="main_power_jumper_select",
                 help="По умолчанию 70 см.",
             )
-            _pj_rub = selected_power_jumper["price_usd"] * exchange_rate
-            st.markdown(
-                f"""
-<div style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 12px; color: #e2e8f0;">
-    <strong style="color: #48bb78;">${selected_power_jumper["price_usd"]:.2f}</strong> ({_pj_rub:.2f} ₽) за шт.
-</div>
-""",
-                unsafe_allow_html=True,
-            )
         else:
             st.caption("Только для монолитного монтажа.")
 with col4_p:
@@ -1084,15 +1058,6 @@ with col4_p:
             key="patch_cord_product_select",
             help="Монолит: чаще 1 м; кабинеты: 1,5 м.",
         )
-        _p_rub = selected_patch_cord["price_usd"] * exchange_rate
-        st.markdown(
-            f"""
-<div style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 12px; color: #e2e8f0;">
-    <strong style="color: #48bb78;">${selected_patch_cord["price_usd"]:.2f}</strong> ({_p_rub:.2f} ₽) за шт.
-</div>
-""",
-            unsafe_allow_html=True,
-        )
 with col4_c:
     with _ui_bordered_container():
         st.markdown("**Кабели питания карт → БП**")
@@ -1104,15 +1069,41 @@ with col4_c:
             key="card_power_cable_select",
             help="От БП к приёмной карте.",
         )
-        _cp_rub = selected_card_power_cable["price_usd"] * exchange_rate
-        st.markdown(
-            f"""
-<div style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 12px; color: #e2e8f0;">
-    <strong style="color: #48bb78;">${selected_card_power_cable["price_usd"]:.2f}</strong> ({_cp_rub:.2f} ₽) за шт.
+
+real_width = math.ceil(width_mm / 320) * 320
+real_height = math.ceil(height_mm / 160) * 160
+total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+
+available_ports_effective = available_ports * (2 if hot_backup else 1)
+required_ports = math.ceil(total_px / PROCESSOR_LOAD_PX_PER_PORT)
+load_per_port = (
+    (total_px / (available_ports_effective * PROCESSOR_LOAD_PX_PER_PORT)) * 100
+    if available_ports_effective > 0
+    else 100.0
+)
+status_text = (
+    "✅ Портов достаточно"
+    if required_ports <= available_ports_effective
+    else "❌ ВНИМАНИЕ: Недостаточно портов!"
+)
+status_color = (
+    "#48bb78" if required_ports <= available_ports_effective else "#f56565"
+)
+_ports_extra = (
+    f' &nbsp;|&nbsp; для расчёта: <strong>{available_ports_effective}</strong> вых. (Hot backup, физ. {available_ports})'
+    if hot_backup
+    else ""
+)
+
+st.markdown(f"""
+<div style="padding: 12px 20px; border-radius: 8px; border-left: 4px solid {status_color}; background: #1a202c; margin-top: 10px;">
+    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{processor_name}</strong>:</span><br>
+    Физически выходов: <strong>{available_ports}</strong>{_ports_extra} &nbsp;|&nbsp;
+    Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp;
+    Нагрузка на порт: <strong>{load_per_port:.1f}%</strong> &nbsp;&nbsp;➔&nbsp;&nbsp;
+    <span style="color: {status_color}; font-weight: bold;">{status_text}</span>
 </div>
-""",
-            unsafe_allow_html=True,
-        )
+""", unsafe_allow_html=True)
 
 # ==========================================
 # ==========================================
@@ -1154,7 +1145,7 @@ num_cards = max(num_cards_by_mod, num_cards_by_pix)
 # Г) ИТОГО С УЧЕТОМ ЗИП (если нажата кнопка запаса)
 num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
 
-patch_cords = num_cards_reserve * (2 if reserve_patch else 1)
+patch_cords = num_cards_reserve + (1 if reserve_enabled else 0)
 buy_patch_cords_total = patch_cords * selected_patch_cord["price_usd"]
 
 num_power_cables = num_cards_reserve
@@ -1372,7 +1363,7 @@ _spec_qty_cells.extend(
 if num_power_jumpers:
     _spec_qty_cells.append(("Перемычки БП", f"{num_power_jumpers} шт."))
 if profile_purchased_m > 0:
-    _spec_qty_cells.append(("Профиль 6 м", f"{profile_purchased_m:.1f} м"))
+    _spec_qty_cells.append(("Профиль 40×20×1,5", f"{profile_purchased_m:.1f} м"))
 if buy_screws_4x16_usd > 0:
     _spec_qty_cells.append(("Саморезы", f"{num_screws_4x16_order} шт."))
 if buy_m6_frame_usd > 0:
@@ -1407,8 +1398,7 @@ with col_m3:
 with col_m4:
     st.markdown(
         f'<div class="metric-card"><div class="metric-label">Потребление</div>'
-        f'<div class="metric-subrow">средн. {avg_power_screen_kw:.1f} кВт</div>'
-        f'<div class="metric-subrow">макс. {peak_power_screen_kw:.1f} кВт</div></div>',
+        f'<div class="metric-value">средн. {avg_power_screen_kw:.1f} · макс. {peak_power_screen_kw:.1f} кВт</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -1535,9 +1525,14 @@ with st.expander("Блоки питания", expanded=True):
     """)
 
 with st.expander("Процессор / Контроллер", expanded=True):
+    _exp_ports = (
+        f"{available_ports} (для расчёта {available_ports_effective}, Hot backup)"
+        if hot_backup
+        else str(available_ports)
+    )
     st.markdown(f"""
    - **Модель**: {selected_proc['name']}
-    - **Доступно портов**: {available_ports}
+    - **Доступно портов**: {_exp_ports}
     - **Необходимое портов**: {required_ports}
     - **Средняя нагрузка на порт**: {load_per_port:.1f}%
     """)
@@ -1581,6 +1576,7 @@ if "Монолитный" in mount_type:
         """)
 
 with st.expander("Коммутация", expanded=True):
+    _patch_zip_note = " + **+1** запас при ЗИП" if reserve_enabled else ""
     if "Монолитный" in mount_type:
         _pj_name = selected_power_jumper["name"] if selected_power_jumper else "—"
         _pj_zip_note = (
@@ -1596,7 +1592,7 @@ with st.expander("Коммутация", expanded=True):
 
         **Слаботочка и питание карт**
         - **Патч-корды RJ45** — {selected_patch_cord['name']}: **{patch_cords} шт.**
-          (число карт с ЗИП × {"2" if reserve_patch else "1"}) — ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
+          ({num_cards_reserve} по картам с ЗИП{_patch_zip_note}) — ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
         - **Кабели питания карт → БП** — {selected_card_power_cable['name']}: **{num_card_power_cables_order} шт.**
           ({num_power_cables} по картам + {reserve_power_cables} запас 10%) — ${selected_card_power_cable['price_usd']:.2f}/шт → **${buy_card_power_cables_total:.2f}** ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
         """)
@@ -1608,7 +1604,7 @@ with st.expander("Коммутация", expanded=True):
 
         **Слаботочка и питание карт**
         - **Патч-корды RJ45** — {selected_patch_cord['name']}: **{patch_cords} шт.**
-          (число карт с ЗИП × {"2" if reserve_patch else "1"}) — ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
+          ({num_cards_reserve} по картам с ЗИП{_patch_zip_note}) — ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
         - **Кабели питания карт → БП** — {selected_card_power_cable['name']}: **{num_card_power_cables_order} шт.**
           ({num_power_cables} по картам + {reserve_power_cables} запас 10%) — ${selected_card_power_cable['price_usd']:.2f}/шт → **${buy_card_power_cables_total:.2f}** ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
         """)
@@ -1711,6 +1707,9 @@ figma_data = {
     "profit_usd": round(profit_usd, 2),
     "profit_rub": round(profit_rub, 2),
     "margin_percent": int((margin - 1) * 100),
+    "hot_backup": hot_backup,
+    "processor_ports_physical": available_ports,
+    "processor_ports_effective": available_ports_effective,
 }
 figma_json = json.dumps(figma_data, indent=4, ensure_ascii=False)
 
