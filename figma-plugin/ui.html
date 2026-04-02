@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Inter, Arial, sans-serif;
+      margin: 12px;
+      color: #111827;
+    }
+    h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+    }
+    .row {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #4b5563;
+    }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 12px;
+    }
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    button {
+      border: none;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .primary {
+      background: #2563eb;
+      color: #fff;
+    }
+    .secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .hint {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.35;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #0f766e;
+      min-height: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h3>Medialive KP Autofill</h3>
+
+  <div class="row">
+    <label for="jsonUrl">JSON URL (из калькулятора)</label>
+    <input id="jsonUrl" type="text" placeholder="https://.../figma.json" />
+  </div>
+
+  <div class="row">
+    <label for="jsonManual">Или вставь JSON вручную</label>
+    <textarea id="jsonManual" placeholder='{"project_name":"...", "sale_total_rub":"..."}'></textarea>
+  </div>
+
+  <div class="buttons">
+    <button class="primary" id="applyUrl">Применить по URL</button>
+    <button class="secondary" id="applyManual">Применить JSON</button>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div class="hint">
+    Плагин заменяет плейсхолдеры вида <strong>{{key}}</strong> во всех текстовых слоях текущей страницы.
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+
+    function setStatus(text, isError = false) {
+      statusEl.textContent = text;
+      statusEl.style.color = isError ? "#b91c1c" : "#0f766e";
+    }
+
+    document.getElementById("applyUrl").onclick = async () => {
+      const url = document.getElementById("jsonUrl").value.trim();
+      if (!url) {
+        setStatus("Укажи URL JSON", true);
+        return;
+      }
+      try {
+        setStatus("Загружаю JSON...");
+        const resp = await fetch(url, { cache: "no-store" });
+        if (!resp.ok) {
+          throw new Error("HTTP " + resp.status);
+        }
+        const data = await resp.json();
+        parent.postMessage(
+          { pluginMessage: { type: "apply-data", payload: data } },
+          "*"
+        );
+      } catch (e) {
+        setStatus("Ошибка загрузки URL: " + e.message, true);
+      }
+    };
+
+    document.getElementById("applyManual").onclick = () => {
+      const raw = document.getElementById("jsonManual").value.trim();
+      if (!raw) {
+        setStatus("Вставь JSON", true);
+        return;
+      }
+      try {
+        const data = JSON.parse(raw);
+        parent.postMessage(
+          { pluginMessage: { type: "apply-data", payload: data } },
+          "*"
+        );
+      } catch (e) {
+        setStatus("Некорректный JSON", true);
+      }
+    };
+
+    onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+      if (msg.type === "apply-result") {
+        setStatus(`Готово: обновлено ${msg.updated} текстовых слоёв`);
+      }
+      if (msg.type === "apply-error") {
+        setStatus(msg.message || "Ошибка", true);
+      }
+    };
+  </script>
+</body>
+</html>
