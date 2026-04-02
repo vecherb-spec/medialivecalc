@@ -1946,8 +1946,8 @@ with col_f1:
 <div class="finance-metric-card" style="border-left: 4px solid #3b82f6;">
     <div class="finance-metric-head">Комплектующие</div>
     <div class="finance-metric-body">
-        <div class="finance-main-number">{_sale_components_main} <span style="color: #7dd3fc; font-size: 0.88rem;">{_sale_components_usd_paren}</span></div>
-        <div class="finance-sub-number">Закупка: {_buy_comp_main} {_buy_components_usd_paren}</div>
+        <div class="finance-main-number">{_buy_comp_main} <span style="color: #7dd3fc; font-size: 0.88rem;">{_buy_components_usd_paren}</span></div>
+        <div class="finance-sub-number">С наценкой: {_sale_components_main} {_sale_components_usd_paren}</div>
     </div>
     <div class="finance-footnote">&nbsp;</div>
 </div>
@@ -1961,8 +1961,8 @@ with col_f2:
 <div class="finance-metric-card" style="border-left: 4px solid #d97706;">
     <div class="finance-metric-head">Каркас и крепеж</div>
     <div class="finance-metric-body">
-        <div class="finance-main-number">{_sale_frame_main} <span style="color: #fcd34d; font-size: 0.88rem;">{_sale_frame_usd_paren}</span></div>
-        <div class="finance-sub-number">Закупка: {_buy_frame_main} {_buy_frame_usd_paren}</div>
+        <div class="finance-main-number">{_buy_frame_main} <span style="color: #fcd34d; font-size: 0.88rem;">{_buy_frame_usd_paren}</span></div>
+        <div class="finance-sub-number">С наценкой: {_sale_frame_main} {_sale_frame_usd_paren}</div>
     </div>
     <div class="finance-footnote">&nbsp;</div>
 </div>
