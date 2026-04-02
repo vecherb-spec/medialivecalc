@@ -801,29 +801,24 @@ with col_ctrl1:
     _proc_cap_mln_str = (
         f"{_proc_mln:.2f}".replace(".", ",").rstrip("0").rstrip(",") + " млн"
     )
-    _proc_cap_px_spaced = f"{_proc_cap_px:,}".replace(",", " ")
+    _proc_cap_px_spaced = f"{_proc_cap_px:,}".replace(",", "\u202f")
     _proc_res_note = PROCESSOR_RESOLUTION_NOTE.get(
         processor_name, "Уточняйте по паспорту выбранной модели."
     )
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.65; margin-bottom: 10px;">
-        <span style="color: #a0aec0; font-size: 13px;">
-            <strong style="color: #e2e8f0;">Процессор</strong> — {processor_name}
-        </span><br>
-        <span style="color: #a0aec0; font-size: 13px;">
-            Выходов Gigabit Ethernet (справочник): <strong style="color: #e2e8f0;">{available_ports}</strong>
-            {" ⚠ не в справочнике портов — для расчёта принят 1" if not ports_catalog_hit else ""}
-        </span><br>
-        <span style="color: #a0aec0; font-size: 13px;">
-            Поддерживаемое кол-во пикселей (оценка, {PROCESSOR_LOAD_PX_PER_PORT // 1000}k px/порт):
-            <strong style="color: #48bb78;">{_proc_cap_mln_str}</strong>
-            <span style="color: #718096;">({_proc_cap_px_spaced} пикс.)</span>
-        </span><br>
-        <span style="color: #a0aec0; font-size: 13px;">
-            Поддерживаемое разрешение (справка): <strong style="color: #e2e8f0;">{_proc_res_note}</strong>
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
+    _ports_warn = (
+        " ⚠ не в справочнике портов — для расчёта принят 1" if not ports_catalog_hit else ""
+    )
+    st.markdown(
+        f'<div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.65; margin-bottom: 10px;">'
+        f'<span style="color: #a0aec0; font-size: 13px;"><strong style="color: #e2e8f0;">Процессор</strong> — {processor_name}</span><br>'
+        f'<span style="color: #a0aec0; font-size: 13px;">Количество портов: <strong style="color: #e2e8f0;">{available_ports}</strong>{_ports_warn}</span><br>'
+        f'<span style="color: #a0aec0; font-size: 13px;">Кол-во пикселей: '
+        f'<strong style="color: #48bb78;">{_proc_cap_mln_str}</strong> '
+        f'<span style="color: #718096;">({_proc_cap_px_spaced})</span></span><br>'
+        f'<span style="color: #a0aec0; font-size: 13px;">Разрешение: <strong style="color: #e2e8f0;">{_proc_res_note}</strong></span>'
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
 with col_ctrl2:
     st.markdown("---")
