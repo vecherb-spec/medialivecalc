@@ -1,26 +1,87 @@
 """
-Лаконичный PDF-отчёт по расчёту LED (кириллица через DejaVu из пакета fpdf2).
+Лаконичный PDF-отчёт по расчёту LED (Unicode TTF).
+Шрифт: DejaVu рядом с модулем / в пакете fpdf2 / системный Arial или DejaVu (Linux).
 """
 
 from __future__ import annotations
 
+import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, List, Tuple
 
+FONT_FAMILY = "MLReport"  # произвольное имя семейства для add_font
 
-def _font_paths() -> Tuple[str | None, str | None]:
+
+def _bold_candidate(regular: Path) -> Path | None:
+    d = regular.parent
+    n = regular.name
+    pairs = {
+        "DejaVuSans.ttf": "DejaVuSans-Bold.ttf",
+        "arial.ttf": "arialbd.ttf",
+        "CALIBRI.TTF": "CALIBRIB.TTF",
+        "calibri.ttf": "calibrib.ttf",
+        "LiberationSans-Regular.ttf": "LiberationSans-Bold.ttf",
+    }
+    key = n
+    if key in pairs:
+        p = d / pairs[key]
+        return p if p.is_file() else None
+    low = n.lower()
+    for k, v in pairs.items():
+        if k.lower() == low:
+            p = d / v
+            return p if p.is_file() else None
+    return None
+
+
+def _font_candidates() -> list[Path]:
+    """Пути по убыванию предпочтения."""
+    out: list[Path] = []
+    here = Path(__file__).resolve().parent
+    out.extend(
+        [
+            here / "fonts" / "DejaVuSans.ttf",
+            here / "DejaVu-sans" / "DejaVuSans.ttf",
+        ]
+    )
     try:
         import fpdf
 
-        base = Path(fpdf.__file__).resolve().parent / "font"
-        reg = base / "DejaVuSans.ttf"
-        bold = base / "DejaVuSans-Bold.ttf"
-        if reg.is_file():
-            return str(reg), str(bold) if bold.is_file() else str(reg)
+        pkg_font = Path(fpdf.__file__).resolve().parent / "font" / "DejaVuSans.ttf"
+        out.append(pkg_font)
     except Exception:
         pass
-    return None, None
+    if sys.platform == "win32":
+        windir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+        fdir = windir / "Fonts"
+        out.extend(
+            [
+                fdir / "arial.ttf",
+                fdir / "calibri.ttf",
+            ]
+        )
+    else:
+        out.extend(
+            [
+                Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+                Path("/usr/local/share/fonts/dejavu/DejaVuSans.ttf"),
+                Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
+            ]
+        )
+    return out
+
+
+def _resolve_font_paths() -> Tuple[str, str]:
+    """Возвращает (regular, bold) — bold может совпадать с regular."""
+    for cand in _font_candidates():
+        if cand.is_file():
+            bd = _bold_candidate(cand)
+            reg = str(cand.resolve())
+            bol = str(bd.resolve()) if bd and bd.is_file() else reg
+            return reg, bol
+    return "", ""
 
 
 def _safe_filename(name: str) -> str:
@@ -38,14 +99,18 @@ def build_led_report_pdf(ctx: dict[str, Any]) -> bytes:
     """
     from fpdf import FPDF
 
-    reg, bold = _font_paths()
+    reg, bold = _resolve_font_paths()
     if not reg:
-        raise RuntimeError("Не найден шрифт DejaVu в fpdf2 — переустановите пакет fpdf2")
+        raise RuntimeError(
+            "Не найден TTF с кириллицей. Варианты: положите DejaVuSans.ttf в папку "
+            "`fonts/` рядом с pdf_report.py (скачать с dejavu-fonts.github.io), "
+            "или используйте Windows/Linux со шрифтами Arial / DejaVu в системе."
+        )
 
     class PDF(FPDF):
         def footer(self) -> None:
             self.set_y(-12)
-            self.set_font("DejaVu", "", 8)
+            self.set_font(FONT_FAMILY, "", 8)
             self.set_text_color(130, 140, 150)
             self.cell(0, 8, "MediaLive · LED Calculator", align="C", ln=0)
 
@@ -54,17 +119,17 @@ def build_led_report_pdf(ctx: dict[str, Any]) -> bytes:
     pdf.set_margins(18, 18, 18)
     pdf.add_page()
 
-    pdf.add_font("DejaVu", "", reg)
-    pdf.add_font("DejaVu", "B", bold or reg)
+    pdf.add_font(FONT_FAMILY, "", reg)
+    pdf.add_font(FONT_FAMILY, "B", bold)
 
     # Шапка
     pdf.set_fill_color(30, 41, 59)
     pdf.rect(0, 0, 210, 38, "F")
     pdf.set_xy(18, 12)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font("DejaVu", "B", 16)
+    pdf.set_font(FONT_FAMILY, "B", 16)
     pdf.cell(0, 8, "Расчёт LED-экрана", ln=1)
-    pdf.set_font("DejaVu", "", 9)
+    pdf.set_font(FONT_FAMILY, "", 9)
     pdf.set_x(18)
     sub = ctx.get("project_name") or "—"
     if ctx.get("client_name"):
@@ -78,7 +143,7 @@ def build_led_report_pdf(ctx: dict[str, Any]) -> bytes:
 
     def section(title: str) -> None:
         pdf.ln(4)
-        pdf.set_font("DejaVu", "B", 11)
+        pdf.set_font(FONT_FAMILY, "B", 11)
         pdf.set_text_color(71, 85, 105)
         pdf.cell(0, 7, title, ln=1)
         pdf.set_draw_color(226, 232, 240)
@@ -87,7 +152,7 @@ def build_led_report_pdf(ctx: dict[str, Any]) -> bytes:
         pdf.set_text_color(30, 41, 59)
 
     def row_kv(label: str, value: str) -> None:
-        pdf.set_font("DejaVu", "", 10)
+        pdf.set_font(FONT_FAMILY, "", 10)
         w = pdf.w - pdf.l_margin - pdf.r_margin
         w_l = w * 0.48
         w_r = w * 0.52
@@ -115,7 +180,7 @@ def build_led_report_pdf(ctx: dict[str, Any]) -> bytes:
     row_kv("Пик / средняя мощность, кВт", f"{float(ctx.get('peak_kw', 0)):.2f} / {float(ctx.get('avg_kw', 0)):.2f}")
 
     section("Финансы (закупка и продажа)")
-    pdf.set_font("DejaVu", "", 10)
+    pdf.set_font(FONT_FAMILY, "", 10)
     pdf.set_text_color(100, 116, 139)
     w = pdf.w - pdf.l_margin - pdf.r_margin
     pdf.set_x(pdf.l_margin)
@@ -125,7 +190,7 @@ def build_led_report_pdf(ctx: dict[str, Any]) -> bytes:
     row_kv("Закупка всего, USD", f"${float(ctx.get('total_buy_usd', 0)):,.2f}".replace(",", " "))
     row_kv("Закупка всего, ₽", f"{float(ctx.get('total_buy_rub', 0)):,.0f} ₽".replace(",", " "))
     row_kv("Продажа (итого), ₽", f"{float(ctx.get('sale_rub', 0)):,.0f} ₽".replace(",", " "))
-    pdf.set_font("DejaVu", "B", 10)
+    pdf.set_font(FONT_FAMILY, "B", 10)
     pdf.set_text_color(37, 99, 235)
     pdf.set_x(pdf.l_margin)
     pdf.cell(w * 0.48, 8, "Наценка на железо", align="L", ln=0)
@@ -134,7 +199,7 @@ def build_led_report_pdf(ctx: dict[str, Any]) -> bytes:
     spec: List[Tuple[str, str]] = ctx.get("spec_rows") or []
     if spec:
         section("Спецификация (количества)")
-        pdf.set_font("DejaVu", "", 9)
+        pdf.set_font(FONT_FAMILY, "", 9)
         fill = False
         for lab, val in spec[:18]:
             if fill:
