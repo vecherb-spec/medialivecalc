@@ -883,12 +883,12 @@ with col_ctrl1:
         unsafe_allow_html=True,
     )
     hot_backup = st.checkbox(
-        "Hot backup по GigE (удвоить требуемые выходы процессора)",
+        "Backup",
         value=False,
         key="hot_backup_gige",
         help=(
-            "Дублирование линий до приёмных карт: к расчётному числу GigE-выходов применяется коэффициент ×2. "
-            "Сравнение идёт с физическим числом портов выбранного процессора."
+            "GigE: расчётное число выходов ×2 (дублирование до карт). "
+            "Сравнение с физическим числом портов процессора."
         ),
     )
 
@@ -982,7 +982,7 @@ ports_ok = required_ports <= available_ports
 status_text = "✅ Портов достаточно" if ports_ok else "❌ ВНИМАНИЕ: Недостаточно портов!"
 status_color = "#48bb78" if ports_ok else "#f56565"
 _hot_note = (
-    f' &nbsp;|&nbsp; Hot backup: база <strong>{required_ports_base}</strong> → нужно <strong>{required_ports}</strong>'
+    f' &nbsp;|&nbsp; Backup: база <strong>{required_ports_base}</strong> → нужно <strong>{required_ports}</strong>'
     if hot_backup
     else ""
 )
@@ -999,7 +999,7 @@ st.markdown(f"""
 if not ports_ok:
     st.error(
         f"Недостаточно GigE-выходов: нужно **{required_ports}** (физически **{available_ports}** у "
-        f"{processor_name}). Увеличьте модель процессора или отключите Hot backup."
+        f"{processor_name}). Увеличьте модель процессора или снимите Backup."
     )
 
 # ==========================================
@@ -1529,7 +1529,7 @@ with st.expander("Блоки питания", expanded=True):
 
 with st.expander("Процессор / Контроллер", expanded=True):
     _rep_proc_ports = (
-        f"\n    - **Hot backup GigE**: да (база **{required_ports_base}** → требуется **{required_ports}**)"
+        f"\n    - **Backup**: да (база **{required_ports_base}** → требуется **{required_ports}**)"
         if hot_backup
         else ""
     )
