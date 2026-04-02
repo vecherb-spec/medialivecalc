@@ -978,20 +978,27 @@ st.markdown("Точный расчет комплектующих на базе 
 # ==========================================
 st.markdown('<div class="section-header">📏 1. Размеры экрана</div>', unsafe_allow_html=True)
 
-col_w, col_h = st.columns(2)
-with col_w:
-    width_mm = st.number_input("Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input")
-with col_h:
+col_size_inputs, col_ratio_buttons = st.columns([2, 1])
+with col_size_inputs:
+    width_mm = st.number_input(
+        "Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input"
+    )
     height_mm = st.number_input(
         "Высота экрана (мм) [Шаг 160]", min_value=160, step=160, key="height_mm"
     )
-
-st.markdown("<span style='font-size: 14px; color: #a0aec0;'>Быстрая подгонка высоты под пропорции:</span>", unsafe_allow_html=True)
-btn_cols = st.columns(4)
-if btn_cols[0].button("16:9 (Широкий)"): fit_ratio(1.7777777777777777); st.rerun()
-if btn_cols[1].button("4:3 (ТВ)"): fit_ratio(1.3333333333333333); st.rerun()
-if btn_cols[2].button("21:9 (Кино)"): fit_ratio(2.3333333333333335); st.rerun()
-if btn_cols[3].button("1:1 (Квадрат)"): fit_ratio(1.0); st.rerun()
+with col_ratio_buttons:
+    if st.button("16:9"):
+        fit_ratio(1.7777777777777777)
+        st.rerun()
+    if st.button("4:3"):
+        fit_ratio(1.3333333333333333)
+        st.rerun()
+    if st.button("21:9"):
+        fit_ratio(2.3333333333333335)
+        st.rerun()
+    if st.button("1:1"):
+        fit_ratio(1.0)
+        st.rerun()
 
 # ==========================================
 # БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ
