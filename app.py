@@ -1889,6 +1889,10 @@ _sale_components_main, _sale_components_sub = _format_money_lines(
     sale_components_usd, sale_components_rub
 )
 _sale_frame_main, _sale_frame_sub = _format_money_lines(sale_frame_usd, sale_frame_rub)
+_sale_components_usd_paren = f"(${sale_components_usd:,.2f})"
+_buy_components_usd_paren = f"(${buy_components_usd:,.2f})"
+_sale_frame_usd_paren = f"(${sale_frame_usd:,.2f})"
+_buy_frame_usd_paren = f"(${buy_frame_usd:,.2f})"
 _installation_main, _installation_sub = _format_money_lines(
     installation_rub / exchange_rate if exchange_rate else 0.0, installation_rub
 )
@@ -1906,9 +1910,9 @@ with col_f1:
 <div class="finance-metric-card" style="border-left: 4px solid #3b82f6;">
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Комплектующие</div>
     <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_components_main}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_comp_main}</span><br>
-        <span style="color: #7dd3fc; font-size: 0.88rem;">USD: ${sale_components_usd:,.2f}</span>
+        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_components_main}</span>
+        <span style="color: #7dd3fc; font-size: 0.88rem;">{_sale_components_usd_paren}</span><br>
+        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_comp_main} {_buy_components_usd_paren}</span>
     </div>
 </div>
 """,
@@ -1921,9 +1925,9 @@ with col_f2:
 <div class="finance-metric-card" style="border-left: 4px solid #d97706;">
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Каркас и крепеж</div>
     <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_frame_main}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_frame_main}</span><br>
-        <span style="color: #fcd34d; font-size: 0.88rem;">USD: ${sale_frame_usd:,.2f}</span>
+        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_frame_main}</span>
+        <span style="color: #fcd34d; font-size: 0.88rem;">{_sale_frame_usd_paren}</span><br>
+        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_frame_main} {_buy_frame_usd_paren}</span>
     </div>
 </div>
 """,
