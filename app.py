@@ -14,6 +14,12 @@ try:
 except ImportError:
     pass
 
+try:
+    from pdf_report import build_led_report_pdf, suggested_pdf_filename
+except ImportError:
+    build_led_report_pdf = None
+    suggested_pdf_filename = None
+
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
 st.set_page_config(page_title="LED Screen Pro Calculator | MediaLive", layout="wide", page_icon="🖥️")
 
@@ -2053,7 +2059,49 @@ figma_data = {
 }
 figma_json = json.dumps(figma_data, indent=4, ensure_ascii=False)
 
-col_exp1, col_exp2 = st.columns(2)
+_pdf_spec_rows = [
+    ("Модули", f"{total_modules_order} шт."),
+    ("Приёмные карты", f"{num_cards_reserve} шт."),
+    ("БП", f"{num_psu_reserve} шт."),
+    ("Патч-корды", f"{patch_cords} шт."),
+    ("Кабели питания карт", f"{num_card_power_cables_order} шт."),
+]
+if num_magnets:
+    _pdf_spec_rows.append(("Магниты", f"{num_magnets} шт."))
+if num_power_jumpers:
+    _pdf_spec_rows.append(("Перемычки БП", f"{num_power_jumpers} шт."))
+if profile_purchased_m > 0:
+    _pdf_spec_rows.append(("Профиль 40×20×1,5", f"{profile_purchased_m:.1f} м"))
+if buy_m6_frame_usd > 0:
+    _pdf_spec_rows.append(("Узлы M6 (к-ты)", f"{num_m6_rivet_bolt_each}"))
+
+_pdf_ctx = {
+    "project_name": project_name,
+    "client_name": client_name or "",
+    "date_str": datetime.datetime.now().strftime("%d.%m.%Y %H:%M"),
+    "module_name": selected_module_name,
+    "mount_type": mount_type,
+    "pixel_pitch": pixel_pitch,
+    "screen_mm": f"{int(real_width)} × {int(real_height)}",
+    "resolution": f"{int(real_width / pixel_pitch)} × {int(real_height / pixel_pitch)} px",
+    "area_m2": area_m2,
+    "total_modules": total_modules_order,
+    "processor": selected_proc["name"],
+    "receiving_card": receiving_card["name"],
+    "num_cards": num_cards_reserve,
+    "psu_name": sel_psu["name"],
+    "num_psu": num_psu_reserve,
+    "peak_kw": peak_power_screen_kw,
+    "avg_kw": avg_power_screen_kw,
+    "total_buy_usd": total_buy_usd,
+    "total_buy_rub": total_buy_rub,
+    "sale_rub": sale_total_rub,
+    "margin_pct": int((margin - 1) * 100),
+    "exchange_rate": exchange_rate,
+    "spec_rows": _pdf_spec_rows,
+}
+
+col_exp1, col_exp2, col_exp3 = st.columns(3)
 with col_exp1:
     st.markdown("**JSON для Figma Variables Studio**")
     st.code(figma_json, language="json")
@@ -2066,3 +2114,27 @@ with col_exp2:
         else:
             st.warning("Секреты `st.secrets['google_sheets']` не настроены.")
             st.success("✅ [Mock] Данные сформированы для отправки в базу!")
+
+with col_exp3:
+    st.markdown("**PDF-отчёт**")
+    st.caption("Лаконичная спецификация для клиента / поставщика.")
+    if build_led_report_pdf is None:
+        st.info("Установите пакет **fpdf2**: `pip install fpdf2`")
+    else:
+        try:
+            _pdf_bytes = build_led_report_pdf(_pdf_ctx)
+            _pdf_name = (
+                suggested_pdf_filename(project_name)
+                if suggested_pdf_filename
+                else "led_report.pdf"
+            )
+            st.download_button(
+                label="📄 Скачать PDF",
+                data=_pdf_bytes,
+                file_name=_pdf_name,
+                mime="application/pdf",
+                use_container_width=True,
+                key="download_led_pdf_report",
+            )
+        except Exception as _pdf_exc:
+            st.error(f"Не удалось сформировать PDF: {_pdf_exc}")
