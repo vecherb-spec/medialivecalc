@@ -1936,7 +1936,7 @@ _logistics_main, _logistics_sub = _format_money_lines(
     logistics_rub / exchange_rate if exchange_rate else 0.0, logistics_rub
 )
 _profit_main, _profit_sub = _format_money_lines(profit_hardware_usd, profit_hardware_rub)
-_sale_title = "Итоговая стоимость (с НДС)" if vat_rate > 0 else "Итоговая стоимость (без НДС)"
+_sale_title = "ИТОГО (с НДС)" if vat_rate > 0 else "ИТОГО (без НДС)"
 
 col_f1, col_f2, col_f3, col_f4, col_f5, col_f6 = st.columns(6)
 
