@@ -1907,7 +1907,8 @@ with col_f1:
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Комплектующие</div>
     <div style="margin-top: 8px;">
         <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_components_main}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_comp_main}</span>
+        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_comp_main}</span><br>
+        <span style="color: #7dd3fc; font-size: 0.88rem;">USD: ${sale_components_usd:,.2f}</span>
     </div>
 </div>
 """,
@@ -1921,7 +1922,8 @@ with col_f2:
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Каркас и крепеж</div>
     <div style="margin-top: 8px;">
         <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">{_sale_frame_main}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_frame_main}</span>
+        <span style="color: #94a3b8; font-size: 0.95rem;">Закупка: {_buy_frame_main}</span><br>
+        <span style="color: #fcd34d; font-size: 0.88rem;">USD: ${sale_frame_usd:,.2f}</span>
     </div>
 </div>
 """,
