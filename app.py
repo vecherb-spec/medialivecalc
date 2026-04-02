@@ -15,10 +15,17 @@ except ImportError:
     pass
 
 try:
-    from pdf_report import build_led_report_pdf, suggested_pdf_filename
+    from pdf_report import (
+        build_led_report_pdf,
+        build_led_kp_mvp_pdf,
+        suggested_pdf_filename,
+        suggested_kp_pdf_filename,
+    )
 except ImportError:
     build_led_report_pdf = None
+    build_led_kp_mvp_pdf = None
     suggested_pdf_filename = None
+    suggested_kp_pdf_filename = None
 
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
 st.set_page_config(page_title="Medialive Led Calc", layout="wide", page_icon="🖥️")
@@ -2428,8 +2435,8 @@ with col_exp2:
             st.success("✅ [Mock] Данные сформированы для отправки в базу!")
 
 with col_exp3:
-    st.markdown("**PDF-отчёт**")
-    st.caption("Лаконичная спецификация для клиента / поставщика.")
+    st.markdown("**PDF-отчёты**")
+    st.caption("Лаконичный отчёт + брендовый КП (MVP).")
     if build_led_report_pdf is None:
         st.info("Установите пакет **fpdf2**: `pip install fpdf2`")
     else:
@@ -2448,5 +2455,53 @@ with col_exp3:
                 use_container_width=True,
                 key="download_led_pdf_report",
             )
+            if build_led_kp_mvp_pdf is not None:
+                _kp_cost_rows = [
+                    ("Экран (комплектующие)", "1 шт", float(sale_components_rub), float(sale_components_rub)),
+                    ("Каркас и крепеж", "1 шт", float(sale_frame_rub), float(sale_frame_rub)),
+                    ("Монтаж", "1 шт", float(installation_rub), float(installation_rub)),
+                    ("Доставка", "1 шт", float(logistics_rub), float(logistics_rub)),
+                ]
+                _kp_pdf_ctx = {
+                    "offer_no": datetime.datetime.now().strftime("%m%d"),
+                    "project_name": project_name,
+                    "client_name": client_name or "",
+                    "date_str": datetime.datetime.now().strftime("%d.%m.%Y"),
+                    "screen_mm": f"{int(real_width)} × {int(real_height)} мм",
+                    "module_name": selected_module_name,
+                    "mount_type": mount_type,
+                    "resolution": f"{int(real_width / pixel_pitch)} × {int(real_height / pixel_pitch)} px",
+                    "area_m2": f"{area_m2:.2f}",
+                    "processor": selected_proc["name"],
+                    "buy_components_rub": buy_components_rub,
+                    "buy_frame_rub": buy_frame_rub,
+                    "sale_components_rub": sale_components_rub,
+                    "sale_frame_rub": sale_frame_rub,
+                    "installation_rub": installation_rub,
+                    "logistics_rub": logistics_rub,
+                    "cost_rows": _kp_cost_rows,
+                    "subtotal_rub": commercial_subtotal_rub,
+                    "vat_pct": int(vat_rate * 100),
+                    "vat_amount_rub": vat_amount_rub,
+                    "total_rub": sale_total_rub,
+                    "profit_hardware_rub": profit_hardware_rub,
+                    "note_terms": "100% предоплата по счёту.",
+                    "note_lead_time": "21 рабочий день после поступления аванса.",
+                    "note_warranty": "Гарантия 3 года.",
+                }
+                _kp_pdf_bytes = build_led_kp_mvp_pdf(_kp_pdf_ctx)
+                _kp_pdf_name = (
+                    suggested_kp_pdf_filename(project_name)
+                    if suggested_kp_pdf_filename
+                    else "kp_mvp.pdf"
+                )
+                st.download_button(
+                    label="🧾 Скачать КП (MVP)",
+                    data=_kp_pdf_bytes,
+                    file_name=_kp_pdf_name,
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_led_kp_mvp_pdf",
+                )
         except Exception as _pdf_exc:
             st.error(f"Не удалось сформировать PDF: {_pdf_exc}")
