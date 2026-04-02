@@ -2033,8 +2033,10 @@ with col_f6:
     )
 
 st.caption(
-    f"НДС: {vat_mode} · сумма НДС: {_vat_main} / {_vat_sub} · "
-    f"логистика: {logistics_rub:,.0f} ₽ · монтаж: {installation_rub:,.0f} ₽"
+    "Пояснение по коммерции:\n"
+    f"- НДС: {vat_mode}, сумма {_vat_main} ({vat_amount_rub:,.0f} ₽)\n"
+    f"- Логистика: {logistics_rub:,.0f} ₽ ({logistics_rub / exchange_rate:,.2f} $)\n"
+    f"- Монтаж: {installation_rub:,.0f} ₽ ({installation_rub / exchange_rate:,.2f} $)"
 )
 
 st.markdown("---")
