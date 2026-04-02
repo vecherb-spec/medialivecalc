@@ -82,9 +82,23 @@
     <textarea id="jsonManual" placeholder='{"project_name":"...", "sale_total_rub":"..."}'></textarea>
   </div>
 
+  <div class="row">
+    <label>Или заполни поля вручную (без JSON)</label>
+    <textarea id="manualFields" placeholder='project_name=КП #66
+client=ООО Ромашка
+date=02.04.2026
+screen_dimensions_mm=5120x3040
+sale_total_rub=640744'></textarea>
+  </div>
+
   <div class="buttons">
     <button class="primary" id="applyUrl">Применить по URL</button>
     <button class="secondary" id="applyManual">Применить JSON</button>
+  </div>
+
+  <div class="buttons">
+    <button class="primary" id="applyFields">Применить поля</button>
+    <button class="secondary" id="loadDemo">Демо-поля</button>
   </div>
 
   <div class="status" id="status"></div>
@@ -142,12 +156,54 @@
     onmessage = (event) => {
       const msg = event.data.pluginMessage;
       if (!msg) return;
-      if (msg.type === "apply-result") {
-        setStatus(`Готово: обновлено ${msg.updated} текстовых слоёв`);
+      if (msg.type === "result") {
+        if (msg.ok) {
+          const missing = (msg.missingKeys && msg.missingKeys.length)
+            ? `, не найдены ключи: ${msg.missingKeys.slice(0, 6).join(", ")}${msg.missingKeys.length > 6 ? "…" : ""}`
+            : "";
+          setStatus(`Готово: обновлено ${msg.changed} из ${msg.scanned} текстовых слоёв${missing}`);
+        } else {
+          setStatus(msg.message || "Ошибка", true);
+        }
       }
-      if (msg.type === "apply-error") {
-        setStatus(msg.message || "Ошибка", true);
+    };
+
+    document.getElementById("applyFields").onclick = () => {
+      const raw = document.getElementById("manualFields").value.trim();
+      if (!raw) {
+        setStatus("Заполни хотя бы одно поле", true);
+        return;
       }
+      const obj = {};
+      raw.split(/\r?\n/).forEach((line) => {
+        const s = line.trim();
+        if (!s || s.startsWith("#")) return;
+        const idx = s.indexOf("=");
+        if (idx <= 0) return;
+        const key = s.slice(0, idx).trim();
+        const val = s.slice(idx + 1).trim();
+        if (key) obj[key] = val;
+      });
+      if (Object.keys(obj).length === 0) {
+        setStatus("Формат: key=value", true);
+        return;
+      }
+      parent.postMessage(
+        { pluginMessage: { type: "apply-json", data: obj, scope: "selection" } },
+        "*"
+      );
+    };
+
+    document.getElementById("loadDemo").onclick = () => {
+      document.getElementById("manualFields").value = [
+        "project_name=КП интерьер монолит",
+        "client=ООО Ромашка",
+        "date=02.04.2026",
+        "screen_dimensions_mm=5120x3040",
+        "resolution_px=2048x1216",
+        "sale_total_rub=640744",
+      ].join("\\n");
+      setStatus("Демо-поля загружены");
     };
   </script>
 </body>

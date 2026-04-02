@@ -1,65 +1,20 @@
-figma.showUI(__html__, { width: 440, height: 360 });
+figma.showUI(__html__, { width: 460, height: 620 });
 
-function applyBindingsToTextNodes(rootNodes, data) {
+function collectTextNodes(rootNodes) {
   const textNodes = [];
 
-  function collect(node) {
+  function walk(node) {
     if (node.type === "TEXT") textNodes.push(node);
     if ("children" in node) {
-      for (const child of node.children) collect(child);
+      for (const child of node.children) walk(child);
     }
   }
 
-  for (const root of rootNodes) collect(root);
-
-  const tokenRegex = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
-  let changed = 0;
-  let scanned = 0;
-  const missingKeys = new Set();
-
-  for (const node of textNodes) {
-    scanned += 1;
-    const original = node.characters;
-    let hasToken = false;
-    const keysToLoad = new Set();
-    let m;
-
-    tokenRegex.lastIndex = 0;
-    while ((m = tokenRegex.exec(original)) !== null) {
-      hasToken = true;
-      keysToLoad.add(m[1]);
-    }
-    if (!hasToken) continue;
-
-    try {
-      awaitLoadFonts(node);
-      let next = original;
-      tokenRegex.lastIndex = 0;
-      next = next.replace(tokenRegex, (_, key) => {
-        if (Object.prototype.hasOwnProperty.call(data, key)) {
-          const val = data[key];
-          return val == null ? "" : String(val);
-        }
-        missingKeys.add(key);
-        return "";
-      });
-      if (next !== original) {
-        node.characters = next;
-        changed += 1;
-      }
-    } catch (e) {
-      // keep processing other nodes
-    }
-  }
-
-  return {
-    scanned,
-    changed,
-    missingKeys: Array.from(missingKeys).sort(),
-  };
+  for (const root of rootNodes) walk(root);
+  return textNodes;
 }
 
-async function awaitLoadFonts(textNode) {
+async function ensureFontsLoaded(textNode) {
   const segs = textNode.getStyledTextSegments(["fontName"]);
   const seen = new Set();
   for (const seg of segs) {
@@ -79,26 +34,98 @@ function pickRoots(scope) {
   return [figma.currentPage];
 }
 
-figma.ui.onmessage = async (msg) => {
-  if (msg.type === "apply-json") {
-    const scope = msg.scope === "selection" ? "selection" : "page";
-    let data = msg.data;
+function normalizePayload(raw) {
+  if (Array.isArray(raw)) {
+    return raw[0] && typeof raw[0] === "object" ? raw[0] : null;
+  }
+  return raw && typeof raw === "object" ? raw : null;
+}
 
-    if (!data || typeof data !== "object") {
+function listTokensFromTextNodes(textNodes) {
+  const tokenRegex = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+  const tokens = new Set();
+  for (const node of textNodes) {
+    const text = node.characters || "";
+    tokenRegex.lastIndex = 0;
+    let m;
+    while ((m = tokenRegex.exec(text)) !== null) {
+      tokens.add(m[1]);
+    }
+  }
+  return Array.from(tokens).sort();
+}
+
+async function applyBindingsToTextNodes(textNodes, data) {
+  const tokenRegex = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+  let changed = 0;
+  let scanned = 0;
+  const missingKeys = new Set();
+
+  for (const node of textNodes) {
+    scanned += 1;
+    const original = node.characters || "";
+    tokenRegex.lastIndex = 0;
+    if (!tokenRegex.test(original)) continue;
+
+    try {
+      await ensureFontsLoaded(node);
+      tokenRegex.lastIndex = 0;
+      const next = original.replace(tokenRegex, (_, key) => {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          const val = data[key];
+          return val == null ? "" : String(val);
+        }
+        missingKeys.add(key);
+        return "";
+      });
+      if (next !== original) {
+        node.characters = next;
+        changed += 1;
+      }
+    } catch (_) {
+      // continue processing other nodes
+    }
+  }
+
+  return {
+    scanned,
+    changed,
+    missingKeys: Array.from(missingKeys).sort(),
+  };
+}
+
+figma.ui.onmessage = async (msg) => {
+  if (msg.type === "scan-placeholders") {
+    const scope = msg.scope === "selection" ? "selection" : "page";
+    const roots = pickRoots(scope);
+    const textNodes = collectTextNodes(roots);
+    const tokens = listTokensFromTextNodes(textNodes);
+    figma.ui.postMessage({
+      type: "scan-result",
+      scope,
+      tokens,
+      textNodes: textNodes.length,
+    });
+    return;
+  }
+
+  if (msg.type === "apply-data") {
+    const scope = msg.scope === "selection" ? "selection" : "page";
+    const payload = normalizePayload(msg.payload);
+
+    if (!payload) {
       figma.ui.postMessage({
-        type: "result",
-        ok: false,
-        message: "JSON пустой или некорректный",
+        type: "apply-error",
+        message: "Данные пустые или некорректные",
       });
       return;
     }
 
     const roots = pickRoots(scope);
-    const result = await applyBindingsToTextNodes(roots, data);
-
+    const textNodes = collectTextNodes(roots);
+    const result = await applyBindingsToTextNodes(textNodes, payload);
     figma.ui.postMessage({
-      type: "result",
-      ok: true,
+      type: "apply-result",
       ...result,
       scope,
     });
