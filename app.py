@@ -2138,8 +2138,8 @@ if "Монолитный" in mount_type:
 
 **Крепеж**
 - Количество узлов M6: {fasteners_m6} + запас 3% ({reserve_fasteners}) = {num_m6_rivet_bolt_each} к-т
-- Заклёпка Sormat M6: {rivet_m6_threaded_rub_each:.3f} ₽/шт ({rivet_m6_price_source_note}; [Lemana Pro]({LEMANA_RIVET_M6_SORMAT_URL})) → <span style="color:#48bb78"><strong>{buy_rivet_m6_rub:,.0f} ₽</strong></span>
-- Винт M6×16 DIN 912: {bolt_m6_6x16_din912_rub_each:.3f} ₽/шт ({bolt_m6_6x16_price_source_note}; [Lemana Pro]({LEMANA_BOLT_M6_6x16_DIN912_URL})) → <span style="color:#48bb78"><strong>{buy_bolt_m6_6x16_rub:,.0f} ₽</strong></span>
+- Заклёпка Sormat M6: {rivet_m6_threaded_rub_each:.3f} ₽/шт → <span style="color:#48bb78"><strong>{buy_rivet_m6_rub:,.0f} ₽</strong></span>
+- Винт M6×16 DIN 912: {bolt_m6_6x16_din912_rub_each:.3f} ₽/шт → <span style="color:#48bb78"><strong>{buy_bolt_m6_6x16_rub:,.0f} ₽</strong></span>
 - Итого M6: <span style="color:#48bb78"><strong>${buy_m6_frame_usd:.2f} ({buy_m6_frame_rub:,.0f} ₽)</strong></span>
 
 {_report_magnet_block}
