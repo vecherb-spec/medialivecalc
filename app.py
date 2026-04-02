@@ -16,6 +16,15 @@ except ImportError:
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
 st.set_page_config(page_title="LED Screen Pro Calculator | MediaLive", layout="wide", page_icon="🖥️")
 
+
+def _ui_bordered_container():
+    """Streamlit ≥1.33: container(border=True); иначе обычный container."""
+    try:
+        return st.container(border=True)
+    except TypeError:
+        return st.container()
+
+
 # --- СОВРЕМЕННЫЙ CSS ДИЗАЙН ---
 st.markdown("""
 <style>
@@ -24,14 +33,50 @@ st.markdown("""
     .metric-card {
         background: linear-gradient(135deg, #1e2530 0%, #151a22 100%);
         border-radius: 10px;
-        padding: 20px;
+        padding: 16px 12px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         text-align: center;
         border: 1px solid #2d3748;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
+        min-height: 128px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        box-sizing: border-box;
     }
-    .metric-value { font-size: 24px; font-weight: bold; color: #63b3ed; }
-    .metric-label { font-size: 13px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
+    .metric-value { font-size: 22px; font-weight: bold; color: #63b3ed; line-height: 1.25; }
+    .metric-label { font-size: 12px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .metric-subrow { font-size: 16px; font-weight: bold; color: #63b3ed; line-height: 1.35; margin-top: 4px; }
+    .finance-metric-card {
+        padding: 14px 14px 12px 14px;
+        border-radius: 10px;
+        background: #1a202c;
+        border: 1px solid #2d3748;
+        min-height: 128px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        box-sizing: border-box;
+        margin-bottom: 12px;
+    }
+    .spec-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+        gap: 14px 18px;
+        margin-top: 12px;
+    }
+    .spec-summary-cell-label { font-size: 0.7rem; color: #718096; text-transform: uppercase; letter-spacing: 0.04em; }
+    .spec-summary-cell-val { font-size: 0.95rem; color: #e2e8f0; font-weight: 600; margin-top: 2px; }
+    .section4-panel {
+        background: #161b22;
+        border: 1px solid #2d3748;
+        border-radius: 10px;
+        padding: 16px 18px;
+        margin-bottom: 8px;
+        min-height: 0;
+    }
+    .section4-subtitle { color: #94a3b8; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 12px 0; border-bottom: 1px solid #2d3748; padding-bottom: 8px; }
     
     .stButton>button {
         background: linear-gradient(90deg, #3182ce, #2b6cb0); 
@@ -666,17 +711,26 @@ col_mat, col_mount = st.columns(2)
 with col_mat:
     c_env, c_tech = st.columns(2)
     with c_env:
-        env_key = st.radio("Среда использования", ["Indoor", "Outdoor"], horizontal=True)
+        env_key = st.radio("Среда использования", ["Indoor", "Outdoor"], horizontal=True, index=0)
     with c_tech:
-        tech_options = list(set([m["tech"] for m in MODULES_DB if m["env"] == env_key]))
-        tech_key = st.selectbox("Технология", tech_options)
+        tech_options = sorted(
+            set(m["tech"] for m in MODULES_DB if m["env"] == env_key),
+            key=lambda t: (0 if t == "SMD" else 1, t),
+        )
+        tech_key = st.selectbox("Технология", tech_options, index=0)
     
     # Фильтруем базу данных по среде И технологии
     available_modules = [m for m in MODULES_DB if m["env"] == env_key and m["tech"] == tech_key]
     module_names = [m["name"] for m in available_modules]
-    
-    # Выбор модуля
-    selected_module_name = st.selectbox("Светодиодный модуль (из прайса):", module_names)
+    _default_module_name = "Qiangli Q2.5 Indoor 3840Hz"
+    _mod_ix = (
+        module_names.index(_default_module_name)
+        if _default_module_name in module_names
+        else 0
+    )
+    selected_module_name = st.selectbox(
+        "Светодиодный модуль (из прайса):", module_names, index=_mod_ix
+    )
     
     # Получаем характеристики выбранного модуля
     selected_module = next(m for m in available_modules if m["name"] == selected_module_name)
@@ -741,7 +795,7 @@ with col_mount:
                 f"{m['name']} — ${magnet_unit_usd(m):.4f}/шт "
                 f"(пачка {m['pack_qty']} шт → ${m['pack_price_usd']:.2f})"
             ),
-            index=1,
+            index=3,
             key="main_magnet_select",
             help="Стоимость входит в «Общая закупка». Количество = число модулей × норма ниже.",
         )
@@ -780,17 +834,26 @@ col_ctrl1, col_ctrl2 = st.columns(2)
 with col_ctrl1:
     st.markdown("---")
     # 1. Выбор типа системы
-    ctrl_category = st.radio("Тип системы:", ["Синхронная", "Асинхронная"], horizontal=True, key="sys_type_radio")
+    ctrl_category = st.radio(
+        "Тип системы:",
+        ["Синхронная", "Асинхронная"],
+        horizontal=True,
+        index=0,
+        key="sys_type_radio",
+    )
     
     # Фильтруем базу процессоров
     current_db = SYNC_CONTROLLERS_DB if ctrl_category == "Синхронная" else ASYNC_CONTROLLERS_DB
-    
-    # 2. Выбор модели процессора
+    _proc_default_ix = next(
+        (i for i, p in enumerate(current_db) if p["name"] == "VC4"),
+        0,
+    )
     selected_proc = st.selectbox(
-        "Модель контроллера/процессора:", 
+        "Модель контроллера/процессора:",
         current_db,
+        index=_proc_default_ix,
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-        key="main_proc_select"
+        key="main_proc_select",
     )
     
     processor_name = selected_proc["name"]
@@ -823,11 +886,16 @@ with col_ctrl1:
 with col_ctrl2:
     st.markdown("---")
     # 1. Выбор приемной карты
+    _card_416_ix = next(
+        (i for i, c in enumerate(RECEIVING_CARDS_DB) if c["name"] == "Novastar MRV 416"),
+        0,
+    )
     selected_card = st.selectbox(
-        "Приёмная карта (Novastar):", 
+        "Приёмная карта (Novastar):",
         RECEIVING_CARDS_DB,
+        index=_card_416_ix,
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-        key="main_card_select"
+        key="main_card_select",
     )
     
     # --- НОВЫЙ БЛОК: КРАТНОСТЬ МОДУЛЕЙ ---
@@ -835,11 +903,11 @@ with col_ctrl2:
     card_mods_options = [6, 8, 10, 12, 14, 16, 18]
     
     modules_per_card = st.selectbox(
-        "Кол-во модулей на 1 карту:", 
+        "Кол-во модулей на 1 карту:",
         options=card_mods_options,
-        index=3, # По умолчанию выберет 12 (четвертый в списке)
+        index=card_mods_options.index(10),
         key="mods_per_card_select",
-        help="Выберите физическую кратность модулей для одной приёмной карты."
+        help="Выберите физическую кратность модулей для одной приёмной карты.",
     )
     # -------------------------------------
 
@@ -918,113 +986,133 @@ st.markdown(f"""
 # ==========================================
 st.markdown('<div class="section-header">⚡ 4. Питание сети и ЗИП</div>', unsafe_allow_html=True)
 
-col_pwr, col_zip = st.columns(2)
-
-with col_pwr:
-    # Выпадающий список: Название — $Цена
-    selected_psu = st.selectbox(
-        "Модель БП (из прайса):", 
-        PSU_DB, 
-        format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
-        index=0,
-        key="final_psu_selector" 
-    )
-    sel_psu = selected_psu 
-    
-    # Инфо-плашка (тут оставим и USD, и пересчет в RUB для удобства)
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Мощность:</span> <strong>{sel_psu['max_w']}W</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Цена за шт:</span> <strong style="color: #48bb78;">${sel_psu['price_usd']:.2f}</strong> ({(sel_psu['price_usd'] * exchange_rate):.0f} ₽)
-    </div>
-    """, unsafe_allow_html=True)
-    
-    modules_per_psu = st.selectbox("Модулей на 1 БП:", [4, 6, 8, 10, 12, 16], index=2, key="final_m_per_p")
-    power_phase = st.radio("Вводная сеть:", ["Одна фаза (220 В)", "Три фазы (380 В)"], horizontal=True, key="final_phase")
-
-    if "Монолитный" in mount_type:
-        st.markdown("**Силовые перемычки** (между БП в шлейф, из прайса)")
-        _pj_default_ix = next(
-            (i for i, p in enumerate(POWER_JUMPERS_MONOLITH_DB) if p["length_cm"] == 70),
-            3,
+col4_pwr, col4_zip = st.columns(2)
+with col4_pwr:
+    with _ui_bordered_container():
+        st.markdown('<p class="section4-subtitle">Блок питания</p>', unsafe_allow_html=True)
+        selected_psu = st.selectbox(
+            "Модель БП (из прайса):",
+            PSU_DB,
+            format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
+            index=0,
+            key="final_psu_selector",
         )
-        selected_power_jumper = st.selectbox(
-            "Длина перемычки:",
-            POWER_JUMPERS_MONOLITH_DB,
-            index=_pj_default_ix,
-            format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
-            key="main_power_jumper_select",
-            help="Для монолита по умолчанию **70 см**. Кабинетный расчёт перемычек добавим отдельно.",
+        sel_psu = selected_psu
+        st.markdown(
+            f"""
+<div style="padding: 10px 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 13px; color: #e2e8f0; margin-bottom: 8px;">
+    <span style="color: #a0aec0;">Мощность:</span> <strong>{sel_psu['max_w']}W</strong> &nbsp;|&nbsp;
+    <span style="color: #a0aec0;">Цена за шт:</span> <strong style="color: #48bb78;">${sel_psu['price_usd']:.2f}</strong> ({(sel_psu['price_usd'] * exchange_rate):.0f} ₽)
+</div>
+""",
+            unsafe_allow_html=True,
         )
-        _pj_rub = selected_power_jumper["price_usd"] * exchange_rate
-        st.markdown(f"""
-        <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-            <span style="color: #a0aec0;">Цена за шт:</span>
-            <strong style="color: #48bb78;">${selected_power_jumper["price_usd"]:.2f}</strong> ({_pj_rub:.2f} ₽)<br>
-            <span style="color: #a0aec0; font-size: 13px;">Количество = (число БП с ЗИП − 1) + <strong>1 запасная</strong> при включённом ЗИП; стоимость — в «Общая закупка».</span>
-        </div>
-        """, unsafe_allow_html=True)
+        _mpsu_opts = [4, 6, 8, 10, 12, 16]
+        modules_per_psu = st.selectbox(
+            "Модулей на 1 БП:",
+            _mpsu_opts,
+            index=_mpsu_opts.index(10),
+            key="final_m_per_p",
+        )
+        power_phase = st.radio(
+            "Вводная сеть:",
+            ["Одна фаза (220 В)", "Три фазы (380 В)"],
+            horizontal=True,
+            key="final_phase",
+        )
 
-with col_zip:
-    reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
-    reserve_modules_choice = "5%"
-    reserve_modules_custom = 0
-    reserve_psu_cards = False
-    reserve_patch = False
-    
-    if reserve_enabled:
-        with st.container():
+with col4_zip:
+    with _ui_bordered_container():
+        st.markdown('<p class="section4-subtitle">ЗИП и резерв</p>', unsafe_allow_html=True)
+        reserve_enabled = st.checkbox("Включить комплекты ЗИП (Резерв)", value=True)
+        reserve_modules_choice = "5%"
+        reserve_modules_custom = 0
+        reserve_psu_cards = False
+        reserve_patch = False
+        if reserve_enabled:
             zc1, zc2 = st.columns(2)
             with zc1:
-                reserve_modules_choice = st.selectbox("Резерв модулей", ["3%", "5%", "10%", "Свой"], index=1)
+                reserve_modules_choice = st.selectbox(
+                    "Резерв модулей", ["3%", "5%", "10%", "Свой"], index=1
+                )
                 if reserve_modules_choice == "Свой":
                     reserve_modules_custom = st.number_input("Кол-во шт.", min_value=0)
             with zc2:
-                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
                 reserve_psu_cards = st.checkbox("+1 БП и Карта", value=True)
                 reserve_patch = st.checkbox("Двойной запас патч-кордов", value=False)
                 if "Монолитный" in mount_type:
-                    st.caption("Монолит: в заказ к ЗИП добавляется **+1 силовая перемычка** между БП (запасная).")
+                    st.caption("+1 силовая перемычка в заказ при ЗИП (монолит).")
 
-    st.markdown("**Патч-корды** (учёт в «Общая закупка»)")
-    _patch_default_ix = 0 if "Монолитный" in mount_type else 1
-    selected_patch_cord = st.selectbox(
-        "Модель патч-корда (из прайса):",
-        PATCH_CORDS_DB,
-        index=_patch_default_ix,
-        format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
-        key="patch_cord_product_select",
-        help=(
-            "Монолит: по умолчанию **1 м**; при необходимости выберите **1,5 м** из прайса. "
-            "Кабинеты: обычно запас по длине (**1,5 м** в прайсе, не 1,2 м)."
-        ),
-    )
-    _p_rub = selected_patch_cord["price_usd"] * exchange_rate
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Позиция:</span> <strong>{selected_patch_cord["name"]}</strong><br>
-        <span style="color: #a0aec0;">Цена за шт:</span>
-        <strong style="color: #48bb78;">${selected_patch_cord["price_usd"]:.2f}</strong> ({_p_rub:.2f} ₽)
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("**Кабели питания приёмных карт → БП** (учёт в «Общая закупка»)")
-    selected_card_power_cable = st.selectbox(
-        "Модель кабеля питания карты:",
-        CARD_POWER_CABLES_DB,
-        index=0,
-        format_func=lambda c: f"{c['name']} — ${c['price_usd']:.2f}/шт",
-        key="card_power_cable_select",
-        help="Шлейф от БП к приёмной карте (номенклатура прайса LEDCapital).",
-    )
-    _cp_rub = selected_card_power_cable["price_usd"] * exchange_rate
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Позиция:</span> <strong>{selected_card_power_cable["name"]}</strong><br>
-        <span style="color: #a0aec0;">Цена за шт:</span>
-        <strong style="color: #48bb78;">${selected_card_power_cable["price_usd"]:.2f}</strong> ({_cp_rub:.2f} ₽)
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown('<p class="section4-subtitle" style="margin-top:6px;">Коммутация</p>', unsafe_allow_html=True)
+col4_j, col4_p, col4_c = st.columns(3)
+with col4_j:
+    with _ui_bordered_container():
+        st.markdown("**Перемычки БП**")
+        if "Монолитный" in mount_type:
+            _pj_default_ix = next(
+                (i for i, p in enumerate(POWER_JUMPERS_MONOLITH_DB) if p["length_cm"] == 70),
+                3,
+            )
+            selected_power_jumper = st.selectbox(
+                "Длина:",
+                POWER_JUMPERS_MONOLITH_DB,
+                index=_pj_default_ix,
+                format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
+                key="main_power_jumper_select",
+                help="По умолчанию 70 см.",
+            )
+            _pj_rub = selected_power_jumper["price_usd"] * exchange_rate
+            st.markdown(
+                f"""
+<div style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 12px; color: #e2e8f0;">
+    <strong style="color: #48bb78;">${selected_power_jumper["price_usd"]:.2f}</strong> ({_pj_rub:.2f} ₽) за шт.
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.caption("Только для монолитного монтажа.")
+with col4_p:
+    with _ui_bordered_container():
+        st.markdown("**Патч-корды**")
+        _patch_default_ix = 0 if "Монолитный" in mount_type else 1
+        selected_patch_cord = st.selectbox(
+            "Модель:",
+            PATCH_CORDS_DB,
+            index=_patch_default_ix,
+            format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
+            key="patch_cord_product_select",
+            help="Монолит: чаще 1 м; кабинеты: 1,5 м.",
+        )
+        _p_rub = selected_patch_cord["price_usd"] * exchange_rate
+        st.markdown(
+            f"""
+<div style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 12px; color: #e2e8f0;">
+    <strong style="color: #48bb78;">${selected_patch_cord["price_usd"]:.2f}</strong> ({_p_rub:.2f} ₽) за шт.
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+with col4_c:
+    with _ui_bordered_container():
+        st.markdown("**Кабели питания карт → БП**")
+        selected_card_power_cable = st.selectbox(
+            "Модель:",
+            CARD_POWER_CABLES_DB,
+            index=0,
+            format_func=lambda c: f"{c['name']} — ${c['price_usd']:.2f}/шт",
+            key="card_power_cable_select",
+            help="От БП к приёмной карте.",
+        )
+        _cp_rub = selected_card_power_cable["price_usd"] * exchange_rate
+        st.markdown(
+            f"""
+<div style="padding: 8px 10px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 12px; color: #e2e8f0;">
+    <strong style="color: #48bb78;">${selected_card_power_cable["price_usd"]:.2f}</strong> ({_cp_rub:.2f} ₽) за шт.
+</div>
+""",
+            unsafe_allow_html=True,
+        )
 
 # ==========================================
 # ==========================================
@@ -1267,15 +1355,33 @@ box_volume = num_boxes * 0.06
 # ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
-_spec_qty_line = (
-    f"{total_modules_order} мод. | {num_psu_reserve} БП | {num_cards_reserve} карт | {num_hubs} хаб."
-    + (f" | {num_magnets} магн." if num_magnets else "")
-    + f" | {patch_cords} патч-к. | {num_card_power_cables_order} каб. пит. карт"
-    + (f" | {num_power_jumpers} перем." if num_power_jumpers else "")
-    + (f" | профиль {profile_purchased_m:.1f} м" if profile_purchased_m > 0 else "")
-    + (f" | самор. {num_screws_4x16_order} шт." if buy_screws_4x16_usd > 0 else "")
-    + (f" | M6 {num_m6_rivet_bolt_each}" if buy_m6_frame_usd > 0 else "")
-    + (f" | пласт. {num_plates}" if ("Монолитный" in mount_type and buy_metal_plates_usd > 0) else "")
+_spec_qty_cells = [
+    ("Модули", f"{total_modules_order} шт."),
+    ("БП", f"{num_psu_reserve} шт."),
+    ("Карты", f"{num_cards_reserve} шт."),
+    ("Хабы", f"{num_hubs} шт."),
+]
+if num_magnets:
+    _spec_qty_cells.append(("Магниты", f"{num_magnets} шт."))
+_spec_qty_cells.extend(
+    [
+        ("Патч-корды", f"{patch_cords} шт."),
+        ("Каб. пит. карт", f"{num_card_power_cables_order} шт."),
+    ]
+)
+if num_power_jumpers:
+    _spec_qty_cells.append(("Перемычки БП", f"{num_power_jumpers} шт."))
+if profile_purchased_m > 0:
+    _spec_qty_cells.append(("Профиль 6 м", f"{profile_purchased_m:.1f} м"))
+if buy_screws_4x16_usd > 0:
+    _spec_qty_cells.append(("Саморезы", f"{num_screws_4x16_order} шт."))
+if buy_m6_frame_usd > 0:
+    _spec_qty_cells.append(("M6 узлы", f"{num_m6_rivet_bolt_each} к-т"))
+if "Монолитный" in mount_type and buy_metal_plates_usd > 0:
+    _spec_qty_cells.append(("Пластины БП", f"{num_plates} шт."))
+_spec_qty_grid_html = "".join(
+    f'<div><div class="spec-summary-cell-label">{lbl}</div><div class="spec-summary-cell-val">{val}</div></div>'
+    for lbl, val in _spec_qty_cells
 )
 
 # Верхний ряд: разрешение, площадь, габарит, потребление (средн. + макс.)
@@ -1301,10 +1407,8 @@ with col_m3:
 with col_m4:
     st.markdown(
         f'<div class="metric-card"><div class="metric-label">Потребление</div>'
-        f'<div style="font-size: 17px; font-weight: bold; color: #63b3ed; margin-top: 10px;">'
-        f'средн. {avg_power_screen_kw:.1f} кВт</div>'
-        f'<div style="font-size: 17px; font-weight: bold; color: #63b3ed; margin-top: 6px;">'
-        f'макс. {peak_power_screen_kw:.1f} кВт</div></div>',
+        f'<div class="metric-subrow">средн. {avg_power_screen_kw:.1f} кВт</div>'
+        f'<div class="metric-subrow">макс. {peak_power_screen_kw:.1f} кВт</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -1312,9 +1416,9 @@ st.markdown("---")
 
 st.markdown(
     f"""
-<div style="padding: 12px 15px; border-radius: 10px; background: #1a202c; border: 1px solid #2d3748; margin-bottom: 16px;">
+<div style="padding: 14px 18px; border-radius: 10px; background: #1a202c; border: 1px solid #2d3748; margin-bottom: 16px;">
     <div style="color: #a0aec0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Сводка по количеству</div>
-    <div style="font-size: 0.85rem; color: #cbd5e0; margin-top: 8px; line-height: 1.5;">{_spec_qty_line}</div>
+    <div class="spec-summary-grid">{_spec_qty_grid_html}</div>
 </div>
 """,
     unsafe_allow_html=True,
@@ -1325,9 +1429,9 @@ col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 with col_f1:
     st.markdown(
         f"""
-<div style="padding: 14px; border-radius: 10px; background: #1a202c; border-left: 4px solid #3b82f6; min-height: 110px;">
+<div class="finance-metric-card" style="border-left: 4px solid #3b82f6;">
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Закупка комплектующих</div>
-    <div style="margin: 8px 0 0 0;">
+    <div style="margin-top: 8px;">
         <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${buy_components_usd:,.2f}</span><br>
         <span style="color: #94a3b8; font-size: 0.95rem;">({buy_components_rub:,.0f} ₽)</span>
     </div>
@@ -1339,9 +1443,9 @@ with col_f1:
 with col_f2:
     st.markdown(
         f"""
-<div style="padding: 14px; border-radius: 10px; background: #1a202c; border-left: 4px solid #d97706; min-height: 110px;">
+<div class="finance-metric-card" style="border-left: 4px solid #d97706;">
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Закупка каркаса и крепежа</div>
-    <div style="margin: 8px 0 0 0;">
+    <div style="margin-top: 8px;">
         <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${buy_frame_usd:,.2f}</span><br>
         <span style="color: #94a3b8; font-size: 0.95rem;">({buy_frame_rub:,.0f} ₽)</span>
     </div>
@@ -1353,13 +1457,13 @@ with col_f2:
 with col_f3:
     st.markdown(
         f"""
-<div style="padding: 14px; border-radius: 10px; background: #1a202c; border-left: 4px solid #48bb78; min-height: 110px;">
+<div class="finance-metric-card" style="border-left: 4px solid #48bb78;">
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Стоимость с наценкой</div>
-    <div style="margin: 8px 0 0 0;">
+    <div style="margin-top: 8px;">
         <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${sale_total_usd:,.2f}</span><br>
         <span style="color: #48bb78; font-size: 0.95rem; font-weight: bold;">({sale_total_rub:,.0f} ₽)</span>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: 6px;">Наценка {int((margin - 1) * 100)}%</div>
+    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Наценка {int((margin - 1) * 100)}%</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1368,13 +1472,13 @@ with col_f3:
 with col_f4:
     st.markdown(
         f"""
-<div style="padding: 14px; border-radius: 10px; background: #1a202c; border-left: 4px solid #a855f7; min-height: 110px;">
+<div class="finance-metric-card" style="border-left: 4px solid #a855f7;">
     <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Чистая прибыль</div>
-    <div style="margin: 8px 0 0 0;">
+    <div style="margin-top: 8px;">
         <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${profit_usd:,.2f}</span><br>
         <span style="color: #c4b5fd; font-size: 0.95rem; font-weight: bold;">({profit_rub:,.0f} ₽)</span>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: 6px;">Продажа − закупка</div>
+    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Продажа − закупка</div>
 </div>
 """,
         unsafe_allow_html=True,
