@@ -2113,43 +2113,41 @@ with st.expander("Вводная Сеть", expanded=True):
 if "Монолитный" in mount_type:
     if selected_magnet is not None:
         _report_magnet_block = f"""
-### Магниты
-- **Модель:** {selected_magnet['name']}
-- **Норма:** {magnets_per_module} шт. на модуль
-- **Количество:** {num_magnets} шт. ({total_modules} × {magnets_per_module})
-- **Пачки:** ~{magnet_packs_order} × {selected_magnet['pack_qty']} шт.
-- **Стоимость:** ${buy_magnets_total:.2f} ({buy_magnets_total * exchange_rate:,.0f} ₽), по ${magnet_unit_price_usd:.4f}/шт"""
+**Магниты**
+- Модель: {selected_magnet['name']}
+- Норма: {magnets_per_module} шт. на модуль
+- Количество: {num_magnets} шт. ({total_modules} × {magnets_per_module})
+- Пачки: ~{magnet_packs_order} × {selected_magnet['pack_qty']} шт.
+- Стоимость: <span style="color:#48bb78"><strong>${buy_magnets_total:.2f} ({buy_magnets_total * exchange_rate:,.0f} ₽)</strong></span>, по ${magnet_unit_price_usd:.4f}/шт"""
     else:
         _report_magnet_block = """
-### Магниты
-- **Не заданы**"""
+- **Магниты:** не заданы"""
     with st.expander("Каркас и крепёж (Монолитный)", expanded=True):
         _waste_pct = (
             (100.0 * profile_waste_m / profile_purchased_m) if profile_purchased_m > 0 else 0.0
         )
         st.markdown(f"""
-### Профиль 40×20×1,5
-- **Вертикальные:** {vert_profiles} шт. × {vert_length} мм = {vert_profiles * vert_length / 1000:.2f} м
-- **Горизонтальные:** {horiz_profiles} шт. × {horiz_length} мм = {horiz_profiles * horiz_length / 1000:.2f} м
-- **Раскрой:** нужно {profile_cut_m:.2f} м
-- **Закупка:** {profile_sticks_6m} хлыстов × 6 м = {profile_purchased_m:.2f} м
-- **Остаток:** ~{profile_waste_m:.2f} м ({_waste_pct:.1f}%)
-- **Цена профиля:** {profile_40x20_rub_m:.0f} ₽/м ({profile_price_source_note})
-- **Итого профиль:** ${buy_profile_usd:.2f} ({buy_profile_rub:,.0f} ₽)
+**Профиль 40×20×1,5**
+- Вертикальные: {vert_profiles} шт. × {vert_length} мм = {vert_profiles * vert_length / 1000:.2f} м
+- Горизонтальные: {horiz_profiles} шт. × {horiz_length} мм = {horiz_profiles * horiz_length / 1000:.2f} м
+- Раскрой: нужно {profile_cut_m:.2f} м
+- Закупка: {profile_sticks_6m} хлыстов × 6 м = {profile_purchased_m:.2f} м
+- Остаток: ~{profile_waste_m:.2f} м ({_waste_pct:.1f}%)
+- Цена профиля: {profile_40x20_rub_m:.0f} ₽/м ({profile_price_source_note})
+- Итого профиль: <span style="color:#48bb78"><strong>${buy_profile_usd:.2f} ({buy_profile_rub:,.0f} ₽)</strong></span>
 
-### Узлы M6 (каркас)
-- **Количество узлов:** {fasteners_m6} + запас 3% ({reserve_fasteners}) = {num_m6_rivet_bolt_each} к-т
-- **Заклёпка Sormat M6:** {rivet_m6_threaded_rub_each:.3f} ₽/шт ({rivet_m6_price_source_note}; [Lemana Pro]({LEMANA_RIVET_M6_SORMAT_URL})) → {buy_rivet_m6_rub:,.0f} ₽
-- **Винт M6×16 DIN 912:** {bolt_m6_6x16_din912_rub_each:.3f} ₽/шт ({bolt_m6_6x16_price_source_note}; [Lemana Pro]({LEMANA_BOLT_M6_6x16_DIN912_URL})) → {buy_bolt_m6_6x16_rub:,.0f} ₽
-- **Итого M6:** ${buy_m6_frame_usd:.2f} ({buy_m6_frame_rub:,.0f} ₽)
+**Крепеж**
+- Количество узлов M6: {fasteners_m6} + запас 3% ({reserve_fasteners}) = {num_m6_rivet_bolt_each} к-т
+- Заклёпка Sormat M6: {rivet_m6_threaded_rub_each:.3f} ₽/шт ({rivet_m6_price_source_note}; [Lemana Pro]({LEMANA_RIVET_M6_SORMAT_URL})) → <span style="color:#48bb78"><strong>{buy_rivet_m6_rub:,.0f} ₽</strong></span>
+- Винт M6×16 DIN 912: {bolt_m6_6x16_din912_rub_each:.3f} ₽/шт ({bolt_m6_6x16_price_source_note}; [Lemana Pro]({LEMANA_BOLT_M6_6x16_DIN912_URL})) → <span style="color:#48bb78"><strong>{buy_bolt_m6_6x16_rub:,.0f} ₽</strong></span>
+- Итого M6: <span style="color:#48bb78"><strong>${buy_m6_frame_usd:.2f} ({buy_m6_frame_rub:,.0f} ₽)</strong></span>
 
 {_report_magnet_block}
 
-### Доп. крепёж
-- **Пластины под БП:** {num_plates} шт. × {METAL_PLATE_RUB_EACH:.0f} ₽ = ${buy_metal_plates_usd:.2f} ({buy_metal_plates_rub:,.0f} ₽)
-- **Саморезы 4,2×16:** {vinths} + запас 10% ({reserve_vinths}) = {num_screws_4x16_order} шт.
-- **Цена самореза:** {screw_4x16_press_rub_each:.3f} ₽/шт ({screw_4x16_price_source_note})
-- **Итого саморезы:** ${buy_screws_4x16_usd:.2f} ({buy_screws_4x16_rub:,.0f} ₽)
+- Пластины под БП: {num_plates} шт. × {METAL_PLATE_RUB_EACH:.0f} ₽ = <span style="color:#48bb78"><strong>${buy_metal_plates_usd:.2f} ({buy_metal_plates_rub:,.0f} ₽)</strong></span>
+- Саморезы 4,2×16: {vinths} + запас 10% ({reserve_vinths}) = {num_screws_4x16_order} шт.
+- Цена самореза: {screw_4x16_press_rub_each:.3f} ₽/шт ({screw_4x16_price_source_note})
+- Итого саморезы: <span style="color:#48bb78"><strong>${buy_screws_4x16_usd:.2f} ({buy_screws_4x16_rub:,.0f} ₽)</strong></span>
         """)
 
 with st.expander("Коммутация", expanded=True):
@@ -2166,34 +2164,34 @@ with st.expander("Коммутация", expanded=True):
             else ""
         )
         st.markdown(f"""
-### Силовая (монолит)
-- **Силовые перемычки БП:** {num_power_jumpers} шт. ({_pj_name})
-- **Из них по цепочке БП:** {num_power_jumpers_for_chain} шт. на {num_psu_reserve} БП{_pj_zip_note}
-- **Стоимость перемычек:** ${buy_power_jumpers_total:.2f} ({buy_power_jumpers_total * exchange_rate:,.0f} ₽)
+**Силовая (монолит)**
+- Силовые перемычки БП: {num_power_jumpers} шт. ({_pj_name})
+- Из них по цепочке БП: {num_power_jumpers_for_chain} шт. на {num_psu_reserve} БП{_pj_zip_note}
+- Стоимость перемычек: <span style="color:#48bb78"><strong>${buy_power_jumpers_total:.2f} ({buy_power_jumpers_total * exchange_rate:,.0f} ₽)</strong></span>
 
-### Слаботочка и питание карт
-- **Патч-корды RJ45:** {patch_cords} шт. ({selected_patch_cord['name']})
-- **Логика количества:** {num_cards_reserve} по картам{_patch_zip_note}
-- **Стоимость патч-кордов:** ${buy_patch_cords_total:.2f} ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
+**Слаботочка и питание карт**
+- Патч-корды RJ45: {patch_cords} шт. ({selected_patch_cord['name']})
+- Логика количества: {num_cards_reserve} по картам{_patch_zip_note}
+- Стоимость патч-кордов: <span style="color:#48bb78"><strong>${buy_patch_cords_total:.2f} ({buy_patch_cords_total * exchange_rate:,.0f} ₽)</strong></span>
 
-- **Кабели питания карт → БП:** {num_card_power_cables_order} шт. ({selected_card_power_cable['name']})
-- **Логика количества:** {num_power_cables} по картам + {reserve_power_cables} запас 10%
-- **Стоимость кабелей питания карт:** ${buy_card_power_cables_total:.2f} ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
+- Кабели питания карт → БП: {num_card_power_cables_order} шт. ({selected_card_power_cable['name']})
+- Логика количества: {num_power_cables} по картам + {reserve_power_cables} запас 10%
+- Стоимость кабелей питания карт: <span style="color:#48bb78"><strong>${buy_card_power_cables_total:.2f} ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)</strong></span>
         """)
     else:
         st.markdown(f"""
-### Силовая (кабинеты)
-- **Силовые кабели 220 В (шлейфы):** {num_cables} шт., суммарно ~{num_cables * 0.8:.1f} м
-- **Наконечники НВИ:** {nvi} шт. + {reserve_nvi} шт. запас (10%)
+**Силовая (кабинеты)**
+- Силовые кабели 220 В (шлейфы): {num_cables} шт., суммарно ~{num_cables * 0.8:.1f} м
+- Наконечники НВИ: {nvi} шт. + {reserve_nvi} шт. запас (10%)
 
-### Слаботочка и питание карт
-- **Патч-корды RJ45:** {patch_cords} шт. ({selected_patch_cord['name']})
-- **Логика количества:** {num_cards_reserve} по картам{_patch_zip_note}
-- **Стоимость патч-кордов:** ${buy_patch_cords_total:.2f} ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
+**Слаботочка и питание карт**
+- Патч-корды RJ45: {patch_cords} шт. ({selected_patch_cord['name']})
+- Логика количества: {num_cards_reserve} по картам{_patch_zip_note}
+- Стоимость патч-кордов: <span style="color:#48bb78"><strong>${buy_patch_cords_total:.2f} ({buy_patch_cords_total * exchange_rate:,.0f} ₽)</strong></span>
 
-- **Кабели питания карт → БП:** {num_card_power_cables_order} шт. ({selected_card_power_cable['name']})
-- **Логика количества:** {num_power_cables} по картам + {reserve_power_cables} запас 10%
-- **Стоимость кабелей питания карт:** ${buy_card_power_cables_total:.2f} ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
+- Кабели питания карт → БП: {num_card_power_cables_order} шт. ({selected_card_power_cable['name']})
+- Логика количества: {num_power_cables} по картам + {reserve_power_cables} запас 10%
+- Стоимость кабелей питания карт: <span style="color:#48bb78"><strong>${buy_card_power_cables_total:.2f} ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)</strong></span>
         """)
 
 with st.expander("Весовые характеристики", expanded=True):
