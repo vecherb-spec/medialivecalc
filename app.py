@@ -1888,7 +1888,7 @@ _logistics_main, _logistics_sub = _format_money_lines(
 _profit_main, _profit_sub = _format_money_lines(total_profit_usd, total_profit_rub)
 _sale_title = "Итоговая стоимость (с НДС)" if vat_rate > 0 else "Итоговая стоимость (без НДС)"
 
-col_f1, col_f2, col_f3 = st.columns(3)
+col_f1, col_f2, col_f3, col_f4, col_f5, col_f6 = st.columns(6)
 
 with col_f1:
     st.markdown(
@@ -1934,8 +1934,6 @@ with col_f3:
 """,
         unsafe_allow_html=True,
     )
-
-col_f4, col_f5, col_f6 = st.columns(3)
 
 with col_f4:
     st.markdown(
