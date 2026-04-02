@@ -2148,7 +2148,7 @@ if "Монолитный" in mount_type:
 - Саморезы 4,2×16: {vinths} + запас 10% ({reserve_vinths}) = {num_screws_4x16_order} шт.
 - Цена самореза: {screw_4x16_press_rub_each:.3f} ₽/шт ({screw_4x16_price_source_note})
 - Итого саморезы: <span style="color:#48bb78"><strong>${buy_screws_4x16_usd:.2f} ({buy_screws_4x16_rub:,.0f} ₽)</strong></span>
-        """)
+        """, unsafe_allow_html=True)
 
 with st.expander("Коммутация", expanded=True):
     _patch_zip_note = (
@@ -2177,7 +2177,7 @@ with st.expander("Коммутация", expanded=True):
 - Кабели питания карт → БП: {num_card_power_cables_order} шт. ({selected_card_power_cable['name']})
 - Логика количества: {num_power_cables} по картам + {reserve_power_cables} запас 10%
 - Стоимость кабелей питания карт: <span style="color:#48bb78"><strong>${buy_card_power_cables_total:.2f} ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)</strong></span>
-        """)
+        """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
 **Силовая (кабинеты)**
@@ -2192,7 +2192,7 @@ with st.expander("Коммутация", expanded=True):
 - Кабели питания карт → БП: {num_card_power_cables_order} шт. ({selected_card_power_cable['name']})
 - Логика количества: {num_power_cables} по картам + {reserve_power_cables} запас 10%
 - Стоимость кабелей питания карт: <span style="color:#48bb78"><strong>${buy_card_power_cables_total:.2f} ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)</strong></span>
-        """)
+        """, unsafe_allow_html=True)
 
 with st.expander("Весовые характеристики", expanded=True):
     st.markdown(f"""
