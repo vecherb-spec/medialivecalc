@@ -1194,6 +1194,23 @@ total_modules_cost_rub = total_modules_cost_usd * exchange_rate
 # 5. Общая закупка в рублях
 total_buy_rub = total_buy_usd * exchange_rate
 
+# Закупка: электроника/коммутация vs каркас и крепёж (профиль, M6, саморезы, пластины, магниты)
+buy_frame_usd = (
+    buy_profile_usd
+    + buy_screws_4x16_usd
+    + buy_m6_frame_usd
+    + buy_metal_plates_usd
+    + buy_magnets_total
+)
+buy_components_usd = total_buy_usd - buy_frame_usd
+buy_frame_rub = buy_frame_usd * exchange_rate
+buy_components_rub = buy_components_usd * exchange_rate
+
+sale_total_usd = total_buy_usd * margin
+sale_total_rub = sale_total_usd * exchange_rate
+profit_usd = sale_total_usd - total_buy_usd
+profit_rub = profit_usd * exchange_rate
+
 # --- 6. ЭЛЕКТРИКА (ТЕПЕРЬ РАБОТАЕТ) ---
 electrical_power_kw = peak_power_screen_kw * 1.20
 if "Одна фаза" in power_phase:
@@ -1248,56 +1265,122 @@ box_volume = num_boxes * 0.06
 # ==========================================
 # БЛОК 5: ПОЛНЫЙ ДЕТАЛЬНЫЙ ОТЧЕТ
 # ==========================================
-# ==========================================
-# БЛОК 5: ПОЛНЫЙ ДЕТАЛЬНЫЙ ОТЧЕТ
-# ==========================================
 st.markdown('<div class="section-header">📊 Финальный отчёт и Спецификация</div>', unsafe_allow_html=True)
 
-# Верхний ряд: Технические метрики
-col_m1, col_m2, col_m3 = st.columns(3)
-with col_m1: 
-    st.markdown(f'<div class="metric-card"><div class="metric-label">Разрешение</div><div class="metric-value">{int(real_width/pixel_pitch)} × {int(real_height/pixel_pitch)}</div></div>', unsafe_allow_html=True)
-with col_m2: 
-    st.markdown(f'<div class="metric-card"><div class="metric-label">Пиковая мощн.</div><div class="metric-value">{peak_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
-with col_m3: 
-    st.markdown(f'<div class="metric-card"><div class="metric-label">Рабочая мощн.</div><div class="metric-value">{avg_power_screen_kw:.1f} кВт</div></div>', unsafe_allow_html=True)
+_spec_qty_line = (
+    f"{total_modules_order} мод. | {num_psu_reserve} БП | {num_cards_reserve} карт | {num_hubs} хаб."
+    + (f" | {num_magnets} магн." if num_magnets else "")
+    + f" | {patch_cords} патч-к. | {num_card_power_cables_order} каб. пит. карт"
+    + (f" | {num_power_jumpers} перем." if num_power_jumpers else "")
+    + (f" | профиль {profile_purchased_m:.1f} м" if profile_purchased_m > 0 else "")
+    + (f" | самор. {num_screws_4x16_order} шт." if buy_screws_4x16_usd > 0 else "")
+    + (f" | M6 {num_m6_rivet_bolt_each}" if buy_m6_frame_usd > 0 else "")
+    + (f" | пласт. {num_plates}" if ("Монолитный" in mount_type and buy_metal_plates_usd > 0) else "")
+)
+
+# Верхний ряд: разрешение, площадь, габарит, потребление (средн. + макс.)
+col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+with col_m1:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">Разрешение</div>'
+        f'<div class="metric-value">{int(real_width / pixel_pitch)} × {int(real_height / pixel_pitch)} px</div></div>',
+        unsafe_allow_html=True,
+    )
+with col_m2:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">Площадь</div>'
+        f'<div class="metric-value">{area_m2:.2f} м²</div></div>',
+        unsafe_allow_html=True,
+    )
+with col_m3:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">Размер экрана</div>'
+        f'<div class="metric-value">{int(real_width)} × {int(real_height)} мм</div></div>',
+        unsafe_allow_html=True,
+    )
+with col_m4:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">Потребление</div>'
+        f'<div style="font-size: 17px; font-weight: bold; color: #63b3ed; margin-top: 10px;">'
+        f'средн. {avg_power_screen_kw:.1f} кВт</div>'
+        f'<div style="font-size: 17px; font-weight: bold; color: #63b3ed; margin-top: 6px;">'
+        f'макс. {peak_power_screen_kw:.1f} кВт</div></div>',
+        unsafe_allow_html=True,
+    )
 
 st.markdown("---")
 
-# Нижний ряд: Финансовые плашки (Закупка ВСЕГО и Продажа ВСЕГО)
-col_f1, col_f2 = st.columns(2)
+st.markdown(
+    f"""
+<div style="padding: 12px 15px; border-radius: 10px; background: #1a202c; border: 1px solid #2d3748; margin-bottom: 16px;">
+    <div style="color: #a0aec0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Сводка по количеству</div>
+    <div style="font-size: 0.85rem; color: #cbd5e0; margin-top: 8px; line-height: 1.5;">{_spec_qty_line}</div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 
 with col_f1:
-    st.markdown(f"""
-    <div style="padding: 15px; border-radius: 10px; background: #1a202c; border-left: 5px solid #3b82f6; min-height: 120px;">
-        <div style="color: #a0aec0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Общая закупка (Железо)</div>
-        <div style="margin: 10px 0;">
-            <span style="color: #f8fafc; font-size: 1.8rem; font-weight: bold;">${total_buy_usd:,.2f}</span><br>
-            <span style="color: #94a3b8; font-size: 1.2rem;">({total_buy_rub:,.0f} ₽)</span>
-        </div>
-        <div style="font-size: 0.75rem; color: #718096; border-top: 1px solid #2d3748; padding-top: 8px;">
-            {total_modules_order} мод. | {num_psu_reserve} БП | {num_cards_reserve} карт | {num_hubs} хаб.{f" | {num_magnets} магн." if num_magnets else ""} | {patch_cords} патч-к. | {num_card_power_cables_order} каб. пит. карт{f" | {num_power_jumpers} перем." if num_power_jumpers else ""}{f" | профиль {profile_purchased_m:.1f} м п.к." if profile_purchased_m > 0 else ""}{f" | самор. {num_screws_4x16_order} шт." if buy_screws_4x16_usd > 0 else ""}{f" | M6 узл. {num_m6_rivet_bolt_each}" if buy_m6_frame_usd > 0 else ""}{f" | пласт. {num_plates}" if ("Монолитный" in mount_type and buy_metal_plates_usd > 0) else ""}
-        </div>
+    st.markdown(
+        f"""
+<div style="padding: 14px; border-radius: 10px; background: #1a202c; border-left: 4px solid #3b82f6; min-height: 110px;">
+    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Закупка комплектующих</div>
+    <div style="margin: 8px 0 0 0;">
+        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${buy_components_usd:,.2f}</span><br>
+        <span style="color: #94a3b8; font-size: 0.95rem;">({buy_components_rub:,.0f} ₽)</span>
     </div>
-    """, unsafe_allow_html=True)
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
 with col_f2:
-    # Рассчитываем продажу на основе твоей переменной total_buy_usd и маржи
-    sale_total_usd = total_buy_usd * margin
-    sale_total_rub = sale_total_usd * exchange_rate
-    
-    st.markdown(f"""
-    <div style="padding: 15px; border-radius: 10px; background: #1a202c; border-left: 5px solid #48bb78; min-height: 120px;">
-        <div style="color: #a0aec0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Смета Продажа (Экран)</div>
-        <div style="margin: 10px 0;">
-            <span style="color: #f8fafc; font-size: 1.8rem; font-weight: bold;">${sale_total_usd:,.2f}</span><br>
-            <span style="color: #48bb78; font-size: 1.2rem; font-weight: bold;">({sale_total_rub:,.0f} ₽)</span>
-        </div>
-        <div style="font-size: 0.75rem; color: #718096; border-top: 1px solid #2d3748; padding-top: 8px;">
-            Итоговая стоимость для клиента (наценка {int((margin-1)*100)}%)
-        </div>
+    st.markdown(
+        f"""
+<div style="padding: 14px; border-radius: 10px; background: #1a202c; border-left: 4px solid #d97706; min-height: 110px;">
+    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Закупка каркаса и крепежа</div>
+    <div style="margin: 8px 0 0 0;">
+        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${buy_frame_usd:,.2f}</span><br>
+        <span style="color: #94a3b8; font-size: 0.95rem;">({buy_frame_rub:,.0f} ₽)</span>
     </div>
-    """, unsafe_allow_html=True)
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+with col_f3:
+    st.markdown(
+        f"""
+<div style="padding: 14px; border-radius: 10px; background: #1a202c; border-left: 4px solid #48bb78; min-height: 110px;">
+    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Стоимость с наценкой</div>
+    <div style="margin: 8px 0 0 0;">
+        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${sale_total_usd:,.2f}</span><br>
+        <span style="color: #48bb78; font-size: 0.95rem; font-weight: bold;">({sale_total_rub:,.0f} ₽)</span>
+    </div>
+    <div style="font-size: 0.7rem; color: #718096; margin-top: 6px;">Наценка {int((margin - 1) * 100)}%</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+with col_f4:
+    st.markdown(
+        f"""
+<div style="padding: 14px; border-radius: 10px; background: #1a202c; border-left: 4px solid #a855f7; min-height: 110px;">
+    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Чистая прибыль</div>
+    <div style="margin: 8px 0 0 0;">
+        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${profit_usd:,.2f}</span><br>
+        <span style="color: #c4b5fd; font-size: 0.95rem; font-weight: bold;">({profit_rub:,.0f} ₽)</span>
+    </div>
+    <div style="font-size: 0.7rem; color: #718096; margin-top: 6px;">Продажа − закупка</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+st.markdown("---")
 
 with st.expander("Характеристики экрана", expanded=True):
     st.markdown(f"""
@@ -1510,7 +1593,20 @@ figma_data = {
     "metal_plates_cost_rub": round(buy_metal_plates_rub, 2),
     "metal_plates_cost_usd": round(buy_metal_plates_usd, 2),
     "peak_power_kw": round(peak_power_screen_kw, 2), "avg_power_kw": round(avg_power_screen_kw, 2),
-    "total_price_rub": total_price_rub, "module_cost_usd": total_modules_cost_usd, "module_cost_rub": total_modules_cost_rub
+    "total_price_rub": total_price_rub,
+    "module_cost_usd": total_modules_cost_usd,
+    "module_cost_rub": total_modules_cost_rub,
+    "total_buy_usd": round(total_buy_usd, 2),
+    "total_buy_rub": round(total_buy_rub, 2),
+    "buy_components_usd": round(buy_components_usd, 2),
+    "buy_components_rub": round(buy_components_rub, 2),
+    "buy_frame_usd": round(buy_frame_usd, 2),
+    "buy_frame_rub": round(buy_frame_rub, 2),
+    "sale_total_usd": round(sale_total_usd, 2),
+    "sale_total_rub": round(sale_total_rub, 2),
+    "profit_usd": round(profit_usd, 2),
+    "profit_rub": round(profit_rub, 2),
+    "margin_percent": int((margin - 1) * 100),
 }
 figma_json = json.dumps(figma_data, indent=4, ensure_ascii=False)
 
