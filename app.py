@@ -258,46 +258,6 @@ def _html_first_price_int(html: str) -> Optional[int]:
     return None
 
 
-def publish_json_for_figma(payload: dict) -> tuple[Optional[str], Optional[str]]:
-    """
-    Публикует JSON в публичный endpoint и возвращает URL, который можно
-    напрямую вставить в Figma-плагин (поле URL).
-    """
-    endpoint = "https://jsonblob.com/api/jsonBlob"
-    # JSON to Figma чаще ожидает корневой массив объектов.
-    publish_payload = payload if isinstance(payload, list) else [payload]
-    body = json.dumps(publish_payload, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(
-        endpoint,
-        data=body,
-        method="POST",
-        headers={
-            "Content-Type": "application/json; charset=utf-8",
-            "Accept": "application/json",
-            "User-Agent": "MediaLive-LED-Calc/1.0",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            location = resp.headers.get("Location")
-            if location:
-                if location.startswith("/"):
-                    location = "https://jsonblob.com" + location
-                return location, None
-            # Fallback: если заголовок отсутствует, попробуем распарсить тело.
-            raw = resp.read().decode("utf-8", errors="ignore")
-        try:
-            data = json.loads(raw)
-            blob_id = data.get("id") if isinstance(data, dict) else None
-            if blob_id:
-                return f"https://jsonblob.com/api/jsonBlob/{blob_id}", None
-        except Exception:
-            pass
-        return None, "Не удалось получить URL публикации"
-    except Exception as e:
-        return None, str(e)
-
-
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_profile_40x20_rub_per_m_petrovich():
     """
@@ -2410,18 +2370,15 @@ col_exp1, col_exp2, col_exp3 = st.columns(3)
 with col_exp1:
     st.markdown("**JSON для Figma Variables Studio**")
     st.code(figma_json, language="json")
-    if st.button("🌐 Опубликовать JSON URL для Figma", use_container_width=True):
-        _pub_url, _pub_err = publish_json_for_figma(figma_data)
-        if _pub_err:
-            st.error(f"Не удалось опубликовать JSON: {_pub_err}")
-        else:
-            st.session_state["figma_public_json_url"] = _pub_url
-            st.success("JSON опубликован")
-    _pub_url_saved = st.session_state.get("figma_public_json_url")
-    if _pub_url_saved:
-        st.caption("URL для вставки в Figma plugin:")
-        st.code(_pub_url_saved, language="text")
-        st.markdown(f"[Открыть URL JSON]({_pub_url_saved})")
+    st.download_button(
+        label="⬇️ Скачать JSON для Figma",
+        data=json.dumps([figma_data], indent=2, ensure_ascii=False),
+        file_name=f"{_session_safe_slug(project_name)}_figma.json",
+        mime="application/json",
+        use_container_width=True,
+        key="download_figma_json",
+        help="Скачайте файл и импортируйте его в JSON to Figma через 'From local file'.",
+    )
 
 with col_exp2:
     st.markdown("**Сохранение в базу Google Sheets**")
