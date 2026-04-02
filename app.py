@@ -978,7 +978,7 @@ st.markdown("Точный расчет комплектующих на базе 
 # ==========================================
 st.markdown('<div class="section-header">📏 1. Размеры экрана</div>', unsafe_allow_html=True)
 
-col_size_inputs, col_ratio_buttons = st.columns([2, 1])
+col_size_inputs, col_ratio_buttons = st.columns([3, 2])
 with col_size_inputs:
     width_mm = st.number_input(
         "Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input"
@@ -987,16 +987,16 @@ with col_size_inputs:
         "Высота экрана (мм) [Шаг 160]", min_value=160, step=160, key="height_mm"
     )
 with col_ratio_buttons:
-    if st.button("16:9"):
+    if st.button("16:9", use_container_width=True):
         fit_ratio(1.7777777777777777)
         st.rerun()
-    if st.button("4:3"):
+    if st.button("4:3", use_container_width=True):
         fit_ratio(1.3333333333333333)
         st.rerun()
-    if st.button("21:9"):
+    if st.button("21:9", use_container_width=True):
         fit_ratio(2.3333333333333335)
         st.rerun()
-    if st.button("1:1"):
+    if st.button("1:1", use_container_width=True):
         fit_ratio(1.0)
         st.rerun()
 
