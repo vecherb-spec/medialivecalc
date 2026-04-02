@@ -855,11 +855,18 @@ with col_ctrl1:
         format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
         key="main_proc_select",
     )
-    
+    hot_backup = st.checkbox(
+        "Hot backup",
+        value=False,
+        key="hot_backup_main",
+        help="В расчёте портов и нагрузки: эффективное число выходов ×2 (дублирование линий).",
+    )
+
     processor_name = selected_proc["name"]
     proc_price_usd = selected_proc["price_usd"]
     available_ports, ports_catalog_hit = get_processor_output_ports(processor_name)
-    _proc_cap_px = available_ports * PROCESSOR_LOAD_PX_PER_PORT
+    available_ports_effective_ui = available_ports * (2 if hot_backup else 1)
+    _proc_cap_px = available_ports_effective_ui * PROCESSOR_LOAD_PX_PER_PORT
     _proc_mln = _proc_cap_px / 1_000_000
     _proc_cap_mln_str = (
         f"{_proc_mln:.2f}".replace(".", ",").rstrip("0").rstrip(",") + " млн"
@@ -871,10 +878,16 @@ with col_ctrl1:
     _ports_warn = (
         " ⚠ не в справочнике портов — для расчёта принят 1" if not ports_catalog_hit else ""
     )
+    _ports_line = (
+        f'<span style="color: #a0aec0; font-size: 13px;">Порты (для расчёта): <strong style="color: #e2e8f0;">{available_ports_effective_ui}</strong>'
+        f' <span style="color: #718096;">(физ. {available_ports})</span>{_ports_warn}</span><br>'
+        if hot_backup
+        else f'<span style="color: #a0aec0; font-size: 13px;">Количество портов: <strong style="color: #e2e8f0;">{available_ports}</strong>{_ports_warn}</span><br>'
+    )
     st.markdown(
         f'<div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.65; margin-bottom: 10px;">'
         f'<span style="color: #a0aec0; font-size: 13px;"><strong style="color: #e2e8f0;">Процессор</strong> — {processor_name}</span><br>'
-        f'<span style="color: #a0aec0; font-size: 13px;">Количество портов: <strong style="color: #e2e8f0;">{available_ports}</strong>{_ports_warn}</span><br>'
+        f"{_ports_line}"
         f'<span style="color: #a0aec0; font-size: 13px;">Кол-во пикселей: '
         f'<strong style="color: #48bb78;">{_proc_cap_mln_str}</strong> '
         f'<span style="color: #718096;">({_proc_cap_px_spaced})</span></span><br>'
@@ -1000,7 +1013,6 @@ with col4_zip:
         reserve_modules_choice = "5%"
         reserve_modules_custom = 0
         reserve_psu_cards = False
-        hot_backup = False
         if reserve_enabled:
             zc1, zc2 = st.columns(2)
             with zc1:
@@ -1011,20 +1023,14 @@ with col4_zip:
                     reserve_modules_custom = st.number_input("Кол-во шт.", min_value=0)
             with zc2:
                 reserve_psu_cards = st.checkbox("+1 БП и Карта", value=True)
-                if "Монолитный" in mount_type:
-                    st.caption("+1 силовая перемычка в заказ при ЗИП (монолит).")
-            st.caption(
-                "При включённом ЗИП в заказ добавляется **+1 патч-корд** (запас к основному количеству по картам)."
-            )
-        backup_mode = st.radio(
-            "Режим резервирования контроллера",
-            ["Обычный", "Hot backup"],
-            horizontal=True,
-            index=0,
-            key="processor_hot_backup_mode",
-            help="Hot backup: при проверке портов учётная ёмкость процессора ×2 (дублирование линий).",
-        )
-        hot_backup = backup_mode == "Hot backup"
+            if "Монолитный" in mount_type:
+                st.caption(
+                    "При ЗИП в заказ добавляются **+1 силовая перемычка** между БП и **+1 патч-корд** к количеству по картам."
+                )
+            else:
+                st.caption(
+                    "При ЗИП в заказ добавляется **+1 патч-корд** к количеству по картам."
+                )
 
 st.markdown('<p class="section4-subtitle" style="margin-top:6px;">3. Коммутация</p>', unsafe_allow_html=True)
 col4_j, col4_p, col4_c = st.columns(3)
