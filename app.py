@@ -859,14 +859,13 @@ with col_ctrl1:
         "Hot backup",
         value=False,
         key="hot_backup_main",
-        help="В расчёте портов и нагрузки: эффективное число выходов ×2 (дублирование линий).",
+        help="Требуемое число портов ×2 (дублирование линий); сравнение с физическими выходами процессора.",
     )
 
     processor_name = selected_proc["name"]
     proc_price_usd = selected_proc["price_usd"]
     available_ports, ports_catalog_hit = get_processor_output_ports(processor_name)
-    available_ports_effective_ui = available_ports * (2 if hot_backup else 1)
-    _proc_cap_px = available_ports_effective_ui * PROCESSOR_LOAD_PX_PER_PORT
+    _proc_cap_px = available_ports * PROCESSOR_LOAD_PX_PER_PORT
     _proc_mln = _proc_cap_px / 1_000_000
     _proc_cap_mln_str = (
         f"{_proc_mln:.2f}".replace(".", ",").rstrip("0").rstrip(",") + " млн"
@@ -878,16 +877,10 @@ with col_ctrl1:
     _ports_warn = (
         " ⚠ не в справочнике портов — для расчёта принят 1" if not ports_catalog_hit else ""
     )
-    _ports_line = (
-        f'<span style="color: #a0aec0; font-size: 13px;">Порты (для расчёта): <strong style="color: #e2e8f0;">{available_ports_effective_ui}</strong>'
-        f' <span style="color: #718096;">(физ. {available_ports})</span>{_ports_warn}</span><br>'
-        if hot_backup
-        else f'<span style="color: #a0aec0; font-size: 13px;">Количество портов: <strong style="color: #e2e8f0;">{available_ports}</strong>{_ports_warn}</span><br>'
-    )
     st.markdown(
         f'<div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.65; margin-bottom: 10px;">'
         f'<span style="color: #a0aec0; font-size: 13px;"><strong style="color: #e2e8f0;">Процессор</strong> — {processor_name}</span><br>'
-        f"{_ports_line}"
+        f'<span style="color: #a0aec0; font-size: 13px;">Количество портов: <strong style="color: #e2e8f0;">{available_ports}</strong>{_ports_warn}</span><br>'
         f'<span style="color: #a0aec0; font-size: 13px;">Кол-во пикселей: '
         f'<strong style="color: #48bb78;">{_proc_cap_mln_str}</strong> '
         f'<span style="color: #718096;">({_proc_cap_px_spaced})</span></span><br>'
@@ -895,6 +888,46 @@ with col_ctrl1:
         f"</div>",
         unsafe_allow_html=True,
     )
+
+    real_width = math.ceil(width_mm / 320) * 320
+    real_height = math.ceil(height_mm / 160) * 160
+    total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
+    required_ports_base = math.ceil(total_px / PROCESSOR_LOAD_PX_PER_PORT)
+    required_ports = required_ports_base * (2 if hot_backup else 1)
+    load_per_port = (
+        (total_px / (available_ports * PROCESSOR_LOAD_PX_PER_PORT)) * 100
+        if available_ports > 0
+        else 100.0
+    )
+    ports_sufficient = required_ports <= available_ports
+    status_text = (
+        "✅ Портов достаточно" if ports_sufficient else "❌ Недостаточно портов процессора"
+    )
+    status_color = "#48bb78" if ports_sufficient else "#f56565"
+    _req_ports_line = (
+        f'<strong>{required_ports}</strong> <span style="color: #718096;">(база {required_ports_base} ×2 Hot backup)</span>'
+        if hot_backup
+        else f"<strong>{required_ports}</strong>"
+    )
+
+    st.markdown(
+        f"""
+<div style="padding: 12px 20px; border-radius: 8px; border-left: 4px solid {status_color}; background: #1a202c; margin-top: 10px;">
+    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{processor_name}</strong>:</span><br>
+    Доступно выходов: <strong>{available_ports}</strong> &nbsp;|&nbsp;
+    Требуется портов: {_req_ports_line} &nbsp;|&nbsp;
+    Нагрузка на порт: <strong>{load_per_port:.1f}%</strong> &nbsp;&nbsp;➔&nbsp;&nbsp;
+    <span style="color: {status_color}; font-weight: bold;">{status_text}</span>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    if not ports_sufficient:
+        st.error(
+            f"Для экрана нужно **{required_ports}** порт(ов) "
+            f"({required_ports_base} базовых ×2 при Hot backup), "
+            f"у **{processor_name}** только **{available_ports}**. Выберите другой процессор или отключите Hot backup."
+        )
 
 with col_ctrl2:
     st.markdown("---")
@@ -1076,40 +1109,7 @@ with col4_c:
             help="От БП к приёмной карте.",
         )
 
-real_width = math.ceil(width_mm / 320) * 320
-real_height = math.ceil(height_mm / 160) * 160
-total_px = (real_width / pixel_pitch) * (real_height / pixel_pitch)
-
-available_ports_effective = available_ports * (2 if hot_backup else 1)
-required_ports = math.ceil(total_px / PROCESSOR_LOAD_PX_PER_PORT)
-load_per_port = (
-    (total_px / (available_ports_effective * PROCESSOR_LOAD_PX_PER_PORT)) * 100
-    if available_ports_effective > 0
-    else 100.0
-)
-status_text = (
-    "✅ Портов достаточно"
-    if required_ports <= available_ports_effective
-    else "❌ ВНИМАНИЕ: Недостаточно портов!"
-)
-status_color = (
-    "#48bb78" if required_ports <= available_ports_effective else "#f56565"
-)
-_ports_extra = (
-    f' &nbsp;|&nbsp; для расчёта: <strong>{available_ports_effective}</strong> вых. (Hot backup, физ. {available_ports})'
-    if hot_backup
-    else ""
-)
-
-st.markdown(f"""
-<div style="padding: 12px 20px; border-radius: 8px; border-left: 4px solid {status_color}; background: #1a202c; margin-top: 10px;">
-    <span style="color: #a0aec0; font-size: 14px;">Статус портов процессора <strong>{processor_name}</strong>:</span><br>
-    Физически выходов: <strong>{available_ports}</strong>{_ports_extra} &nbsp;|&nbsp;
-    Требуется: <strong>{required_ports}</strong> &nbsp;|&nbsp;
-    Нагрузка на порт: <strong>{load_per_port:.1f}%</strong> &nbsp;&nbsp;➔&nbsp;&nbsp;
-    <span style="color: {status_color}; font-weight: bold;">{status_text}</span>
-</div>
-""", unsafe_allow_html=True)
+# real_width, real_height, total_px, required_ports*, load_per_port — заданы в блоке 3 (колонка процессора)
 
 # ==========================================
 # ==========================================
@@ -1531,15 +1531,15 @@ with st.expander("Блоки питания", expanded=True):
     """)
 
 with st.expander("Процессор / Контроллер", expanded=True):
-    _exp_ports = (
-        f"{available_ports} (для расчёта {available_ports_effective}, Hot backup)"
+    _exp_req = (
+        f"{required_ports} (база {required_ports_base} ×2 Hot backup)"
         if hot_backup
-        else str(available_ports)
+        else str(required_ports)
     )
     st.markdown(f"""
    - **Модель**: {selected_proc['name']}
-    - **Доступно портов**: {_exp_ports}
-    - **Необходимое портов**: {required_ports}
+    - **Доступно портов**: {available_ports}
+    - **Требуется портов**: {_exp_req}
     - **Средняя нагрузка на порт**: {load_per_port:.1f}%
     """)
 
@@ -1715,7 +1715,8 @@ figma_data = {
     "margin_percent": int((margin - 1) * 100),
     "hot_backup": hot_backup,
     "processor_ports_physical": available_ports,
-    "processor_ports_effective": available_ports_effective,
+    "processor_ports_required": required_ports,
+    "processor_ports_required_base": required_ports_base,
 }
 figma_json = json.dumps(figma_data, indent=4, ensure_ascii=False)
 
