@@ -15,13 +15,20 @@ except ImportError:
     pass
 
 try:
-    from pdf_report import build_led_report_pdf, suggested_pdf_filename
+    from pdf_report import (
+        build_led_report_pdf,
+        build_led_kp_mvp_pdf,
+        suggested_pdf_filename,
+        suggested_kp_pdf_filename,
+    )
 except ImportError:
     build_led_report_pdf = None
+    build_led_kp_mvp_pdf = None
     suggested_pdf_filename = None
+    suggested_kp_pdf_filename = None
 
 # --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
-st.set_page_config(page_title="Medilive Led Calc", layout="wide", page_icon="🖥️")
+st.set_page_config(page_title="Medialive Led Calc", layout="wide", page_icon="🖥️")
 
 
 def _ui_bordered_container():
@@ -60,12 +67,48 @@ st.markdown("""
         border-radius: 10px;
         background: #1a202c;
         border: 1px solid #2d3748;
-        min-height: 128px;
+        height: 210px;
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
         box-sizing: border-box;
         margin-bottom: 12px;
+    }
+    .finance-metric-head {
+        color: #a0aec0;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        min-height: 2.6em;
+        line-height: 1.3;
+    }
+    .finance-metric-body {
+        margin-top: 8px;
+        min-height: 3.8em;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+    .finance-main-number {
+        color: #f8fafc;
+        font-size: 1.35rem;
+        font-weight: bold;
+        line-height: 1.2;
+        min-height: 1.2em;
+    }
+    .finance-sub-number {
+        color: #94a3b8;
+        font-size: 0.95rem;
+        line-height: 1.2;
+        min-height: 1.2em;
+    }
+    .finance-footnote {
+        font-size: 0.7rem;
+        color: #718096;
+        margin-top: auto;
+        padding-top: 8px;
+        line-height: 1.3;
+        min-height: 2.6em;
     }
     .spec-summary-grid {
         display: grid;
@@ -106,6 +149,36 @@ st.markdown("""
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
         border-bottom: 1px solid #2d3748;
+    }
+    .size-block-caption {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+    }
+    .size-subtitle {
+        color: #a0aec0;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0 0 8px 0;
+    }
+    .ratio-hint {
+        color: #718096;
+        font-size: 0.78rem;
+        margin-top: 8px;
+        line-height: 1.35;
+    }
+    .config-block-caption {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+    }
+    .config-subtitle {
+        color: #a0aec0;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0 0 10px 0;
     }
     
     div[data-testid="stExpander"] {
@@ -190,6 +263,32 @@ def _html_first_price_int(html: str) -> Optional[int]:
             if 10 <= raw <= 50000:
                 return raw
     return None
+
+
+def publish_json_for_figma_api(payload: dict) -> tuple[Optional[str], Optional[str]]:
+    """
+    Публикует JSON в paste.rs и возвращает публичный API URL.
+    Подходит для вставки в JSON-to-Figma плагин (режим URL).
+    """
+    try:
+        publish_payload = payload if isinstance(payload, list) else [payload]
+        req = urllib.request.Request(
+            "https://paste.rs",
+            data=json.dumps(publish_payload, ensure_ascii=False).encode("utf-8"),
+            method="POST",
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "Accept": "text/plain",
+                "User-Agent": "MediaLive-LED-Calc/1.0",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            url = resp.read().decode("utf-8", errors="ignore").strip()
+        if not url.startswith("http"):
+            return None, "Сервис не вернул валидный URL"
+        return url, None
+    except Exception as e:
+        return None, str(e)
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -470,6 +569,10 @@ SESSION_STATE_KEYS_TO_PERSIST: frozenset[str] = frozenset(
         "calc_client_name",
         "calc_exchange_rate",
         "calc_margin_pct",
+        "calc_display_currency",
+        "calc_vat_mode",
+        "calc_logistics_rub",
+        "calc_installation_rub",
         "calc_price_m2",
         "profile_40x20_rub_m_sidebar",
         "screw_4x16_rub_each_sidebar",
@@ -960,9 +1063,43 @@ st.sidebar.caption(f"Заклёпка Sormat M6 (Lemana): {rivet_m6_price_source
 
 # --- ДОБАВЛЯЕМ КОЭФФИЦИЕНТ НАЦЕНКИ ---
 margin_percent = st.sidebar.number_input(
-    "Наценка на железо (%)", min_value=0, value=30, step=5, key="calc_margin_pct"
+    "Наценка на экран и каркас (%)", min_value=0, value=30, step=5, key="calc_margin_pct"
 )
 margin = 1 + (margin_percent / 100)  # Это создаст ту самую переменную 'margin' (например, 1.3)
+
+st.sidebar.markdown("#### Коммерция для клиента")
+if "calc_display_currency" not in st.session_state:
+    st.session_state.calc_display_currency = "RUB"
+if "calc_vat_mode" not in st.session_state:
+    st.session_state.calc_vat_mode = "С НДС 22%"
+if "calc_logistics_rub" not in st.session_state:
+    st.session_state.calc_logistics_rub = 0.0
+if "calc_installation_rub" not in st.session_state:
+    st.session_state.calc_installation_rub = 0.0
+display_currency = st.sidebar.radio(
+    "Валюта отображения",
+    ["RUB", "USD"],
+    horizontal=True,
+    key="calc_display_currency",
+)
+vat_mode = st.sidebar.radio(
+    "НДС",
+    ["Без НДС", "С НДС 22%"],
+    horizontal=True,
+    key="calc_vat_mode",
+)
+client_logistics_rub = st.sidebar.number_input(
+    "Логистика клиенту (₽)",
+    min_value=0.0,
+    step=1000.0,
+    key="calc_logistics_rub",
+)
+client_installation_rub = st.sidebar.number_input(
+    "Монтаж клиенту (₽)",
+    min_value=0.0,
+    step=1000.0,
+    key="calc_installation_rub",
+)
 
 st.sidebar.markdown("---")
 # Оставляем цену за м2, если она тебе нужна для других расчетов
@@ -970,7 +1107,7 @@ price_per_m2 = st.sidebar.number_input(
     "Цена за м² клиенту (₽)", min_value=0, value=150000, step=5000, key="calc_price_m2"
 )
 
-st.title("🖥️ Medilive Led Calc")
+st.title("🖥️ Medialive Led Calc")
 st.markdown("Точный расчет комплектующих на базе динамического прайс-листа LEDCapital.")
 
 # ==========================================
@@ -978,172 +1115,199 @@ st.markdown("Точный расчет комплектующих на базе 
 # ==========================================
 st.markdown('<div class="section-header">📏 1. Размеры экрана</div>', unsafe_allow_html=True)
 
-col_w, col_h = st.columns(2)
-with col_w:
-    width_mm = st.number_input("Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input")
-with col_h:
-    height_mm = st.number_input(
-        "Высота экрана (мм) [Шаг 160]", min_value=160, step=160, key="height_mm"
+with _ui_bordered_container():
+    st.markdown(
+        '<div class="size-block-caption">Задайте размеры экрана вручную или выберите готовую пропорцию.</div>',
+        unsafe_allow_html=True,
     )
-
-st.markdown("<span style='font-size: 14px; color: #a0aec0;'>Быстрая подгонка высоты под пропорции:</span>", unsafe_allow_html=True)
-btn_cols = st.columns(4)
-if btn_cols[0].button("16:9 (Широкий)"): fit_ratio(1.7777777777777777); st.rerun()
-if btn_cols[1].button("4:3 (ТВ)"): fit_ratio(1.3333333333333333); st.rerun()
-if btn_cols[2].button("21:9 (Кино)"): fit_ratio(2.3333333333333335); st.rerun()
-if btn_cols[3].button("1:1 (Квадрат)"): fit_ratio(1.0); st.rerun()
+    col_size_inputs, col_ratio_buttons = st.columns([3, 2], gap="large")
+    with col_size_inputs:
+        st.markdown('<p class="size-subtitle">Габариты экрана</p>', unsafe_allow_html=True)
+        width_mm = st.number_input(
+            "Ширина экрана (мм) [Шаг 320]", min_value=320, step=320, key="width_input"
+        )
+        height_mm = st.number_input(
+            "Высота экрана (мм) [Шаг 160]", min_value=160, step=160, key="height_mm"
+        )
+    with col_ratio_buttons:
+        st.markdown('<p class="size-subtitle">Быстрые пропорции</p>', unsafe_allow_html=True)
+        r1c1, r1c2 = st.columns(2, gap="small")
+        if r1c1.button("16:9", key="ratio_btn_16_9", use_container_width=True):
+            fit_ratio(1.7777777777777777)
+            st.rerun()
+        if r1c2.button("4:3", key="ratio_btn_4_3", use_container_width=True):
+            fit_ratio(1.3333333333333333)
+            st.rerun()
+        r2c1, r2c2 = st.columns(2, gap="small")
+        if r2c1.button("21:9", key="ratio_btn_21_9", use_container_width=True):
+            fit_ratio(2.3333333333333335)
+            st.rerun()
+        if r2c2.button("1:1", key="ratio_btn_1_1", use_container_width=True):
+            fit_ratio(1.0)
+            st.rerun()
+        st.markdown(
+            '<div class="ratio-hint">Высота подгоняется автоматически с шагом 160 мм.</div>',
+            unsafe_allow_html=True,
+        )
 
 # ==========================================
 # БЛОК 2: ХАРАКТЕРИСТИКИ И МОНТАЖ
 # ==========================================
 st.markdown('<div class="section-header">⚙️ 2. Матрица и Конструкция</div>', unsafe_allow_html=True)
 
-col_mat, col_mount = st.columns(2)
-
-with col_mat:
-    c_env, c_tech = st.columns(2)
-    with c_env:
-        if "calc_env_key" not in st.session_state:
-            st.session_state.calc_env_key = "Indoor"
-        env_key = st.radio(
-            "Среда использования", ["Indoor", "Outdoor"], horizontal=True, key="calc_env_key"
-        )
-    with c_tech:
-        tech_options = sorted(
-            set(m["tech"] for m in MODULES_DB if m["env"] == env_key),
-            key=lambda t: (0 if t == "SMD" else 1, t),
-        )
-        if "calc_tech_key" not in st.session_state or st.session_state.calc_tech_key not in tech_options:
-            st.session_state.calc_tech_key = tech_options[0] if tech_options else "SMD"
-        tech_key = st.selectbox("Технология", tech_options, key="calc_tech_key")
-
-    # Фильтруем базу данных по среде И технологии
-    available_modules = [m for m in MODULES_DB if m["env"] == env_key and m["tech"] == tech_key]
-    module_names = [m["name"] for m in available_modules]
-    _default_module_name = "Qiangli Q2.5 Indoor 3840Hz"
-    _mod_ix = (
-        module_names.index(_default_module_name)
-        if _default_module_name in module_names
-        else 0
+with _ui_bordered_container():
+    st.markdown(
+        '<div class="config-block-caption">Выберите параметры матрицы и вариант конструкции экрана.</div>',
+        unsafe_allow_html=True,
     )
-    if "calc_module_name" not in st.session_state or st.session_state.calc_module_name not in module_names:
-        st.session_state.calc_module_name = module_names[_mod_ix] if module_names else ""
-    selected_module_name = st.selectbox(
-        "Светодиодный модуль (из прайса):", module_names, key="calc_module_name"
-    )
-    
-    # Получаем характеристики выбранного модуля
-    selected_module = next(m for m in available_modules if m["name"] == selected_module_name)
-    
-    pixel_pitch = selected_module["pitch"]
-    tech = selected_module["tech"]
-    brightness = selected_module["brightness"]
-    max_power_module = selected_module["max_power"]
-    price_usd = selected_module["price_usd"]
-    price_rub_per_module = price_usd * exchange_rate
-    
-    # Инфо-панель с характеристиками
-    st.markdown(f"""
-    <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
-        <span style="color: #a0aec0;">Шаг:</span> <strong>P{pixel_pitch}</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Тип:</span> <strong>{tech}</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Яркость:</span> <strong>{brightness} нит</strong><br>
-        <span style="color: #a0aec0;">Макс. потребление:</span> <strong>{max_power_module} Вт/шт</strong> &nbsp;|&nbsp;
-        <span style="color: #a0aec0;">Цена (закупка):</span> <strong style="color: #48bb78;">${price_usd:.2f}</strong> ({price_rub_per_module:.0f} ₽)
-    </div>
-    """, unsafe_allow_html=True)
+    col_mat, col_mount = st.columns(2, gap="large")
+
+    with col_mat:
+        st.markdown('<p class="config-subtitle">Матрица LED</p>', unsafe_allow_html=True)
+        c_env, c_tech = st.columns(2, gap="small")
+        with c_env:
+            if "calc_env_key" not in st.session_state:
+                st.session_state.calc_env_key = "Indoor"
+            env_key = st.radio(
+                "Среда использования", ["Indoor", "Outdoor"], horizontal=True, key="calc_env_key"
+            )
+        with c_tech:
+            tech_options = sorted(
+                set(m["tech"] for m in MODULES_DB if m["env"] == env_key),
+                key=lambda t: (0 if t == "SMD" else 1, t),
+            )
+            if "calc_tech_key" not in st.session_state or st.session_state.calc_tech_key not in tech_options:
+                st.session_state.calc_tech_key = tech_options[0] if tech_options else "SMD"
+            tech_key = st.selectbox("Технология", tech_options, key="calc_tech_key")
+
+        # Фильтруем базу данных по среде И технологии
+        available_modules = [m for m in MODULES_DB if m["env"] == env_key and m["tech"] == tech_key]
+        module_names = [m["name"] for m in available_modules]
+        _default_module_name = "Qiangli Q2.5 Indoor 3840Hz"
+        _mod_ix = (
+            module_names.index(_default_module_name)
+            if _default_module_name in module_names
+            else 0
+        )
+        if "calc_module_name" not in st.session_state or st.session_state.calc_module_name not in module_names:
+            st.session_state.calc_module_name = module_names[_mod_ix] if module_names else ""
+        selected_module_name = st.selectbox(
+            "Светодиодный модуль (из прайса):", module_names, key="calc_module_name"
+        )
         
-    sensor = "Нет"
-    if env_key == "Outdoor":
-        if "calc_sensor" not in st.session_state:
-            st.session_state.calc_sensor = "Есть (NS060)"
-        sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], key="calc_sensor")
-    else:
-        sensor = st.session_state.get("calc_sensor", "Нет")
-
-with col_mount:
-    if "calc_mount_type" not in st.session_state:
-        st.session_state.calc_mount_type = "Монолитный (Магниты/Профиль)"
-    mount_type = st.radio(
-        "Тип монтажа",
-        ["Монолитный (Магниты/Профиль)", "В кабинетах"],
-        horizontal=True,
-        key="calc_mount_type",
-    )
-    selected_magnet = None
-    magnets_per_module = 0
-    selected_power_jumper = None
-
-    cabinet_model = "Монолит"
-    cabinet_width, cabinet_height, cabinet_weight_per = 640, 480, 20.0
-    
-    if "кабинетах" in mount_type:
-        cabinet_options = [
-            "QM Series (640×480 мм, indoor, ~20 кг)",
-            "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
-            "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
-            "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
-            "Custom (введите размер и вес вручную)",
-        ]
-        if "calc_cabinet_model" not in st.session_state or st.session_state.calc_cabinet_model not in cabinet_options:
-            st.session_state.calc_cabinet_model = cabinet_options[0]
-        cabinet_model = st.selectbox("Модель кабинета", cabinet_options, key="calc_cabinet_model")
-        if "Custom" in cabinet_model:
-            cc1, cc2, cc3 = st.columns(3)
-            with cc1:
-                if "calc_cabinet_w" not in st.session_state:
-                    st.session_state.calc_cabinet_w = 640
-                cabinet_width = st.number_input("Ширина (мм)", min_value=320, key="calc_cabinet_w")
-            with cc2:
-                if "calc_cabinet_h" not in st.session_state:
-                    st.session_state.calc_cabinet_h = 480
-                cabinet_height = st.number_input("Высота (мм)", min_value=160, key="calc_cabinet_h")
-            with cc3:
-                if "calc_cabinet_weight" not in st.session_state:
-                    st.session_state.calc_cabinet_weight = 20.0
-                cabinet_weight_per = st.number_input("Вес (кг)", min_value=1.0, key="calc_cabinet_weight")
-        else:
-            cab_map = {
-                "QM": (640, 480, 20.0), "MG": (960, 960, 40.0), 
-                "QF": (500, 500, 13.5), "QS": (960, 960, 45.0)
-            }
-            key_prefix = cabinet_model.split()[0]
-            cabinet_width, cabinet_height, cabinet_weight_per = cab_map.get(key_prefix, (640, 480, 20.0))
-    else:
-        selected_magnet = st.selectbox(
-            "Магниты (из прайса):",
-            MAGNETS_DB,
-            format_func=lambda m: (
-                f"{m['name']} — ${magnet_unit_usd(m):.4f}/шт "
-                f"(пачка {m['pack_qty']} шт → ${m['pack_price_usd']:.2f})"
-            ),
-            index=3,
-            key="main_magnet_select",
-            help="Стоимость входит в «Общая закупка». Количество = число модулей × норма ниже.",
-        )
-        magnets_per_module = st.number_input(
-            "Магнитов на 1 модуль (320×160 мм)",
-            min_value=0,
-            max_value=24,
-            value=4,
-            step=1,
-            key="magnets_per_module_input",
-            help="Типично 4 шт. на модуль; задайте свою норму под конструкцию.",
-        )
-        _mu = magnet_unit_usd(selected_magnet)
-        _mag_rub = _mu * exchange_rate
+        # Получаем характеристики выбранного модуля
+        selected_module = next(m for m in available_modules if m["name"] == selected_module_name)
+        
+        pixel_pitch = selected_module["pitch"]
+        tech = selected_module["tech"]
+        brightness = selected_module["brightness"]
+        max_power_module = selected_module["max_power"]
+        price_usd = selected_module["price_usd"]
+        price_rub_per_module = price_usd * exchange_rate
+        
+        # Инфо-панель с характеристиками
         st.markdown(f"""
-        <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
-            <span style="color: #a0aec0; font-size: 13px;">
-                Закупочная цена: <strong style="color: #48bb78;">${_mu:.4f}</strong> за шт.
-                &nbsp;({_mag_rub:.2f} ₽/шт)
-            </span><br>
-            <span style="color: #a0aec0; font-size: 13px;">
-                Пачка: <strong>{selected_magnet['pack_qty']} шт</strong> по
-                <strong style="color: #48bb78;">${selected_magnet['pack_price_usd']:.2f}</strong>
-            </span>
+        <div style="padding: 12px; border-radius: 8px; border: 1px solid #2d3748; background: #1a202c; font-size: 14px; color: #e2e8f0; margin-bottom: 10px;">
+            <span style="color: #a0aec0;">Шаг:</span> <strong>P{pixel_pitch}</strong> &nbsp;|&nbsp;
+            <span style="color: #a0aec0;">Тип:</span> <strong>{tech}</strong> &nbsp;|&nbsp;
+            <span style="color: #a0aec0;">Яркость:</span> <strong>{brightness} нит</strong><br>
+            <span style="color: #a0aec0;">Макс. потребление:</span> <strong>{max_power_module} Вт/шт</strong> &nbsp;|&nbsp;
+            <span style="color: #a0aec0;">Цена (закупка):</span> <strong style="color: #48bb78;">${price_usd:.2f}</strong> ({price_rub_per_module:.0f} ₽)
         </div>
         """, unsafe_allow_html=True)
+            
+        sensor = "Нет"
+        if env_key == "Outdoor":
+            if "calc_sensor" not in st.session_state:
+                st.session_state.calc_sensor = "Есть (NS060)"
+            sensor = st.selectbox("Датчик яркости", ["Нет", "Есть (NS060)"], key="calc_sensor")
+        else:
+            sensor = st.session_state.get("calc_sensor", "Нет")
+
+    with col_mount:
+        st.markdown('<p class="config-subtitle">Монтаж и конструкция</p>', unsafe_allow_html=True)
+        if "calc_mount_type" not in st.session_state:
+            st.session_state.calc_mount_type = "Монолитный (Магниты/Профиль)"
+        mount_type = st.radio(
+            "Тип монтажа",
+            ["Монолитный (Магниты/Профиль)", "В кабинетах"],
+            horizontal=True,
+            key="calc_mount_type",
+        )
+        selected_magnet = None
+        magnets_per_module = 0
+        selected_power_jumper = None
+
+        cabinet_model = "Монолит"
+        cabinet_width, cabinet_height, cabinet_weight_per = 640, 480, 20.0
+        
+        if "кабинетах" in mount_type:
+            cabinet_options = [
+                "QM Series (640×480 мм, indoor, ~20 кг)",
+                "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
+                "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
+                "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
+                "Custom (введите размер и вес вручную)",
+            ]
+            if "calc_cabinet_model" not in st.session_state or st.session_state.calc_cabinet_model not in cabinet_options:
+                st.session_state.calc_cabinet_model = cabinet_options[0]
+            cabinet_model = st.selectbox("Модель кабинета", cabinet_options, key="calc_cabinet_model")
+            if "Custom" in cabinet_model:
+                cc1, cc2, cc3 = st.columns(3)
+                with cc1:
+                    if "calc_cabinet_w" not in st.session_state:
+                        st.session_state.calc_cabinet_w = 640
+                    cabinet_width = st.number_input("Ширина (мм)", min_value=320, key="calc_cabinet_w")
+                with cc2:
+                    if "calc_cabinet_h" not in st.session_state:
+                        st.session_state.calc_cabinet_h = 480
+                    cabinet_height = st.number_input("Высота (мм)", min_value=160, key="calc_cabinet_h")
+                with cc3:
+                    if "calc_cabinet_weight" not in st.session_state:
+                        st.session_state.calc_cabinet_weight = 20.0
+                    cabinet_weight_per = st.number_input("Вес (кг)", min_value=1.0, key="calc_cabinet_weight")
+            else:
+                cab_map = {
+                    "QM": (640, 480, 20.0), "MG": (960, 960, 40.0), 
+                    "QF": (500, 500, 13.5), "QS": (960, 960, 45.0)
+                }
+                key_prefix = cabinet_model.split()[0]
+                cabinet_width, cabinet_height, cabinet_weight_per = cab_map.get(key_prefix, (640, 480, 20.0))
+        else:
+            selected_magnet = st.selectbox(
+                "Магниты (из прайса):",
+                MAGNETS_DB,
+                format_func=lambda m: (
+                    f"{m['name']} — ${magnet_unit_usd(m):.4f}/шт "
+                    f"(пачка {m['pack_qty']} шт → ${m['pack_price_usd']:.2f})"
+                ),
+                index=3,
+                key="main_magnet_select",
+                help="Стоимость входит в «Общая закупка». Количество = число модулей × норма ниже.",
+            )
+            magnets_per_module = st.number_input(
+                "Магнитов на 1 модуль (320×160 мм)",
+                min_value=0,
+                max_value=24,
+                value=4,
+                step=1,
+                key="magnets_per_module_input",
+                help="Типично 4 шт. на модуль; задайте свою норму под конструкцию.",
+            )
+            _mu = magnet_unit_usd(selected_magnet)
+            _mag_rub = _mu * exchange_rate
+            st.markdown(f"""
+            <div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">
+                <span style="color: #a0aec0; font-size: 13px;">
+                    Закупочная цена: <strong style="color: #48bb78;">${_mu:.4f}</strong> за шт.
+                    &nbsp;({_mag_rub:.2f} ₽/шт)
+                </span><br>
+                <span style="color: #a0aec0; font-size: 13px;">
+                    Пачка: <strong>{selected_magnet['pack_qty']} шт</strong> по
+                    <strong style="color: #48bb78;">${selected_magnet['pack_price_usd']:.2f}</strong>
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ==========================================
 # ==========================================
@@ -1624,10 +1788,36 @@ buy_components_usd = total_buy_usd - buy_frame_usd
 buy_frame_rub = buy_frame_usd * exchange_rate
 buy_components_rub = buy_components_usd * exchange_rate
 
-sale_total_usd = total_buy_usd * margin
-sale_total_rub = sale_total_usd * exchange_rate
-profit_usd = sale_total_usd - total_buy_usd
-profit_rub = profit_usd * exchange_rate
+# Наценка: отдельно на комплектующие и отдельно на каркас/крепёж.
+sale_components_usd = buy_components_usd * margin
+sale_components_rub = sale_components_usd * exchange_rate
+sale_frame_usd = buy_frame_usd * margin
+sale_frame_rub = sale_frame_usd * exchange_rate
+sale_hardware_usd = sale_components_usd + sale_frame_usd
+sale_hardware_rub = sale_components_rub + sale_frame_rub
+
+# Прибыль считаем только по железу (без логистики и монтажа).
+profit_hardware_usd = sale_hardware_usd - total_buy_usd
+profit_hardware_rub = profit_hardware_usd * exchange_rate
+
+logistics_rub = float(client_logistics_rub)
+installation_rub = float(client_installation_rub)
+extras_rub = logistics_rub + installation_rub
+extras_usd = extras_rub / exchange_rate if exchange_rate else 0.0
+
+commercial_subtotal_usd = sale_hardware_usd + extras_usd
+commercial_subtotal_rub = sale_hardware_rub + extras_rub
+
+vat_rate = 0.22 if vat_mode == "С НДС 22%" else 0.0
+vat_amount_usd = commercial_subtotal_usd * vat_rate
+vat_amount_rub = commercial_subtotal_rub * vat_rate
+
+sale_total_usd = commercial_subtotal_usd + vat_amount_usd
+sale_total_rub = commercial_subtotal_rub + vat_amount_rub
+profit_usd = profit_hardware_usd
+profit_rub = profit_hardware_rub
+expense_total_usd = total_buy_usd + extras_usd
+expense_total_rub = total_buy_rub + extras_rub
 
 # --- 6. ЭЛЕКТРИКА (ТЕПЕРЬ РАБОТАЕТ) ---
 electrical_power_kw = peak_power_screen_kw * 1.20
@@ -1753,17 +1943,46 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+def _format_money_lines(usd_value: float, rub_value: float) -> tuple[str, str]:
+    if display_currency == "RUB":
+        return (f"{rub_value:,.0f} ₽", f"(${usd_value:,.2f})")
+    return (f"${usd_value:,.2f}", f"({rub_value:,.0f} ₽)")
+
+
+_buy_comp_main, _buy_comp_sub = _format_money_lines(buy_components_usd, buy_components_rub)
+_buy_frame_main, _buy_frame_sub = _format_money_lines(buy_frame_usd, buy_frame_rub)
+_sale_main, _sale_sub = _format_money_lines(sale_total_usd, sale_total_rub)
+_extras_main, _extras_sub = _format_money_lines(extras_usd, extras_rub)
+_vat_main, _vat_sub = _format_money_lines(vat_amount_usd, vat_amount_rub)
+_sale_components_main, _sale_components_sub = _format_money_lines(
+    sale_components_usd, sale_components_rub
+)
+_sale_frame_main, _sale_frame_sub = _format_money_lines(sale_frame_usd, sale_frame_rub)
+_sale_components_usd_paren = f"(${sale_components_usd:,.2f})"
+_buy_components_usd_paren = f"(${buy_components_usd:,.2f})"
+_sale_frame_usd_paren = f"(${sale_frame_usd:,.2f})"
+_buy_frame_usd_paren = f"(${buy_frame_usd:,.2f})"
+_installation_main, _installation_sub = _format_money_lines(
+    installation_rub / exchange_rate if exchange_rate else 0.0, installation_rub
+)
+_logistics_main, _logistics_sub = _format_money_lines(
+    logistics_rub / exchange_rate if exchange_rate else 0.0, logistics_rub
+)
+_profit_main, _profit_sub = _format_money_lines(profit_hardware_usd, profit_hardware_rub)
+_sale_title = "ИТОГО (с НДС)" if vat_rate > 0 else "ИТОГО (без НДС)"
+
+col_f1, col_f2, col_f3, col_f4, col_f5, col_f6 = st.columns(6)
 
 with col_f1:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #3b82f6;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Закупка комплектующих</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${buy_components_usd:,.2f}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">({buy_components_rub:,.0f} ₽)</span>
+    <div class="finance-metric-head">Комплектующие</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_buy_comp_main} <span style="color: #7dd3fc; font-size: 0.88rem;">{_buy_components_usd_paren}</span></div>
+        <div class="finance-sub-number">С наценкой: {_sale_components_main} {_sale_components_usd_paren}</div>
     </div>
+    <div class="finance-footnote">&nbsp;</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1773,11 +1992,12 @@ with col_f2:
     st.markdown(
         f"""
 <div class="finance-metric-card" style="border-left: 4px solid #d97706;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Закупка каркаса и крепежа</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${buy_frame_usd:,.2f}</span><br>
-        <span style="color: #94a3b8; font-size: 0.95rem;">({buy_frame_rub:,.0f} ₽)</span>
+    <div class="finance-metric-head">Каркас и крепеж</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_buy_frame_main} <span style="color: #fcd34d; font-size: 0.88rem;">{_buy_frame_usd_paren}</span></div>
+        <div class="finance-sub-number">С наценкой: {_sale_frame_main} {_sale_frame_usd_paren}</div>
     </div>
+    <div class="finance-footnote">&nbsp;</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1786,13 +2006,13 @@ with col_f2:
 with col_f3:
     st.markdown(
         f"""
-<div class="finance-metric-card" style="border-left: 4px solid #48bb78;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Стоимость с наценкой</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${sale_total_usd:,.2f}</span><br>
-        <span style="color: #48bb78; font-size: 0.95rem; font-weight: bold;">({sale_total_rub:,.0f} ₽)</span>
+<div class="finance-metric-card" style="border-left: 4px solid #0ea5e9;">
+    <div class="finance-metric-head">Монтаж</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_installation_main}</div>
+        <div class="finance-sub-number" style="color: #93c5fd; font-weight: bold;">{_installation_sub}</div>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Наценка {int((margin - 1) * 100)}%</div>
+    <div class="finance-footnote">Отдельная строка клиентского бюджета</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -1801,17 +2021,56 @@ with col_f3:
 with col_f4:
     st.markdown(
         f"""
-<div class="finance-metric-card" style="border-left: 4px solid #a855f7;">
-    <div style="color: #a0aec0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;">Чистая прибыль</div>
-    <div style="margin-top: 8px;">
-        <span style="color: #f8fafc; font-size: 1.35rem; font-weight: bold;">${profit_usd:,.2f}</span><br>
-        <span style="color: #c4b5fd; font-size: 0.95rem; font-weight: bold;">({profit_rub:,.0f} ₽)</span>
+<div class="finance-metric-card" style="border-left: 4px solid #06b6d4;">
+    <div class="finance-metric-head">Логистика</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_logistics_main}</div>
+        <div class="finance-sub-number" style="color: #67e8f9; font-weight: bold;">{_logistics_sub}</div>
     </div>
-    <div style="font-size: 0.7rem; color: #718096; margin-top: auto; padding-top: 8px;">Продажа − закупка</div>
+    <div class="finance-footnote">Отдельная строка клиентского бюджета</div>
 </div>
 """,
         unsafe_allow_html=True,
     )
+
+with col_f5:
+    st.markdown(
+        f"""
+<div class="finance-metric-card" style="border-left: 4px solid #48bb78;">
+    <div class="finance-metric-head">{_sale_title}</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_sale_main}</div>
+        <div class="finance-sub-number" style="color: #48bb78; font-weight: bold;">{_sale_sub}</div>
+    </div>
+    <div class="finance-footnote">
+        Наценка {int((margin - 1) * 100)}% · доп. услуги {_extras_main}
+    </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+with col_f6:
+    st.markdown(
+        f"""
+<div class="finance-metric-card" style="border-left: 4px solid #a855f7;">
+    <div class="finance-metric-head">Чистая прибыль</div>
+    <div class="finance-metric-body">
+        <div class="finance-main-number">{_profit_main}</div>
+        <div class="finance-sub-number" style="color: #c4b5fd; font-weight: bold;">{_profit_sub}</div>
+    </div>
+    <div class="finance-footnote">Только экран и каркас (без логистики и монтажа)</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+st.caption(
+    "Пояснение по коммерции:\n"
+    f"- НДС: {vat_mode}, сумма {_vat_main} ({vat_amount_rub:,.0f} ₽)\n"
+    f"- Логистика: {logistics_rub:,.0f} ₽ ({logistics_rub / exchange_rate:,.2f} $)\n"
+    f"- Монтаж: {installation_rub:,.0f} ₽ ({installation_rub / exchange_rate:,.2f} $)"
+)
 
 st.markdown("---")
 
@@ -1887,32 +2146,42 @@ with st.expander("Вводная Сеть", expanded=True):
 if "Монолитный" in mount_type:
     if selected_magnet is not None:
         _report_magnet_block = f"""
-        - **Магниты** — **{selected_magnet['name']}**
-          - **Норма**: **{magnets_per_module}** шт. на модуль
-          - **Количество**: **{num_magnets} шт.** ({total_modules} × {magnets_per_module})
-          - **Заказ пачками**: ~**{magnet_packs_order}** пачек по {selected_magnet['pack_qty']} шт.
-          - **Цена закупки**: ${magnet_unit_price_usd:.4f}/шт → **${buy_magnets_total:.2f}** ({buy_magnets_total * exchange_rate:,.0f} ₽)"""
+**Магниты**
+- Модель: {selected_magnet['name']}
+- Норма: {magnets_per_module} шт. на модуль
+- Количество: {num_magnets} шт. ({total_modules} × {magnets_per_module})
+- Пачки: ~{magnet_packs_order} × {selected_magnet['pack_qty']} шт.
+- Стоимость: <span style="color:#48bb78"><strong>${buy_magnets_total:.2f} ({buy_magnets_total * exchange_rate:,.0f} ₽)</strong></span>, по ${magnet_unit_price_usd:.4f}/шт"""
     else:
         _report_magnet_block = """
-        - **Магниты**: не заданы"""
+- **Магниты:** не заданы"""
     with st.expander("Каркас и крепёж (Монолитный)", expanded=True):
         _waste_pct = (
             (100.0 * profile_waste_m / profile_purchased_m) if profile_purchased_m > 0 else 0.0
         )
         st.markdown(f"""
-        - **Вертикальные профили**: {vert_profiles} шт. (длина на отрез {vert_length} мм, общая {vert_profiles * vert_length / 1000:.2f} м)
-        - **Горизонтальные профили**: {horiz_profiles} шт. (длина на отрез {horiz_length} мм, общая {horiz_profiles * horiz_length / 1000:.2f} м)
-        - **Профиль 40×20×1,5 мм** (только хлысты **6 м**, **{profile_40x20_rub_m:.0f} ₽/п.м** в сайдбаре; автоцена: {profile_price_source_note}):
-          нужно **{profile_cut_m:.2f} м** по раскрою → **{profile_sticks_6m}** хлыстов × 6 м = **{profile_purchased_m:.2f} м** к оплате;
-          остаток **~{profile_waste_m:.2f} м** (~{_waste_pct:.1f}% от купленной длины) уже в сумме — **{buy_profile_rub:,.0f} ₽** (**${buy_profile_usd:.2f}** в закупке)
-        - **Узлы каркаса (заклёпка Sormat M6 + винт M6×16)**: {fasteners_m6} узл. + {reserve_fasteners} запас (3%) = **{num_m6_rivet_bolt_each}** комплектов (по 1 заклёпке + 1 винту)
-          - Заклёпка резьбовая **Sormat M6**: **{rivet_m6_threaded_rub_each:.3f} ₽/шт** ({rivet_m6_price_source_note}; [Lemana Pro]({LEMANA_RIVET_M6_SORMAT_URL})) → **{buy_rivet_m6_rub:,.0f} ₽**
-          - Винт **M6×16 DIN 912** оцинк.: **{bolt_m6_6x16_din912_rub_each:.3f} ₽/шт** ({bolt_m6_6x16_price_source_note}; [Lemana Pro]({LEMANA_BOLT_M6_6x16_DIN912_URL})) → **{buy_bolt_m6_6x16_rub:,.0f} ₽**
-          - **Итого M6**: **{buy_m6_frame_rub:,.0f} ₽** (**${buy_m6_frame_usd:.2f}** в закупке)
-        {_report_magnet_block}
-        - **Металлические пластины под БП**: **{num_plates} шт.** (по числу БП с ЗИП) × **{METAL_PLATE_RUB_EACH:.0f} ₽/шт** → **{buy_metal_plates_rub:,.0f} ₽** (**${buy_metal_plates_usd:.2f}** в общей закупке)
-        - **Саморезы 4,2×16 с прессшайбой (сверло) к профилю**: {vinths} шт. + {reserve_vinths} шт. запас (10%) = **{num_screws_4x16_order} шт.** — **{screw_4x16_press_rub_each:.3f} ₽/шт** ({screw_4x16_price_source_note}) → **{buy_screws_4x16_rub:,.0f} ₽** (**${buy_screws_4x16_usd:.2f}** в закупке)
-        """)
+**Профиль 40×20×1,5**
+- Вертикальные: {vert_profiles} шт. × {vert_length} мм = {vert_profiles * vert_length / 1000:.2f} м
+- Горизонтальные: {horiz_profiles} шт. × {horiz_length} мм = {horiz_profiles * horiz_length / 1000:.2f} м
+- Раскрой: нужно {profile_cut_m:.2f} м
+- Закупка: {profile_sticks_6m} хлыстов × 6 м = {profile_purchased_m:.2f} м
+- Остаток: ~{profile_waste_m:.2f} м ({_waste_pct:.1f}%)
+- Цена профиля: {profile_40x20_rub_m:.0f} ₽/м ({profile_price_source_note})
+- Итого профиль: <span style="color:#48bb78"><strong>${buy_profile_usd:.2f} ({buy_profile_rub:,.0f} ₽)</strong></span>
+
+**Крепеж**
+- Количество узлов M6: {fasteners_m6} + запас 3% ({reserve_fasteners}) = {num_m6_rivet_bolt_each} к-т
+- Заклёпка Sormat M6: {rivet_m6_threaded_rub_each:.3f} ₽/шт → <span style="color:#48bb78"><strong>{buy_rivet_m6_rub:,.0f} ₽</strong></span>
+- Винт M6×16 DIN 912: {bolt_m6_6x16_din912_rub_each:.3f} ₽/шт → <span style="color:#48bb78"><strong>{buy_bolt_m6_6x16_rub:,.0f} ₽</strong></span>
+- Итого M6: <span style="color:#48bb78"><strong>${buy_m6_frame_usd:.2f} ({buy_m6_frame_rub:,.0f} ₽)</strong></span>
+
+{_report_magnet_block}
+
+- Пластины под БП: {num_plates} шт. × {METAL_PLATE_RUB_EACH:.0f} ₽ = <span style="color:#48bb78"><strong>${buy_metal_plates_usd:.2f} ({buy_metal_plates_rub:,.0f} ₽)</strong></span>
+- Саморезы 4,2×16: {vinths} + запас 10% ({reserve_vinths}) = {num_screws_4x16_order} шт.
+- Цена самореза: {screw_4x16_press_rub_each:.3f} ₽/шт ({screw_4x16_price_source_note})
+- Итого саморезы: <span style="color:#48bb78"><strong>${buy_screws_4x16_usd:.2f} ({buy_screws_4x16_rub:,.0f} ₽)</strong></span>
+        """, unsafe_allow_html=True)
 
 with st.expander("Коммутация", expanded=True):
     _patch_zip_note = (
@@ -1928,30 +2197,35 @@ with st.expander("Коммутация", expanded=True):
             else ""
         )
         st.markdown(f"""
-        **Силовая (между БП, монолит)**
-        - **Силовые перемычки** ({_pj_name}): **{num_power_jumpers} шт.**
-          (шлейф {num_psu_reserve} БП: **{num_power_jumpers_for_chain} шт.**{_pj_zip_note})
-          — **${buy_power_jumpers_total:.2f}** в закупке ({buy_power_jumpers_total * exchange_rate:,.0f} ₽)
+**Силовая (монолит)**
+- Силовые перемычки БП: {num_power_jumpers} шт. ({_pj_name})
+- Из них по цепочке БП: {num_power_jumpers_for_chain} шт. на {num_psu_reserve} БП{_pj_zip_note}
+- Стоимость перемычек: <span style="color:#48bb78"><strong>${buy_power_jumpers_total:.2f} ({buy_power_jumpers_total * exchange_rate:,.0f} ₽)</strong></span>
 
-        **Слаботочка и питание карт**
-        - **Патч-корды RJ45** — {selected_patch_cord['name']}: **{patch_cords} шт.**
-          (**{num_cards_reserve}** по картам с учётом ЗИП{_patch_zip_note}) — ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
-        - **Кабели питания карт → БП** — {selected_card_power_cable['name']}: **{num_card_power_cables_order} шт.**
-          ({num_power_cables} по картам + {reserve_power_cables} запас 10%) — ${selected_card_power_cable['price_usd']:.2f}/шт → **${buy_card_power_cables_total:.2f}** ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
-        """)
+**Слаботочка и питание карт**
+- Патч-корды RJ45: {patch_cords} шт. ({selected_patch_cord['name']})
+- Логика количества: {num_cards_reserve} по картам{_patch_zip_note}
+- Стоимость патч-кордов: <span style="color:#48bb78"><strong>${buy_patch_cords_total:.2f} ({buy_patch_cords_total * exchange_rate:,.0f} ₽)</strong></span>
+
+- Кабели питания карт → БП: {num_card_power_cables_order} шт. ({selected_card_power_cable['name']})
+- Логика количества: {num_power_cables} по картам + {reserve_power_cables} запас 10%
+- Стоимость кабелей питания карт: <span style="color:#48bb78"><strong>${buy_card_power_cables_total:.2f} ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)</strong></span>
+        """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
-        **Силовая (кабинеты)**
-        - **Силовые кабели 220 В (шлейфы)**: {num_cables} шт., общая длина ~{num_cables * 0.8:.1f} м
-        - **Наконечники НВИ**: {nvi} шт. + {reserve_nvi} шт. (запас 10%)
+**Силовая (кабинеты)**
+- Силовые кабели 220 В (шлейфы): {num_cables} шт., суммарно ~{num_cables * 0.8:.1f} м
+- Наконечники НВИ: {nvi} шт. + {reserve_nvi} шт. запас (10%)
 
-        **Слаботочка и питание карт**
-        - **Патч-корды RJ45** — {selected_patch_cord['name']}: **{patch_cords} шт.**
-          (**{num_cards_reserve}** по картам с учётом ЗИП{_patch_zip_note})
-          — ${selected_patch_cord['price_usd']:.2f}/шт → **${buy_patch_cords_total:.2f}** ({buy_patch_cords_total * exchange_rate:,.0f} ₽)
-        - **Кабели питания карт → БП** — {selected_card_power_cable['name']}: **{num_card_power_cables_order} шт.**
-          ({num_power_cables} по картам + {reserve_power_cables} запас 10%) — ${selected_card_power_cable['price_usd']:.2f}/шт → **${buy_card_power_cables_total:.2f}** ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)
-        """)
+**Слаботочка и питание карт**
+- Патч-корды RJ45: {patch_cords} шт. ({selected_patch_cord['name']})
+- Логика количества: {num_cards_reserve} по картам{_patch_zip_note}
+- Стоимость патч-кордов: <span style="color:#48bb78"><strong>${buy_patch_cords_total:.2f} ({buy_patch_cords_total * exchange_rate:,.0f} ₽)</strong></span>
+
+- Кабели питания карт → БП: {num_card_power_cables_order} шт. ({selected_card_power_cable['name']})
+- Логика количества: {num_power_cables} по картам + {reserve_power_cables} запас 10%
+- Стоимость кабелей питания карт: <span style="color:#48bb78"><strong>${buy_card_power_cables_total:.2f} ({buy_card_power_cables_total * exchange_rate:,.0f} ₽)</strong></span>
+        """, unsafe_allow_html=True)
 
 with st.expander("Весовые характеристики", expanded=True):
     st.markdown(f"""
@@ -2051,6 +2325,23 @@ figma_data = {
     "buy_components_rub": round(buy_components_rub, 2),
     "buy_frame_usd": round(buy_frame_usd, 2),
     "buy_frame_rub": round(buy_frame_rub, 2),
+    "display_currency": display_currency,
+    "vat_mode": vat_mode,
+    "vat_percent": int(vat_rate * 100),
+    "sale_hardware_usd": round(sale_hardware_usd, 2),
+    "sale_hardware_rub": round(sale_hardware_rub, 2),
+    "profit_hardware_usd": round(profit_hardware_usd, 2),
+    "profit_hardware_rub": round(profit_hardware_rub, 2),
+    "expense_total_usd": round(expense_total_usd, 2),
+    "expense_total_rub": round(expense_total_rub, 2),
+    "logistics_rub": round(logistics_rub, 2),
+    "installation_rub": round(installation_rub, 2),
+    "extras_usd": round(extras_usd, 2),
+    "extras_rub": round(extras_rub, 2),
+    "commercial_subtotal_usd": round(commercial_subtotal_usd, 2),
+    "commercial_subtotal_rub": round(commercial_subtotal_rub, 2),
+    "vat_amount_usd": round(vat_amount_usd, 2),
+    "vat_amount_rub": round(vat_amount_rub, 2),
     "sale_total_usd": round(sale_total_usd, 2),
     "sale_total_rub": round(sale_total_rub, 2),
     "profit_usd": round(profit_usd, 2),
@@ -2096,6 +2387,13 @@ _pdf_ctx = {
     "total_buy_usd": total_buy_usd,
     "total_buy_rub": total_buy_rub,
     "sale_rub": sale_total_rub,
+    "sale_usd": sale_total_usd,
+    "vat_mode": vat_mode,
+    "vat_pct": int(vat_rate * 100),
+    "vat_amount_rub": vat_amount_rub,
+    "vat_amount_usd": vat_amount_usd,
+    "logistics_rub": logistics_rub,
+    "installation_rub": installation_rub,
     "margin_pct": int((margin - 1) * 100),
     "exchange_rate": exchange_rate,
     "spec_rows": _pdf_spec_rows,
@@ -2105,6 +2403,27 @@ col_exp1, col_exp2, col_exp3 = st.columns(3)
 with col_exp1:
     st.markdown("**JSON для Figma Variables Studio**")
     st.code(figma_json, language="json")
+    st.download_button(
+        label="⬇️ Скачать JSON для Figma",
+        data=json.dumps([figma_data], indent=2, ensure_ascii=False),
+        file_name=f"{_session_safe_slug(project_name)}_figma.json",
+        mime="application/json",
+        use_container_width=True,
+        key="download_figma_json",
+        help="Скачайте файл и импортируйте его в JSON to Figma через 'From local file'.",
+    )
+    if st.button("🌐 Получить API URL для Figma", use_container_width=True):
+        _api_url, _api_err = publish_json_for_figma_api(figma_data)
+        if _api_err:
+            st.error(f"Не удалось опубликовать API URL: {_api_err}")
+        else:
+            st.session_state["figma_api_url"] = _api_url
+            st.success("API URL готов")
+    _figma_api_url = st.session_state.get("figma_api_url")
+    if _figma_api_url:
+        st.caption("API URL для JSON to Figma:")
+        st.code(_figma_api_url, language="text")
+        st.markdown(f"[Проверить API URL]({_figma_api_url})")
 
 with col_exp2:
     st.markdown("**Сохранение в базу Google Sheets**")
@@ -2116,8 +2435,8 @@ with col_exp2:
             st.success("✅ [Mock] Данные сформированы для отправки в базу!")
 
 with col_exp3:
-    st.markdown("**PDF-отчёт**")
-    st.caption("Лаконичная спецификация для клиента / поставщика.")
+    st.markdown("**PDF-отчёты**")
+    st.caption("Лаконичный отчёт + брендовый КП (MVP).")
     if build_led_report_pdf is None:
         st.info("Установите пакет **fpdf2**: `pip install fpdf2`")
     else:
@@ -2136,5 +2455,53 @@ with col_exp3:
                 use_container_width=True,
                 key="download_led_pdf_report",
             )
+            if build_led_kp_mvp_pdf is not None:
+                _kp_cost_rows = [
+                    ("Экран (комплектующие)", "1 шт", float(sale_components_rub), float(sale_components_rub)),
+                    ("Каркас и крепеж", "1 шт", float(sale_frame_rub), float(sale_frame_rub)),
+                    ("Монтаж", "1 шт", float(installation_rub), float(installation_rub)),
+                    ("Доставка", "1 шт", float(logistics_rub), float(logistics_rub)),
+                ]
+                _kp_pdf_ctx = {
+                    "offer_no": datetime.datetime.now().strftime("%m%d"),
+                    "project_name": project_name,
+                    "client_name": client_name or "",
+                    "date_str": datetime.datetime.now().strftime("%d.%m.%Y"),
+                    "screen_mm": f"{int(real_width)} × {int(real_height)} мм",
+                    "module_name": selected_module_name,
+                    "mount_type": mount_type,
+                    "resolution": f"{int(real_width / pixel_pitch)} × {int(real_height / pixel_pitch)} px",
+                    "area_m2": f"{area_m2:.2f}",
+                    "processor": selected_proc["name"],
+                    "buy_components_rub": buy_components_rub,
+                    "buy_frame_rub": buy_frame_rub,
+                    "sale_components_rub": sale_components_rub,
+                    "sale_frame_rub": sale_frame_rub,
+                    "installation_rub": installation_rub,
+                    "logistics_rub": logistics_rub,
+                    "cost_rows": _kp_cost_rows,
+                    "subtotal_rub": commercial_subtotal_rub,
+                    "vat_pct": int(vat_rate * 100),
+                    "vat_amount_rub": vat_amount_rub,
+                    "total_rub": sale_total_rub,
+                    "profit_hardware_rub": profit_hardware_rub,
+                    "note_terms": "100% предоплата по счёту.",
+                    "note_lead_time": "21 рабочий день после поступления аванса.",
+                    "note_warranty": "Гарантия 3 года.",
+                }
+                _kp_pdf_bytes = build_led_kp_mvp_pdf(_kp_pdf_ctx)
+                _kp_pdf_name = (
+                    suggested_kp_pdf_filename(project_name)
+                    if suggested_kp_pdf_filename
+                    else "kp_mvp.pdf"
+                )
+                st.download_button(
+                    label="🧾 Скачать КП (MVP)",
+                    data=_kp_pdf_bytes,
+                    file_name=_kp_pdf_name,
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_led_kp_mvp_pdf",
+                )
         except Exception as _pdf_exc:
             st.error(f"Не удалось сформировать PDF: {_pdf_exc}")

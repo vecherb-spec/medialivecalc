@@ -8,10 +8,19 @@ from __future__ import annotations
 import os
 import re
 import sys
+import urllib.request
 from pathlib import Path
 from typing import Any, List, Tuple
 
 FONT_FAMILY = "MLReport"  # произвольное имя семейства для add_font
+EMBEDDED_FONTS_DIR = Path(__file__).resolve().parent / "fonts"
+NOTO_REGULAR_TTF = EMBEDDED_FONTS_DIR / "NotoSans-Regular.ttf"
+NOTO_BOLD_TTF = EMBEDDED_FONTS_DIR / "NotoSans-Bold.ttf"
+
+NOTO_FONT_URLS = {
+    "regular": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf",
+    "bold": "https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf",
+}
 
 
 def _bold_candidate(regular: Path) -> Path | None:
@@ -42,8 +51,11 @@ def _font_candidates() -> list[Path]:
     here = Path(__file__).resolve().parent
     out.extend(
         [
+            here / "fonts" / "NotoSans-Regular.ttf",
             here / "fonts" / "DejaVuSans.ttf",
             here / "DejaVu-sans" / "DejaVuSans.ttf",
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"),
         ]
     )
     try:
@@ -65,7 +77,6 @@ def _font_candidates() -> list[Path]:
     else:
         out.extend(
             [
-                Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
                 Path("/usr/local/share/fonts/dejavu/DejaVuSans.ttf"),
                 Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
             ]
@@ -81,7 +92,27 @@ def _resolve_font_paths() -> Tuple[str, str]:
             reg = str(cand.resolve())
             bol = str(bd.resolve()) if bd and bd.is_file() else reg
             return reg, bol
+    _download_noto_fonts_if_missing()
+    if NOTO_REGULAR_TTF.is_file():
+        reg = str(NOTO_REGULAR_TTF.resolve())
+        bol = str(NOTO_BOLD_TTF.resolve()) if NOTO_BOLD_TTF.is_file() else reg
+        return reg, bol
     return "", ""
+
+
+def _download_noto_fonts_if_missing() -> None:
+    """Скачивает Noto Sans в локальную папку fonts как fallback."""
+    try:
+        EMBEDDED_FONTS_DIR.mkdir(parents=True, exist_ok=True)
+        if not NOTO_REGULAR_TTF.is_file():
+            with urllib.request.urlopen(NOTO_FONT_URLS["regular"], timeout=20) as resp:
+                NOTO_REGULAR_TTF.write_bytes(resp.read())
+        if not NOTO_BOLD_TTF.is_file():
+            with urllib.request.urlopen(NOTO_FONT_URLS["bold"], timeout=20) as resp:
+                NOTO_BOLD_TTF.write_bytes(resp.read())
+    except Exception:
+        # Если сеть недоступна — оставляем текущую логику fallback по системным шрифтам.
+        return
 
 
 def _safe_filename(name: str) -> str:
@@ -221,5 +252,153 @@ def build_led_report_pdf(ctx: dict[str, Any]) -> bytes:
     return bytes(out)
 
 
+def build_led_kp_mvp_pdf(ctx: dict[str, Any]) -> bytes:
+    """
+    MVP-версия коммерческого предложения в более "презентационном" стиле.
+    Ожидаемые ключи:
+    - offer_no, date_str, project_name, client_name
+    - screen_mm, resolution, module_name, mount_type
+    - area_m2, total_modules, processor
+    - cost_rows: list[tuple(name, qty, unit_rub, total_rub)]
+    - subtotal_rub, vat_pct, vat_amount_rub, total_rub
+    - note_terms, note_lead_time, note_warranty
+    """
+    from fpdf import FPDF
+
+    reg, bold = _resolve_font_paths()
+    if not reg:
+        raise RuntimeError(
+            "Не найден TTF с кириллицей. Добавьте DejaVuSans.ttf рядом с pdf_report.py."
+        )
+
+    class PDF(FPDF):
+        def footer(self) -> None:
+            self.set_y(-11)
+            self.set_font(FONT_FAMILY, "", 8)
+            self.set_text_color(120, 120, 120)
+            self.cell(0, 6, f"MediaLive · стр. {self.page_no()}", align="C")
+
+    pdf = PDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=14)
+    pdf.set_margins(14, 14, 14)
+    pdf.add_page()
+    pdf.add_font(FONT_FAMILY, "", reg)
+    pdf.add_font(FONT_FAMILY, "B", bold)
+
+    # Header
+    pdf.set_fill_color(17, 24, 39)
+    pdf.rect(0, 0, 210, 44, "F")
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_xy(14, 10)
+    pdf.set_font(FONT_FAMILY, "B", 16)
+    pdf.cell(0, 8, "КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ", ln=1)
+    pdf.set_font(FONT_FAMILY, "", 10)
+    pdf.set_x(14)
+    offer_no = str(ctx.get("offer_no", "—"))
+    pdf.cell(0, 6, f"№ {offer_no} от {ctx.get('date_str', '')}", ln=1)
+    pdf.set_x(14)
+    pdf.cell(0, 6, "MediaLive · Продажа и аренда LED-экранов", ln=1)
+
+    pdf.set_y(50)
+    pdf.set_text_color(20, 20, 20)
+
+    def section(title: str) -> None:
+        pdf.ln(2)
+        pdf.set_font(FONT_FAMILY, "B", 11)
+        pdf.set_text_color(55, 65, 81)
+        pdf.cell(0, 7, title, ln=1)
+        pdf.set_draw_color(229, 231, 235)
+        pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+        pdf.ln(2)
+        pdf.set_text_color(20, 20, 20)
+
+    def row(label: str, value: str) -> None:
+        w = pdf.w - pdf.l_margin - pdf.r_margin
+        wl = w * 0.38
+        wr = w * 0.62
+        pdf.set_font(FONT_FAMILY, "", 9.5)
+        pdf.set_text_color(107, 114, 128)
+        pdf.cell(wl, 6, label, ln=0)
+        pdf.set_text_color(17, 24, 39)
+        pdf.cell(wr, 6, value, align="R", ln=1)
+
+    section("Проект")
+    row("Проект", str(ctx.get("project_name", "—")))
+    row("Клиент", str(ctx.get("client_name", "—")))
+    row("Экран, мм", str(ctx.get("screen_mm", "—")))
+    row("Разрешение", str(ctx.get("resolution", "—")))
+    row("Модель модуля", str(ctx.get("module_name", "—")))
+    row("Монтаж", str(ctx.get("mount_type", "—")))
+    row("Площадь", f"{float(ctx.get('area_m2', 0)):.2f} м²")
+    row("Количество модулей", str(ctx.get("total_modules", "—")))
+    row("Процессор", str(ctx.get("processor", "—")))
+
+    section("Стоимость проекта")
+    rows: List[Tuple[str, str, float, float]] = ctx.get("cost_rows") or []
+    # Header row
+    w = pdf.w - pdf.l_margin - pdf.r_margin
+    c1, c2, c3, c4 = w * 0.46, w * 0.14, w * 0.18, w * 0.22
+    pdf.set_fill_color(243, 244, 246)
+    pdf.set_text_color(55, 65, 81)
+    pdf.set_font(FONT_FAMILY, "B", 9)
+    pdf.cell(c1, 7, "Наименование", border=0, ln=0, fill=True)
+    pdf.cell(c2, 7, "Кол-во", border=0, ln=0, align="C", fill=True)
+    pdf.cell(c3, 7, "Цена, ₽", border=0, ln=0, align="R", fill=True)
+    pdf.cell(c4, 7, "Сумма, ₽", border=0, ln=1, align="R", fill=True)
+
+    pdf.set_font(FONT_FAMILY, "", 9)
+    alt = False
+    for name, qty, unit_rub, total_rub in rows:
+        pdf.set_fill_color(255, 255, 255) if not alt else pdf.set_fill_color(249, 250, 251)
+        pdf.set_text_color(17, 24, 39)
+        pdf.cell(c1, 6.5, str(name)[:48], ln=0, fill=True)
+        pdf.cell(c2, 6.5, str(qty), ln=0, align="C", fill=True)
+        pdf.cell(c3, 6.5, f"{float(unit_rub):,.0f}".replace(",", " "), ln=0, align="R", fill=True)
+        pdf.cell(c4, 6.5, f"{float(total_rub):,.0f}".replace(",", " "), ln=1, align="R", fill=True)
+        alt = not alt
+
+    subtotal = float(ctx.get("subtotal_rub", 0))
+    vat_amount = float(ctx.get("vat_amount_rub", 0))
+    total = float(ctx.get("total_rub", 0))
+    vat_pct = int(ctx.get("vat_pct", 22))
+
+    pdf.ln(2)
+    pdf.set_font(FONT_FAMILY, "B", 10)
+    pdf.set_text_color(55, 65, 81)
+    pdf.cell(c1 + c2 + c3, 7, "ИТОГО (без НДС):", ln=0, align="R")
+    pdf.set_text_color(17, 24, 39)
+    pdf.cell(c4, 7, f"{subtotal:,.0f} ₽".replace(",", " "), ln=1, align="R")
+
+    pdf.set_font(FONT_FAMILY, "", 9.5)
+    pdf.set_text_color(75, 85, 99)
+    pdf.cell(c1 + c2 + c3, 6, f"НДС {vat_pct}%:", ln=0, align="R")
+    pdf.cell(c4, 6, f"{vat_amount:,.0f} ₽".replace(",", " "), ln=1, align="R")
+
+    pdf.set_fill_color(34, 197, 94)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font(FONT_FAMILY, "B", 11)
+    pdf.cell(c1 + c2 + c3, 8, "ИТОГОВАЯ СТОИМОСТЬ:", ln=0, align="R", fill=True)
+    pdf.cell(c4, 8, f"{total:,.0f} ₽".replace(",", " "), ln=1, align="R", fill=True)
+
+    section("Условия")
+    pdf.set_font(FONT_FAMILY, "", 9.5)
+    pdf.set_text_color(31, 41, 55)
+    pdf.multi_cell(0, 5.5, f"Оплата: {ctx.get('note_terms', '100% предоплата по счёту.')}")
+    pdf.multi_cell(0, 5.5, f"Срок поставки: {ctx.get('note_lead_time', 'по договорённости.')}")
+    pdf.multi_cell(0, 5.5, f"Гарантия: {ctx.get('note_warranty', '3 года.')}")
+
+    out = pdf.output()
+    if isinstance(out, (bytes, bytearray)):
+        return bytes(out)
+    if isinstance(out, str):
+        return out.encode("latin-1")
+    return bytes(out)
+
+
 def suggested_pdf_filename(project_name: str) -> str:
     return _safe_filename(project_name)
+
+
+def suggested_kp_pdf_filename(project_name: str) -> str:
+    base = _safe_filename(project_name).replace(".pdf", "")
+    return f"{base}_kp.pdf"
