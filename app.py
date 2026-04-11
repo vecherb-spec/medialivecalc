@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 import urllib.request
 import xml.etree.ElementTree as ET
+import uuid
 
 try:
     import gspread
@@ -560,6 +561,7 @@ def magnet_unit_usd(m):
 # --- Сохранение / загрузка сессии (JSON в каталоге led_calc_sessions) ---
 SESSION_SNAPSHOT_VERSION = 1
 SESSIONS_DIR = Path(__file__).resolve().parent / "led_calc_sessions"
+INCOMING_REQUESTS_DIR = Path(__file__).resolve().parent / "incoming_requests"
 SESSION_STATE_KEYS_TO_PERSIST: frozenset[str] = frozenset(
     {
         "width_input",
@@ -735,6 +737,168 @@ def _sidebar_sessions_panel():
         return st.sidebar.container(border=True)
     except TypeError:
         return st.sidebar.container()
+
+
+def _incoming_requests_panel():
+    try:
+        return st.sidebar.container(border=True)
+    except TypeError:
+        return st.sidebar.container()
+
+
+def _safe_request_filename(value: str) -> str:
+    base = re.sub(r"[^\w\-.()\s\u0400-\u04FF]", "_", (value or "").strip(), flags=re.UNICODE)
+    base = re.sub(r"\s+", "_", base).strip("_")
+    return (base[:80] or "request")
+
+
+def _store_incoming_request(payload: dict) -> tuple[bool, str]:
+    INCOMING_REQUESTS_DIR.mkdir(parents=True, exist_ok=True)
+    req_id = str(payload.get("request_id") or payload.get("id") or payload.get("lead_id") or "")
+    project = str(payload.get("project_name") or payload.get("project") or payload.get("client") or "")
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{ts}_{_safe_request_filename(project)}_{_safe_request_filename(req_id)}_{uuid.uuid4().hex[:6]}.json"
+    path = INCOMING_REQUESTS_DIR / filename
+    try:
+        path.write_text(
+            json.dumps(
+                {
+                    "received_at": datetime.datetime.now().isoformat(timespec="seconds"),
+                    "payload": payload,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return True, str(path)
+    except OSError as e:
+        return False, str(e)
+
+
+def _list_incoming_requests() -> list[Path]:
+    INCOMING_REQUESTS_DIR.mkdir(parents=True, exist_ok=True)
+    files = list(INCOMING_REQUESTS_DIR.glob("*.json"))
+    return sorted(files, key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+def _load_incoming_request(path: Path) -> tuple[Optional[dict], Optional[str]]:
+    if not path.is_file():
+        return None, "Файл не найден"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        return None, str(e)
+    payload = data.get("payload", data)
+    if not isinstance(payload, dict):
+        return None, "Некорректный формат заявки"
+    return payload, None
+
+
+def _extract_state_from_payload(payload: dict) -> dict:
+    """Возвращает плоский словарь state из разных форматов входящего JSON."""
+    if isinstance(payload.get("data"), dict):
+        payload = payload["data"]
+    if isinstance(payload.get("state"), dict):
+        return payload["state"]
+    if isinstance(payload.get("calc_state"), dict):
+        return payload["calc_state"]
+    return payload
+
+
+def _to_int(v, default: int) -> int:
+    try:
+        return int(float(v))
+    except Exception:
+        return default
+
+
+def _to_float(v, default: float) -> float:
+    try:
+        return float(v)
+    except Exception:
+        return default
+
+
+def apply_incoming_request_to_state(payload: dict) -> list[str]:
+    payload = _extract_state_from_payload(payload)
+    ss = st.session_state
+    applied: list[str] = []
+
+    # Если прилетел полноценный state калькулятора — применяем напрямую.
+    for key in SESSION_STATE_KEYS_TO_PERSIST:
+        if key in payload:
+            ss[key] = payload[key]
+            applied.append(key)
+
+    project_name = payload.get("project_name") or payload.get("project")
+    if project_name:
+        ss["calc_project_name"] = str(project_name)
+        applied.append("project_name")
+
+    client = payload.get("client") or payload.get("client_name")
+    if client:
+        ss["calc_client_name"] = str(client)
+        applied.append("client")
+
+    width = payload.get("width_mm")
+    if width is not None:
+        ss["width_input"] = max(320, _to_int(width, 3840))
+        applied.append("width_mm")
+    height = payload.get("height_mm")
+    if height is not None:
+        ss["height_mm"] = max(160, _to_int(height, 2240))
+        applied.append("height_mm")
+
+    env = payload.get("env") or payload.get("environment")
+    if env in ("Indoor", "Outdoor"):
+        ss["calc_env_key"] = env
+        applied.append("env")
+
+    mount = payload.get("mount_type")
+    if mount in ("Монолитный (Магниты/Профиль)", "В кабинетах"):
+        ss["calc_mount_type"] = mount
+        applied.append("mount_type")
+
+    logistics = payload.get("logistics_rub")
+    if logistics is not None:
+        ss["calc_logistics_rub"] = max(0.0, _to_float(logistics, 0.0))
+        applied.append("logistics_rub")
+    installation = payload.get("installation_rub")
+    if installation is not None:
+        ss["calc_installation_rub"] = max(0.0, _to_float(installation, 0.0))
+        applied.append("installation_rub")
+
+    margin = payload.get("margin_percent")
+    if margin is not None:
+        ss["calc_margin_pct"] = max(0, _to_int(margin, 30))
+        applied.append("margin_percent")
+
+    currency = payload.get("display_currency")
+    if currency in ("RUB", "USD"):
+        ss["calc_display_currency"] = currency
+        applied.append("display_currency")
+
+    vat_enabled = payload.get("vat_enabled")
+    vat_mode = payload.get("vat_mode")
+    if isinstance(vat_enabled, bool):
+        ss["calc_vat_mode"] = "С НДС 22%" if vat_enabled else "Без НДС"
+        applied.append("vat_enabled")
+    elif vat_mode in ("Без НДС", "С НДС 22%"):
+        ss["calc_vat_mode"] = vat_mode
+        applied.append("vat_mode")
+
+    exchange = payload.get("exchange_rate")
+    if exchange is not None:
+        ss["calc_exchange_rate"] = max(1.0, _to_float(exchange, float(ss.get("calc_exchange_rate", 95.0))))
+        applied.append("exchange_rate")
+
+    module_name = payload.get("module_name")
+    if module_name:
+        ss["calc_module_name"] = str(module_name)
+        applied.append("module_name")
+
+    return applied
 
 
 # --- СПРАВОЧНИКИ ---
@@ -987,6 +1151,93 @@ if _load_clicked and _saved_session_names:
         else:
             st.session_state["_session_payload_to_apply"] = _data
             st.rerun()
+
+st.sidebar.markdown("---")
+st.sidebar.header("📥 Входящие заявки")
+_incoming_apply_clicked = False
+_incoming_delete_clicked = False
+_incoming_files = _list_incoming_requests()
+with _incoming_requests_panel():
+    st.markdown(
+        '<p style="margin:0 0 10px 0;color:#94a3b8;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;">'
+        "JSON из Make/Webhook</p>",
+        unsafe_allow_html=True,
+    )
+    if _incoming_files:
+        _incoming_labels = [p.name for p in _incoming_files]
+        if (
+            "calc_incoming_pick" not in st.session_state
+            or st.session_state.calc_incoming_pick not in _incoming_labels
+        ):
+            st.session_state.calc_incoming_pick = _incoming_labels[0]
+        st.radio(
+            "Выберите заявку",
+            _incoming_labels,
+            key="calc_incoming_pick",
+            label_visibility="collapsed",
+        )
+
+        _picked_file = INCOMING_REQUESTS_DIR / st.session_state.calc_incoming_pick
+        _incoming_payload, _incoming_err = _load_incoming_request(_picked_file)
+        if _incoming_err:
+            st.caption(f"Ошибка чтения: {_incoming_err}")
+        elif _incoming_payload is not None:
+            _req_id = (
+                _incoming_payload.get("request_id")
+                or _incoming_payload.get("id")
+                or _incoming_payload.get("lead_id")
+                or "—"
+            )
+            _project = (
+                _incoming_payload.get("project_name")
+                or _incoming_payload.get("project")
+                or _incoming_payload.get("client")
+                or "—"
+            )
+            st.caption(f"ID: {_req_id} · Проект: {_project}")
+            _preview_json = json.dumps(_incoming_payload, ensure_ascii=False, indent=2)
+            st.code(_preview_json[:1200], language="json")
+
+        _in_col_apply, _in_col_del = st.columns(2)
+        with _in_col_apply:
+            _incoming_apply_clicked = st.button(
+                "В расчёт",
+                key="calc_incoming_btn_apply",
+                use_container_width=True,
+            )
+        with _in_col_del:
+            _incoming_delete_clicked = st.button(
+                "Удалить",
+                key="calc_incoming_btn_delete",
+                use_container_width=True,
+            )
+    else:
+        st.caption("Нет входящих заявок — отправьте JSON на webhook.")
+
+if _incoming_delete_clicked and _incoming_files:
+    _to_del = INCOMING_REQUESTS_DIR / st.session_state.get("calc_incoming_pick", "")
+    if _to_del.is_file():
+        try:
+            _to_del.unlink()
+            st.session_state.pop("calc_incoming_pick", None)
+            st.sidebar.success("Заявка удалена")
+            st.rerun()
+        except OSError as e:
+            st.sidebar.error(str(e))
+
+if _incoming_apply_clicked and _incoming_files:
+    _picked = INCOMING_REQUESTS_DIR / st.session_state.get("calc_incoming_pick", "")
+    _incoming_payload, _incoming_err = _load_incoming_request(_picked)
+    if _incoming_err:
+        st.sidebar.error(_incoming_err)
+    elif _incoming_payload is not None:
+        _applied_keys = apply_incoming_request_to_state(_incoming_payload)
+        coerce_session_object_references()
+        st.session_state._prev_quick_size_label = st.session_state.get(
+            "calc_quick_size_label", _pop16_keys[3]
+        )
+        st.sidebar.success(f"Загружено полей: {len(set(_applied_keys))}")
+        st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.header("💵 Финансы")
