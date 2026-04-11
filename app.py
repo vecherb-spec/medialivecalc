@@ -820,6 +820,13 @@ def _to_float(v, default: float) -> float:
         return default
 
 
+def _round_to_step(v, step: int, minimum: int, default: int) -> int:
+    value = max(minimum, _to_int(v, default))
+    lower = max(minimum, (value // step) * step)
+    upper = max(minimum, ((value + step - 1) // step) * step)
+    return lower if abs(value - lower) <= abs(upper - value) else upper
+
+
 def apply_incoming_request_to_state(payload: dict) -> list[str]:
     payload = _extract_state_from_payload(payload)
     ss = st.session_state
@@ -830,6 +837,10 @@ def apply_incoming_request_to_state(payload: dict) -> list[str]:
         if key in payload:
             ss[key] = payload[key]
             applied.append(key)
+    if "width_input" in ss:
+        ss["width_input"] = _round_to_step(ss["width_input"], 320, 320, 3840)
+    if "height_mm" in ss:
+        ss["height_mm"] = _round_to_step(ss["height_mm"], 160, 160, 2240)
 
     project_name = payload.get("project_name") or payload.get("project")
     if project_name:
@@ -842,12 +853,16 @@ def apply_incoming_request_to_state(payload: dict) -> list[str]:
         applied.append("client")
 
     width = payload.get("width_mm")
+    if width is None:
+        width = payload.get("width")
     if width is not None:
-        ss["width_input"] = max(320, _to_int(width, 3840))
+        ss["width_input"] = _round_to_step(width, 320, 320, 3840)
         applied.append("width_mm")
     height = payload.get("height_mm")
+    if height is None:
+        height = payload.get("height")
     if height is not None:
-        ss["height_mm"] = max(160, _to_int(height, 2240))
+        ss["height_mm"] = _round_to_step(height, 160, 160, 2240)
         applied.append("height_mm")
 
     env = payload.get("env") or payload.get("environment")
