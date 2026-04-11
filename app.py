@@ -1045,6 +1045,18 @@ if "_session_payload_to_apply" in st.session_state:
     )
     st.rerun()
 
+if "_incoming_payload_to_apply" in st.session_state:
+    _incoming_payload = st.session_state.pop("_incoming_payload_to_apply")
+    _applied_keys = apply_incoming_request_to_state(_incoming_payload)
+    coerce_session_object_references()
+    st.session_state._prev_quick_size_label = st.session_state.get(
+        "calc_quick_size_label", _pop16_keys[3]
+    )
+    st.session_state["_incoming_apply_success_msg"] = (
+        f"Загружено полей: {len(set(_applied_keys))}"
+    )
+    st.rerun()
+
 def fit_ratio(ratio):
     ideal = st.session_state.width_input / ratio
     lower = math.floor(ideal / 160) * 160
@@ -1154,6 +1166,9 @@ if _load_clicked and _saved_session_names:
 
 st.sidebar.markdown("---")
 st.sidebar.header("📥 Входящие заявки")
+_incoming_success_msg = st.session_state.pop("_incoming_apply_success_msg", None)
+if _incoming_success_msg:
+    st.sidebar.success(_incoming_success_msg)
 _incoming_apply_clicked = False
 _incoming_delete_clicked = False
 _incoming_files = _list_incoming_requests()
@@ -1231,12 +1246,7 @@ if _incoming_apply_clicked and _incoming_files:
     if _incoming_err:
         st.sidebar.error(_incoming_err)
     elif _incoming_payload is not None:
-        _applied_keys = apply_incoming_request_to_state(_incoming_payload)
-        coerce_session_object_references()
-        st.session_state._prev_quick_size_label = st.session_state.get(
-            "calc_quick_size_label", _pop16_keys[3]
-        )
-        st.sidebar.success(f"Загружено полей: {len(set(_applied_keys))}")
+        st.session_state["_incoming_payload_to_apply"] = _incoming_payload
         st.rerun()
 
 st.sidebar.markdown("---")
