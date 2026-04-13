@@ -146,21 +146,25 @@ def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> tuple[bool,
         area = f"{(w_float * h_float) / 1_000_000:.2f} м²"
 
     lines = [
-        "🆕 <b>Новая заявка Medialive</b>",
+        "🆕 <b>НОВАЯ ЗАЯВКА MEDIALIVE</b>",
+        "━━━━━━━━━━━━━━━━━━━━",
         "",
-        f"👤 <b>Клиент:</b> {_escape_html(client_name)}",
-        f"📞 <b>Контакт:</b> {contact_html}",
-        f"🏙️ <b>Город:</b> {_escape_html(city)}",
+        "👤 <b>КОНТАКТ</b>",
+        f"• Имя: <b>{_escape_html(client_name)}</b>",
+        f"• Связь: {contact_html}",
+        f"• Город: {_escape_html(city)}",
         "",
-        f"🖥️ <b>Экран:</b> {_escape_html(screen_type)} / {_escape_html(subtype)}",
-        f"📐 <b>Размер:</b> {_escape_html(size)}",
-        f"📊 <b>Площадь:</b> {_escape_html(area)}",
-        f"🔎 <b>Шаг пикселя:</b> {_escape_html(pixel)}",
-        f"🛠️ <b>Монтаж:</b> {_escape_html(installation)}",
+        "🖥️ <b>ПАРАМЕТРЫ ЭКРАНА</b>",
+        f"• Тип: {_escape_html(screen_type)} / {_escape_html(subtype)}",
+        f"• Размер: <b>{_escape_html(size)}</b>",
+        f"• Площадь: <b>{_escape_html(area)}</b>",
+        f"• Шаг пикселя: {_escape_html(pixel)}",
+        f"• Монтаж: {_escape_html(installation)}",
         "",
-        f"🆔 <b>ID:</b> <code>{_escape_html(req_id)}</code>",
-        f"📡 <b>Источник:</b> {_escape_html(source)}",
-        f"🕒 <b>Время:</b> {_escape_html(_to_text(record.get('received_at')))}",
+        "📌 <b>СЛУЖЕБНО</b>",
+        f"• ID: <code>{_escape_html(req_id)}</code>",
+        f"• Источник: {_escape_html(source)}",
+        f"• Время: {_escape_html(_to_text(record.get('received_at')))}",
     ]
     text = "\n".join(lines)
     plain_text = (
@@ -181,11 +185,17 @@ def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> tuple[bool,
         f"Время: {_to_text(record.get('received_at'))}"
     )
 
+    calc_url = _to_text(os.environ.get("TELEGRAM_CALC_URL")) or "https://calc.medialive.ru"
     body: dict[str, Any] = {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
+        "reply_markup": {
+            "inline_keyboard": [
+                [{"text": "🧮 Открыть калькулятор", "url": calc_url}],
+            ]
+        },
     }
     thread_id = _to_text(os.environ.get("TELEGRAM_THREAD_ID"))
     if thread_id:
