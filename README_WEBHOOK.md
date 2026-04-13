@@ -151,7 +151,7 @@ sudo systemctl status medialive-webhook --no-pager -l
 ## Поддерживаемые поля (основные)
 
 - `project_name` / `project`
-- `client_name` / `client`
+- `name` / `client_name` / `client`
 - `width_mm`, `height_mm`
 - `env` (`Indoor`/`Outdoor`)
 - `mount_type` (`Монолитный (Магниты/Профиль)` / `В кабинетах`)

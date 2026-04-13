@@ -405,6 +405,7 @@
       heightM: "",
       pixelPitch: "",
       installation: "",
+      clientName: "",
       city: "",
       comment: "",
       contactMethod: "Телефон",
@@ -541,12 +542,15 @@
       const showPixel = state.submitted || state.step >= 3;
       const showSize = state.submitted || state.step >= 4;
       const showInstallation = state.submitted || state.step >= 5;
+      const showContacts = state.submitted || state.step >= 6;
       const pitchDistance = extractPitchMeters(state.pixelPitch);
       const distance = showPixel && pitchDistance ? `от ${pitchDistance} м` : "—";
       const sizeLabel = showSize ? size.size : "—";
       const areaLabel = showSize ? size.area : "—";
       const pitchLabel = showPixel ? (state.pixelPitch || "—") : "—";
       const installLabel = showInstallation ? (state.installation || "—") : "—";
+      const nameLabel = showContacts ? (state.clientName || "—") : "—";
+      const contactLabel = showContacts ? contact : "—";
       livePreview.innerHTML = `
         <h3>Live preview заявки</h3>
         <ul class="preview-list">
@@ -557,8 +561,9 @@
           <li><span class="preview-k">Шаг пикселя</span><span class="preview-v">${escapeHtml(pitchLabel)}</span></li>
           <li><span class="preview-k">Дистанция</span><span class="preview-v">${escapeHtml(distance)}</span></li>
           <li><span class="preview-k">Монтаж</span><span class="preview-v">${escapeHtml(installLabel)}</span></li>
+          <li><span class="preview-k">Имя</span><span class="preview-v">${escapeHtml(nameLabel)}</span></li>
           <li><span class="preview-k">Город</span><span class="preview-v">${escapeHtml(state.city || "—")}</span></li>
-          <li><span class="preview-k">Контакт</span><span class="preview-v">${escapeHtml(contact)}</span></li>
+          <li><span class="preview-k">Контакт</span><span class="preview-v">${escapeHtml(contactLabel)}</span></li>
         </ul>
         <p class="preview-note">Подсказка: минимальная комфортная дистанция обзора обычно близка к значению P в метрах.</p>
       `;
@@ -819,12 +824,16 @@
       const currentContact = state.contactValues[state.contactMethod] || "";
       fields.innerHTML = `
         <div class="field">
-          <label for="city">Город</label>
-          <input id="city" type="text" value="${escapeHtml(state.city)}" placeholder="Например, Челябинск" />
+          <label for="clientName">Имя</label>
+          <input id="clientName" type="text" value="${escapeHtml(state.clientName)}" placeholder="Как к вам обращаться" />
         </div>
         <div class="field">
           <label>${contactValueLabel()}</label>
           <input id="contactValue" type="text" value="${escapeHtml(currentContact)}" placeholder="${escapeHtml(contactPlaceholder())}" />
+        </div>
+        <div class="field">
+          <label for="city">Город</label>
+          <input id="city" type="text" value="${escapeHtml(state.city)}" placeholder="Например, Челябинск" />
         </div>
         <div class="field full">
           <label>Способ связи</label>
@@ -847,6 +856,11 @@
         })
       );
 
+      fields.querySelector("#clientName").addEventListener("input", (e) => {
+        state.clientName = e.target.value;
+        persistState();
+        renderLivePreview();
+      });
       fields.querySelector("#city").addEventListener("input", (e) => {
         state.city = e.target.value;
         persistState();
@@ -887,6 +901,7 @@
       }
       if (step === 5 && !state.installation) return "Выберите вариант монтажа.";
       if (step === 6) {
+        if (!state.clientName.trim()) return "Введите имя.";
         if (!state.city.trim()) return "Введите город.";
         const contact = (state.contactValues[state.contactMethod] || "").trim();
         if (!contact) return "Укажите контакт для связи.";
@@ -907,6 +922,7 @@
       const heightMm = isRental
         ? Math.max(1, Math.round(Number(state.heightM || 0) * 1000))
         : roundToStep(Number(state.heightMm || 0), 160, 160);
+      const clientName = state.clientName.trim();
       const contactValue = (state.contactValues[state.contactMethod] || "").trim();
       const messengerMap = {
         "Телефон": "mobile",
@@ -922,7 +938,8 @@
       const payload = {
         request_id: `lead-${Date.now()}`,
         project_name: formatProjectName(widthMm, heightMm),
-        client_name: contactValue,
+        client_name: clientName || contactValue,
+        name: clientName || "",
         city: state.city.trim(),
         type: state.screenType,
         subtype: state.subtype,

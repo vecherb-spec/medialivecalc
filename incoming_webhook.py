@@ -51,6 +51,45 @@ def _escape_html(text: str) -> str:
     )
 
 
+def _extract_phone(raw: str) -> str:
+    phone = re.sub(r"[^\d+]", "", raw or "")
+    if phone.startswith("8") and len(phone) == 11:
+        phone = "+7" + phone[1:]
+    return phone
+
+
+def _contact_html(contact_method: str, contact_value: str) -> str:
+    method = (contact_method or "").strip().lower()
+    value = (contact_value or "").strip()
+    escaped = _escape_html(value)
+    if not value:
+        return "—"
+
+    if "email" in method and "@" in value:
+        return f'<a href="mailto:{escaped}">{escaped}</a>'
+
+    if "telegram" in method:
+        username = value.lstrip("@")
+        if re.fullmatch(r"[A-Za-z0-9_]{4,}", username):
+            safe_user = _escape_html(username)
+            return f'<a href="https://t.me/{safe_user}">@{safe_user}</a>'
+
+    if any(x in method for x in ("телефон", "звонок", "whatsapp", "mobile")):
+        phone = _extract_phone(value)
+        if phone:
+            safe_phone = _escape_html(phone)
+            return f'<a href="tel:{safe_phone}">{escaped}</a>'
+
+    return escaped
+
+
+def _as_float(v: Any) -> float | None:
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def _telegram_send_message(token: str, body: dict[str, Any]) -> tuple[bool, str]:
     req = urllib.request.Request(
         url=f"https://api.telegram.org/bot{token}/sendMessage",
@@ -84,6 +123,9 @@ def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> tuple[bool,
 
     req_id = _to_text(payload.get("request_id") or payload.get("id") or payload.get("lead_id")) or "—"
     project = _to_text(payload.get("project_name") or payload.get("project")) or "—"
+    client_name = _to_text(
+        payload.get("client_name") or payload.get("name") or payload.get("client")
+    ) or "—"
     city = _to_text(payload.get("city")) or "—"
     screen_type = _to_text(payload.get("type") or payload.get("screenType")) or "—"
     subtype = _to_text(payload.get("subtype")) or "—"
@@ -91,33 +133,51 @@ def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> tuple[bool,
     installation = _to_text(payload.get("installation_choice") or payload.get("installation_note")) or "—"
     contact_method = _to_text(payload.get("contact_method")) or "—"
     contact_value = _to_text(payload.get("contact_value") or payload.get("phone") or payload.get("client_name")) or "—"
+    contact_html = _contact_html(contact_method, contact_value)
     width = _to_text(payload.get("width_mm"))
     height = _to_text(payload.get("height_mm"))
     size = f"{width}×{height} мм" if width and height else "—"
+    source = _to_text(payload.get("source") or payload.get("lead_source")) or "quiz/webhook"
+
+    area = "—"
+    w_float = _as_float(payload.get("width_mm"))
+    h_float = _as_float(payload.get("height_mm"))
+    if w_float and h_float and w_float > 0 and h_float > 0:
+        area = f"{(w_float * h_float) / 1_000_000:.2f} м²"
 
     lines = [
-        "📥 <b>Новая заявка LED</b>",
-        f"ID: <code>{_escape_html(req_id)}</code>",
-        f"Проект: <b>{_escape_html(project)}</b>",
-        f"Город: {_escape_html(city)}",
-        f"Тип: {_escape_html(screen_type)} / {_escape_html(subtype)}",
-        f"Размер: {_escape_html(size)}",
-        f"Шаг пикселя: {_escape_html(pixel)}",
-        f"Монтаж: {_escape_html(installation)}",
-        f"Контакт: {_escape_html(contact_method)} — <b>{_escape_html(contact_value)}</b>",
-        f"Время: {_escape_html(_to_text(record.get('received_at')))}",
+        "🆕 <b>Новая заявка Medialive</b>",
+        "",
+        f"👤 <b>Клиент:</b> {_escape_html(client_name)}",
+        f"📞 <b>Контакт:</b> {contact_html}",
+        f"🏙️ <b>Город:</b> {_escape_html(city)}",
+        "",
+        f"🖥️ <b>Экран:</b> {_escape_html(screen_type)} / {_escape_html(subtype)}",
+        f"📐 <b>Размер:</b> {_escape_html(size)}",
+        f"📊 <b>Площадь:</b> {_escape_html(area)}",
+        f"🔎 <b>Шаг пикселя:</b> {_escape_html(pixel)}",
+        f"🛠️ <b>Монтаж:</b> {_escape_html(installation)}",
+        "",
+        f"🆔 <b>ID:</b> <code>{_escape_html(req_id)}</code>",
+        f"📡 <b>Источник:</b> {_escape_html(source)}",
+        f"🕒 <b>Время:</b> {_escape_html(_to_text(record.get('received_at')))}",
     ]
     text = "\n".join(lines)
     plain_text = (
-        "Новая заявка LED\n"
-        f"ID: {req_id}\n"
-        f"Проект: {project}\n"
+        "Новая заявка Medialive\n"
+        f"Клиент: {client_name}\n"
+        f"Контакт: {contact_method} — {contact_value}\n"
         f"Город: {city}\n"
-        f"Тип: {screen_type} / {subtype}\n"
+        "\n"
+        f"Экран: {screen_type} / {subtype}\n"
         f"Размер: {size}\n"
+        f"Площадь: {area}\n"
         f"Шаг пикселя: {pixel}\n"
         f"Монтаж: {installation}\n"
-        f"Контакт: {contact_method} — {contact_value}\n"
+        "\n"
+        f"ID: {req_id}\n"
+        f"Проект: {project}\n"
+        f"Источник: {source}\n"
         f"Время: {_to_text(record.get('received_at'))}"
     )
 
