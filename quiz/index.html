@@ -331,7 +331,8 @@
   <script>
     const STEP_TOTAL = 6;
     const STORAGE_KEY = "medialive-quiz-state-v1";
-    const WEBHOOK_URL = window.MEDIALIVE_WEBHOOK_URL || "https://calc.medialive.ru/incoming";
+    const DEFAULT_WEBHOOK_URL = "https://calc.medialive.ru/incoming";
+    const WEBHOOK_URL = window.MEDIALIVE_WEBHOOK_URL || DEFAULT_WEBHOOK_URL;
     const STEP_TITLES = {
       1: "Тип экрана",
       2: "Тип исполнения",
@@ -561,6 +562,11 @@
         </ul>
         <p class="preview-note">Подсказка: минимальная комфортная дистанция обзора обычно близка к значению P в метрах.</p>
       `;
+    }
+
+    function webhookCandidates() {
+      const urls = [WEBHOOK_URL, "/incoming", DEFAULT_WEBHOOK_URL];
+      return [...new Set(urls.filter(Boolean))];
     }
 
     function applyDefaultDimensionsByType(type) {
@@ -954,14 +960,29 @@
       persistState();
       try {
         const payload = buildPayload();
-        const resp = await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data.ok) {
-          throw new Error(data.error || `HTTP ${resp.status}`);
+        let delivered = false;
+        let lastError = null;
+
+        for (const endpoint of webhookCandidates()) {
+          try {
+            const resp = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.ok) {
+              throw new Error(data.error || `HTTP ${resp.status}`);
+            }
+            delivered = true;
+            break;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        if (!delivered) {
+          throw (lastError || new Error("delivery_failed"));
         }
         state.requestId = payload.request_id;
         state.submitted = true;
