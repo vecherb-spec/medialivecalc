@@ -9,11 +9,18 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, make_response, request, send_from_directory
 
 APP = Flask(__name__)
 BASE_DIR = Path(__file__).resolve().parent
 INCOMING_DIR = BASE_DIR / "incoming_requests"
+QUIZ_DIR = BASE_DIR / "quiz"
+ALLOWED_ORIGINS = {
+    "https://medialive.ru",
+    "https://www.medialive.ru",
+    "https://calc.medialive.ru",
+    "https://quiz.medialive.ru",
+}
 
 
 def _safe_part(value: str) -> str:
@@ -28,16 +35,40 @@ def _normalize_payload(payload: Any) -> dict:
     return {"raw_payload": payload}
 
 
+def _with_cors(resp):
+    origin = request.headers.get("Origin", "")
+    if origin in ALLOWED_ORIGINS:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    return resp
+
+
 @APP.route("/health", methods=["GET"])
 def health():
     return jsonify({"ok": True})
 
 
-@APP.route("/incoming", methods=["POST"])
+@APP.route("/quiz", methods=["GET"])
+@APP.route("/quiz/", methods=["GET"])
+def quiz_page():
+    return send_from_directory(QUIZ_DIR, "index.html")
+
+
+@APP.route("/quiz/<path:filename>", methods=["GET"])
+def quiz_assets(filename: str):
+    return send_from_directory(QUIZ_DIR, filename)
+
+
+@APP.route("/incoming", methods=["POST", "OPTIONS"])
 def incoming():
+    if request.method == "OPTIONS":
+        return _with_cors(make_response("", 204))
+
     payload = request.get_json(silent=True)
     if payload is None:
-        return jsonify({"ok": False, "error": "invalid_or_empty_json"}), 400
+        return _with_cors(jsonify({"ok": False, "error": "invalid_or_empty_json"})), 400
 
     normalized = _normalize_payload(payload)
     record = {
@@ -77,12 +108,14 @@ def incoming():
         encoding="utf-8",
     )
 
-    return jsonify(
-        {
-            "ok": True,
-            "saved_to": str(target_path),
-            "received_at": record["received_at"],
-        }
+    return _with_cors(
+        jsonify(
+            {
+                "ok": True,
+                "saved_to": str(target_path),
+                "received_at": record["received_at"],
+            }
+        )
     )
 
 

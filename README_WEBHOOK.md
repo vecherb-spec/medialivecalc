@@ -1,6 +1,9 @@
 # Webhook для входящих заявок в калькулятор
 
-Этот проект теперь умеет принимать JSON-заявки и загружать их в интерфейс калькулятора.
+Этот проект умеет:
+
+- принимать JSON-заявки и загружать их в интерфейс калькулятора;
+- отдавать готовую страницу квиза (`/quiz`) для встраивания на сайт.
 
 ## 1) Запуск webhook-сервиса
 
@@ -12,8 +15,26 @@ python incoming_webhook.py
 
 - `GET /health` — проверка, что сервис работает
 - `POST /incoming` — приём JSON-заявки
+- `GET /quiz` — страница квиза (frontend)
 
 Файлы заявок сохраняются в папку `incoming_requests/` рядом с `app.py`.
+
+## 1.1) Встраиваемый квиз
+
+Готовый квиз лежит в `quiz/index.html` и отдается Flask-роутом:
+
+- `http://<ваш-сервер>:8787/quiz`
+
+Поддержано:
+
+- пошаговая форма (6 шагов),
+- кнопки "Назад"/"Далее",
+- progress bar,
+- зависимые шаги (ветвление),
+- сохранение состояния при переходах и перезагрузке (localStorage),
+- адаптивная верстка под мобильные.
+
+> Размеры на шаге "Размеры" для непрокатных экранов автоматически округляются до ближайших значений, кратных `320x160 мм`.
 
 ## 2) Пример запроса
 
@@ -53,6 +74,42 @@ curl -X POST "http://localhost:8787/incoming" \
 - блок **«📥 Входящие заявки»**
 - выбрать заявку
 - кнопка **«В расчёт»** — подставляет значения в форму.
+
+## 4) Встройка квиза в Tilda (iframe)
+
+Рекомендуемый способ — iframe в HTML-блоке Tilda:
+
+```html
+<iframe
+  src="https://calc.medialive.ru/quiz"
+  style="width:100%;height:820px;border:0;border-radius:12px;"
+  loading="lazy">
+</iframe>
+```
+
+### Nginx (важно)
+
+Чтобы маршрут `/quiz` шел в Flask webhook-сервис, добавьте в конфиг сайта:
+
+```nginx
+location /quiz {
+    proxy_pass http://127.0.0.1:8787/quiz;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+```
+
+Если нужны ассеты `/quiz/...`, удобнее сделать:
+
+```nginx
+location /quiz/ {
+    proxy_pass http://127.0.0.1:8787/quiz/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+```
 
 ## Поддерживаемые поля (основные)
 
