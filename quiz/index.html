@@ -335,16 +335,16 @@
     const STEP_TITLES = {
       1: "Тип экрана",
       2: "Тип исполнения",
-      3: "Размеры",
-      4: "Шаг пикселя",
+      3: "Шаг пикселя",
+      4: "Размеры",
       5: "Монтаж",
       6: "Контакты"
     };
     const STEP_HINTS = {
       1: "Выберите формат проекта. Это влияет на доступные варианты конструкции.",
       2: "Покажем только релевантные варианты для выбранного типа.",
-      3: "Для точного расчёта используем реальные размеры будущего экрана.",
-      4: "Минимальная дистанция просмотра обычно близка к значению шага пикселя (в метрах).",
+      3: "Минимальная дистанция просмотра обычно близка к значению шага пикселя (в метрах).",
+      4: "Для точного расчёта используем реальные размеры будущего экрана.",
       5: "Выберите вариант работы монтажной команды.",
       6: "Оставьте контакт и город — менеджер пришлёт расчёт и КП."
     };
@@ -537,18 +537,25 @@
     function renderLivePreview() {
       const size = currentSizeInfo();
       const contact = (state.contactValues[state.contactMethod] || "").trim() || "—";
+      const showPixel = state.submitted || state.step >= 3;
+      const showSize = state.submitted || state.step >= 4;
+      const showInstallation = state.submitted || state.step >= 5;
       const pitchDistance = extractPitchMeters(state.pixelPitch);
-      const distance = pitchDistance ? `от ${pitchDistance} м` : "—";
+      const distance = showPixel && pitchDistance ? `от ${pitchDistance} м` : "—";
+      const sizeLabel = showSize ? size.size : "—";
+      const areaLabel = showSize ? size.area : "—";
+      const pitchLabel = showPixel ? (state.pixelPitch || "—") : "—";
+      const installLabel = showInstallation ? (state.installation || "—") : "—";
       livePreview.innerHTML = `
         <h3>Live preview заявки</h3>
         <ul class="preview-list">
           <li><span class="preview-k">Тип</span><span class="preview-v">${escapeHtml(state.screenType || "—")}</span></li>
           <li><span class="preview-k">Исполнение</span><span class="preview-v">${escapeHtml(state.subtype || "—")}</span></li>
-          <li><span class="preview-k">Размер</span><span class="preview-v">${escapeHtml(size.size)}</span></li>
-          <li><span class="preview-k">Площадь</span><span class="preview-v">${escapeHtml(size.area)}</span></li>
-          <li><span class="preview-k">Шаг пикселя</span><span class="preview-v">${escapeHtml(state.pixelPitch || "—")}</span></li>
+          <li><span class="preview-k">Размер</span><span class="preview-v">${escapeHtml(sizeLabel)}</span></li>
+          <li><span class="preview-k">Площадь</span><span class="preview-v">${escapeHtml(areaLabel)}</span></li>
+          <li><span class="preview-k">Шаг пикселя</span><span class="preview-v">${escapeHtml(pitchLabel)}</span></li>
           <li><span class="preview-k">Дистанция</span><span class="preview-v">${escapeHtml(distance)}</span></li>
-          <li><span class="preview-k">Монтаж</span><span class="preview-v">${escapeHtml(state.installation || "—")}</span></li>
+          <li><span class="preview-k">Монтаж</span><span class="preview-v">${escapeHtml(installLabel)}</span></li>
           <li><span class="preview-k">Город</span><span class="preview-v">${escapeHtml(state.city || "—")}</span></li>
           <li><span class="preview-k">Контакт</span><span class="preview-v">${escapeHtml(contact)}</span></li>
         </ul>
@@ -853,7 +860,8 @@
     function validateStep(step) {
       if (step === 1 && !state.screenType) return "Выберите тип экрана.";
       if (step === 2 && !state.subtype) return "Выберите тип исполнения.";
-      if (step === 3) {
+      if (step === 3 && !state.pixelPitch) return "Выберите шаг пикселя.";
+      if (step === 4) {
         if (state.screenType === "Прокатный") {
           const w = Number(state.widthM);
           const h = Number(state.heightM);
@@ -871,7 +879,6 @@
           persistState();
         }
       }
-      if (step === 4 && !state.pixelPitch) return "Выберите шаг пикселя.";
       if (step === 5 && !state.installation) return "Выберите вариант монтажа.";
       if (step === 6) {
         if (!state.city.trim()) return "Введите город.";
@@ -1021,8 +1028,8 @@
 
       if (state.step === 1) renderStep1();
       if (state.step === 2) renderStep2();
-      if (state.step === 3) renderStep3();
-      if (state.step === 4) renderStep4();
+      if (state.step === 3) renderStep4();
+      if (state.step === 4) renderStep3();
       if (state.step === 5) renderStep5();
       if (state.step === 6) renderStep6();
       renderLivePreview();
