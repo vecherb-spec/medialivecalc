@@ -124,7 +124,7 @@
       font-size: 13px;
       color: var(--muted);
     }
-    input, textarea {
+    input:not([type="range"]), textarea {
       width: 100%;
       border: 1px solid #2a3a4e;
       border-radius: 10px;
@@ -134,9 +134,38 @@
       outline: none;
       font-size: 15px;
     }
-    input:focus, textarea:focus {
+    input:not([type="range"]):focus, textarea:focus {
       border-color: #2b90c7;
       box-shadow: 0 0 0 2px #2b90c733;
+    }
+    input[type="range"] {
+      width: 100%;
+      appearance: none;
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid #2a3a4e;
+      background: #111f32;
+      outline: none;
+      margin: 8px 0 4px 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid #065f88;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 0 3px #38bdf833;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid #065f88;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 0 3px #38bdf833;
     }
     textarea {
       resize: vertical;
@@ -289,6 +318,13 @@
     ];
     const INSTALL_OPTIONS = ["Под ключ", "Шеф-монтаж", "Без монтажа"];
     const CONTACT_METHODS = ["Телефон", "Telegram", "WhatsApp", "Email", "Звонок"];
+    const DEFAULT_DIMENSIONS = {
+      "Уличный": { widthMm: 5760, heightMm: 2880 },
+      "Интерьерный": { widthMm: 5120, heightMm: 3040 },
+      "Пилон": { widthMm: 960, heightMm: 1920 },
+      "В окно": { widthMm: 960, heightMm: 1280 },
+      "Прокатный": { widthM: 5, heightM: 3 }
+    };
 
     const defaultState = {
       step: 1,
@@ -398,6 +434,39 @@
       return Math.max(minValue, rounded);
     }
 
+    function formatMeters(value) {
+      return (Math.round(Number(value) * 10) / 10).toFixed(1);
+    }
+
+    function applyDefaultDimensionsByType(type) {
+      const defaults = DEFAULT_DIMENSIONS[type];
+      if (!defaults) return;
+      if (type === "Прокатный") {
+        state.widthM = String(defaults.widthM);
+        state.heightM = String(defaults.heightM);
+        state.widthMm = "";
+        state.heightMm = "";
+        return;
+      }
+      state.widthMm = String(defaults.widthMm);
+      state.heightMm = String(defaults.heightMm);
+      state.widthM = "";
+      state.heightM = "";
+    }
+
+    function ensureDimensionsInitialized() {
+      if (!state.screenType) return;
+      const defaults = DEFAULT_DIMENSIONS[state.screenType];
+      if (!defaults) return;
+      if (state.screenType === "Прокатный") {
+        if (!(Number(state.widthM) > 0)) state.widthM = String(defaults.widthM);
+        if (!(Number(state.heightM) > 0)) state.heightM = String(defaults.heightM);
+        return;
+      }
+      if (!(Number(state.widthMm) > 0)) state.widthMm = String(defaults.widthMm);
+      if (!(Number(state.heightMm) > 0)) state.heightMm = String(defaults.heightMm);
+    }
+
     function escapeHtml(value) {
       return String(value || "")
         .replace(/&/g, "&amp;")
@@ -436,13 +505,7 @@
           state.screenType = value;
           state.subtype = "";
           state.pixelPitch = "";
-          if (value === "Прокатный") {
-            state.widthMm = "";
-            state.heightMm = "";
-          } else {
-            state.widthM = "";
-            state.heightM = "";
-          }
+          applyDefaultDimensionsByType(value);
           persistState();
           render();
         })
@@ -469,51 +532,56 @@
       const fields = document.createElement("div");
       fields.className = "fields";
       const isRental = state.screenType === "Прокатный";
+      ensureDimensionsInitialized();
 
       if (isRental) {
+        const widthMValue = Math.max(1, Number(state.widthM || 5));
+        const heightMValue = Math.max(1, Number(state.heightM || 3));
         fields.innerHTML = `
           <div class="field">
-            <label for="widthM">Ширина, м</label>
-            <input id="widthM" type="number" min="0.1" step="0.1" value="${escapeHtml(state.widthM)}" />
+            <label for="widthM">Ширина, м (бегунок)</label>
+            <input id="widthM" type="range" min="1" max="20" step="0.1" value="${escapeHtml(widthMValue)}" />
+            <p id="widthMValue" class="mini-note ok"><strong>${formatMeters(widthMValue)} м</strong> (${Math.round(widthMValue * 1000)} мм)</p>
           </div>
           <div class="field">
-            <label for="heightM">Высота, м</label>
-            <input id="heightM" type="number" min="0.1" step="0.1" value="${escapeHtml(state.heightM)}" />
+            <label for="heightM">Высота, м (бегунок)</label>
+            <input id="heightM" type="range" min="1" max="12" step="0.1" value="${escapeHtml(heightMValue)}" />
+            <p id="heightMValue" class="mini-note ok"><strong>${formatMeters(heightMValue)} м</strong> (${Math.round(heightMValue * 1000)} мм)</p>
           </div>
           <p class="mini-note full">Для прокатных экранов размер вводится в метрах.</p>
         `;
         wrap.appendChild(fields);
         stepContent.replaceChildren(wrap);
         fields.querySelector("#widthM").addEventListener("input", (e) => {
-          state.widthM = e.target.value;
+          const value = Number(e.target.value || 0);
+          state.widthM = String(value);
+          fields.querySelector("#widthMValue").innerHTML = `<strong>${formatMeters(value)} м</strong> (${Math.round(value * 1000)} мм)`;
           persistState();
         });
         fields.querySelector("#heightM").addEventListener("input", (e) => {
-          state.heightM = e.target.value;
+          const value = Number(e.target.value || 0);
+          state.heightM = String(value);
+          fields.querySelector("#heightMValue").innerHTML = `<strong>${formatMeters(value)} м</strong> (${Math.round(value * 1000)} мм)`;
           persistState();
         });
         return;
       }
 
-      const widthValue = Number(state.widthMm || 0);
-      const heightValue = Number(state.heightMm || 0);
-      const roundedWidth = widthValue ? roundToStep(widthValue, 320, 320) : 320;
-      const roundedHeight = heightValue ? roundToStep(heightValue, 160, 160) : 160;
+      const widthValue = roundToStep(Number(state.widthMm || 0), 320, 320);
+      const heightValue = roundToStep(Number(state.heightMm || 0), 160, 160);
+      state.widthMm = String(widthValue);
+      state.heightMm = String(heightValue);
 
       fields.innerHTML = `
         <div class="field">
-          <label for="widthMm">Ширина, мм (шаг 320)</label>
-          <input id="widthMm" type="number" min="320" step="10" value="${escapeHtml(state.widthMm)}" />
-          <p id="widthHint" class="mini-note ${widthValue && widthValue !== roundedWidth ? "ok" : ""}">
-            ${widthValue ? `Будет округлено до ${roundedWidth} мм` : "Округление до ближайшего значения кратного 320."}
-          </p>
+          <label for="widthMm">Ширина, мм (бегунок · шаг 320)</label>
+          <input id="widthMm" type="range" min="320" max="15360" step="320" value="${escapeHtml(widthValue)}" />
+          <p id="widthHint" class="mini-note ok"><strong>${widthValue} мм</strong></p>
         </div>
         <div class="field">
-          <label for="heightMm">Высота, мм (шаг 160)</label>
-          <input id="heightMm" type="number" min="160" step="10" value="${escapeHtml(state.heightMm)}" />
-          <p id="heightHint" class="mini-note ${heightValue && heightValue !== roundedHeight ? "ok" : ""}">
-            ${heightValue ? `Будет округлено до ${roundedHeight} мм` : "Округление до ближайшего значения кратного 160."}
-          </p>
+          <label for="heightMm">Высота, мм (бегунок · шаг 160)</label>
+          <input id="heightMm" type="range" min="160" max="8640" step="160" value="${escapeHtml(heightValue)}" />
+          <p id="heightHint" class="mini-note ok"><strong>${heightValue} мм</strong></p>
         </div>
       `;
 
@@ -526,50 +594,16 @@
       const heightHint = fields.querySelector("#heightHint");
 
       widthInput.addEventListener("input", (e) => {
-        state.widthMm = e.target.value;
+        const value = Number(e.target.value || 320);
+        state.widthMm = String(value);
         persistState();
-        const raw = Number(e.target.value || 0);
-        if (raw > 0) {
-          const rounded = roundToStep(raw, 320, 320);
-          widthHint.textContent = `Будет округлено до ${rounded} мм`;
-          widthHint.className = "mini-note ok";
-        } else {
-          widthHint.textContent = "Округление до ближайшего значения кратного 320.";
-          widthHint.className = "mini-note";
-        }
+        widthHint.innerHTML = `<strong>${value} мм</strong>`;
       });
       heightInput.addEventListener("input", (e) => {
-        state.heightMm = e.target.value;
+        const value = Number(e.target.value || 160);
+        state.heightMm = String(value);
         persistState();
-        const raw = Number(e.target.value || 0);
-        if (raw > 0) {
-          const rounded = roundToStep(raw, 160, 160);
-          heightHint.textContent = `Будет округлено до ${rounded} мм`;
-          heightHint.className = "mini-note ok";
-        } else {
-          heightHint.textContent = "Округление до ближайшего значения кратного 160.";
-          heightHint.className = "mini-note";
-        }
-      });
-      widthInput.addEventListener("blur", () => {
-        const raw = Number(widthInput.value || 0);
-        if (!raw) return;
-        const rounded = roundToStep(raw, 320, 320);
-        state.widthMm = String(rounded);
-        widthInput.value = state.widthMm;
-        widthHint.textContent = `Будет округлено до ${rounded} мм`;
-        widthHint.className = "mini-note ok";
-        persistState();
-      });
-      heightInput.addEventListener("blur", () => {
-        const raw = Number(heightInput.value || 0);
-        if (!raw) return;
-        const rounded = roundToStep(raw, 160, 160);
-        state.heightMm = String(rounded);
-        heightInput.value = state.heightMm;
-        heightHint.textContent = `Будет округлено до ${rounded} мм`;
-        heightHint.className = "mini-note ok";
-        persistState();
+        heightHint.innerHTML = `<strong>${value} мм</strong>`;
       });
     }
 
@@ -820,6 +854,7 @@
       }
       if (!state.screenType && state.step > 1) state.step = 1;
       if (!state.subtype && state.step > 2) state.step = 2;
+      ensureDimensionsInitialized();
 
       const percent = Math.round((state.step / STEP_TOTAL) * 100);
       progressFill.style.width = `${percent}%`;
