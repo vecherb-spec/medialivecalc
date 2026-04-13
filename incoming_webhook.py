@@ -8,6 +8,8 @@ import re
 import uuid
 from pathlib import Path
 from typing import Any
+import urllib.request
+import urllib.error
 
 from flask import Flask, jsonify, make_response, request, send_from_directory
 
@@ -33,6 +35,79 @@ def _normalize_payload(payload: Any) -> dict:
     if isinstance(payload, dict):
         return payload
     return {"raw_payload": payload}
+
+
+def _to_text(v: Any) -> str:
+    if v is None:
+        return ""
+    return str(v).strip()
+
+
+def _escape_html(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> None:
+    token = _to_text(os.environ.get("TELEGRAM_BOT_TOKEN"))
+    chat_id = _to_text(os.environ.get("TELEGRAM_CHAT_ID"))
+    if not token or not chat_id:
+        return
+
+    req_id = _to_text(payload.get("request_id") or payload.get("id") or payload.get("lead_id")) or "—"
+    project = _to_text(payload.get("project_name") or payload.get("project")) or "—"
+    city = _to_text(payload.get("city")) or "—"
+    screen_type = _to_text(payload.get("type") or payload.get("screenType")) or "—"
+    subtype = _to_text(payload.get("subtype")) or "—"
+    pixel = _to_text(payload.get("pixel_pitch") or payload.get("pixelPitch")) or "—"
+    installation = _to_text(payload.get("installation_choice") or payload.get("installation_note")) or "—"
+    contact_method = _to_text(payload.get("contact_method")) or "—"
+    contact_value = _to_text(payload.get("contact_value") or payload.get("phone") or payload.get("client_name")) or "—"
+    width = _to_text(payload.get("width_mm"))
+    height = _to_text(payload.get("height_mm"))
+    size = f"{width}×{height} мм" if width and height else "—"
+
+    lines = [
+        "📥 <b>Новая заявка LED</b>",
+        f"ID: <code>{_escape_html(req_id)}</code>",
+        f"Проект: <b>{_escape_html(project)}</b>",
+        f"Город: {_escape_html(city)}",
+        f"Тип: {_escape_html(screen_type)} / {_escape_html(subtype)}",
+        f"Размер: {_escape_html(size)}",
+        f"Шаг пикселя: {_escape_html(pixel)}",
+        f"Монтаж: {_escape_html(installation)}",
+        f"Контакт: {_escape_html(contact_method)} — <b>{_escape_html(contact_value)}</b>",
+        f"Время: {_escape_html(_to_text(record.get('received_at')))}",
+    ]
+    text = "\n".join(lines)
+
+    body: dict[str, Any] = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+    thread_id = _to_text(os.environ.get("TELEGRAM_THREAD_ID"))
+    if thread_id:
+        try:
+            body["message_thread_id"] = int(thread_id)
+        except ValueError:
+            pass
+
+    req = urllib.request.Request(
+        url=f"https://api.telegram.org/bot{token}/sendMessage",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8):
+            pass
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
+        print(f"[telegram_notify] failed: {exc}; saved={saved_to}")
 
 
 def _with_cors(resp):
@@ -107,6 +182,7 @@ def incoming():
         ),
         encoding="utf-8",
     )
+    _notify_telegram(normalized, record, target_path)
 
     return _with_cors(
         jsonify(

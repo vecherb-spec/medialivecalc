@@ -111,6 +111,32 @@ location /quiz/ {
 }
 ```
 
+## 5) Уведомления в Telegram (опционально)
+
+Webhook умеет отправлять каждую новую заявку в Telegram-чат.
+
+Нужны переменные окружения:
+
+- `TELEGRAM_BOT_TOKEN` — токен вашего бота (`123456:ABC...`)
+- `TELEGRAM_CHAT_ID` — ID чата/группы/канала
+- `TELEGRAM_THREAD_ID` — (опционально) ID топика в группе с Topics
+
+Пример для systemd (`medialive-webhook.service`):
+
+```ini
+Environment=TELEGRAM_BOT_TOKEN=123456789:AA...
+Environment=TELEGRAM_CHAT_ID=-1001234567890
+Environment=TELEGRAM_THREAD_ID=42
+```
+
+После изменения:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart medialive-webhook
+sudo systemctl status medialive-webhook --no-pager -l
+```
+
 ## Поддерживаемые поля (основные)
 
 - `project_name` / `project`
