@@ -141,31 +141,31 @@
     input[type="range"] {
       width: 100%;
       appearance: none;
-      height: 10px;
+      height: 16px;
       border-radius: 999px;
       border: 1px solid #2a3a4e;
-      background: #111f32;
+      background: linear-gradient(180deg, #1b2e47, #122338);
       outline: none;
-      margin: 8px 0 4px 0;
+      margin: 10px 0 6px 0;
     }
     input[type="range"]::-webkit-slider-thumb {
       appearance: none;
-      width: 20px;
-      height: 20px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
-      border: 2px solid #065f88;
+      border: 3px solid #065f88;
       background: #38bdf8;
       cursor: pointer;
-      box-shadow: 0 0 0 3px #38bdf833;
+      box-shadow: 0 0 0 5px #38bdf833;
     }
     input[type="range"]::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
-      border: 2px solid #065f88;
+      border: 3px solid #065f88;
       background: #38bdf8;
       cursor: pointer;
-      box-shadow: 0 0 0 3px #38bdf833;
+      box-shadow: 0 0 0 5px #38bdf833;
     }
     textarea {
       resize: vertical;
@@ -309,12 +309,12 @@
     ];
     const RENTAL_PITCH = ["P1.9", "P2.6", "P3.9", "P4.8"];
     const INDOOR_PITCH = [
-      "P1.2 — от 1.2 метров",
+      "P1.25 — от 1.25 метров",
       "P1.5 — от 1.5 метров",
-      "P1.8 — от 1.8 метров",
+      "P2 — от 2 метров",
       "P2.5 — от 2.5 метров",
-      "P3 — от 3 метров",
-      "P3.9 — от 3.9 метров"
+      "P3.07 — от 3.07 метров",
+      "P4 — от 4 метров"
     ];
     const INSTALL_OPTIONS = ["Под ключ", "Шеф-монтаж", "Без монтажа"];
     const CONTACT_METHODS = ["Телефон", "Telegram", "WhatsApp", "Email", "Звонок"];
@@ -438,6 +438,10 @@
       return (Math.round(Number(value) * 10) / 10).toFixed(1);
     }
 
+    function formatArea(value) {
+      return (Math.round(Number(value) * 100) / 100).toFixed(2);
+    }
+
     function applyDefaultDimensionsByType(type) {
       const defaults = DEFAULT_DIMENSIONS[type];
       if (!defaults) return;
@@ -548,20 +552,32 @@
             <input id="heightM" type="range" min="1" max="12" step="0.1" value="${escapeHtml(heightMValue)}" />
             <p id="heightMValue" class="mini-note ok"><strong>${formatMeters(heightMValue)} м</strong> (${Math.round(heightMValue * 1000)} мм)</p>
           </div>
+          <p id="sizeArea" class="mini-note full ok">
+            Размер: <strong>${formatMeters(widthMValue)} × ${formatMeters(heightMValue)} м</strong> · Площадь: <strong>${formatArea(widthMValue * heightMValue)} м²</strong>
+          </p>
           <p class="mini-note full">Для прокатных экранов размер вводится в метрах.</p>
         `;
         wrap.appendChild(fields);
         stepContent.replaceChildren(wrap);
+        const areaSummary = fields.querySelector("#sizeArea");
+        const updateRentalArea = () => {
+          const w = Number(state.widthM || 0);
+          const h = Number(state.heightM || 0);
+          areaSummary.innerHTML =
+            `Размер: <strong>${formatMeters(w)} × ${formatMeters(h)} м</strong> · Площадь: <strong>${formatArea(w * h)} м²</strong>`;
+        };
         fields.querySelector("#widthM").addEventListener("input", (e) => {
           const value = Number(e.target.value || 0);
           state.widthM = String(value);
           fields.querySelector("#widthMValue").innerHTML = `<strong>${formatMeters(value)} м</strong> (${Math.round(value * 1000)} мм)`;
+          updateRentalArea();
           persistState();
         });
         fields.querySelector("#heightM").addEventListener("input", (e) => {
           const value = Number(e.target.value || 0);
           state.heightM = String(value);
           fields.querySelector("#heightMValue").innerHTML = `<strong>${formatMeters(value)} м</strong> (${Math.round(value * 1000)} мм)`;
+          updateRentalArea();
           persistState();
         });
         return;
@@ -583,6 +599,9 @@
           <input id="heightMm" type="range" min="160" max="8640" step="160" value="${escapeHtml(heightValue)}" />
           <p id="heightHint" class="mini-note ok"><strong>${heightValue} мм</strong></p>
         </div>
+        <p id="sizeArea" class="mini-note full ok">
+          Размер: <strong>${widthValue} × ${heightValue} мм</strong> (${formatMeters(widthValue / 1000)} × ${formatMeters(heightValue / 1000)} м) · Площадь: <strong>${formatArea((widthValue * heightValue) / 1000000)} м²</strong>
+        </p>
       `;
 
       wrap.appendChild(fields);
@@ -592,18 +611,27 @@
       const heightInput = fields.querySelector("#heightMm");
       const widthHint = fields.querySelector("#widthHint");
       const heightHint = fields.querySelector("#heightHint");
+      const areaSummary = fields.querySelector("#sizeArea");
+      const updateMmArea = () => {
+        const w = Number(state.widthMm || 0);
+        const h = Number(state.heightMm || 0);
+        areaSummary.innerHTML =
+          `Размер: <strong>${w} × ${h} мм</strong> (${formatMeters(w / 1000)} × ${formatMeters(h / 1000)} м) · Площадь: <strong>${formatArea((w * h) / 1000000)} м²</strong>`;
+      };
 
       widthInput.addEventListener("input", (e) => {
         const value = Number(e.target.value || 320);
         state.widthMm = String(value);
         persistState();
         widthHint.innerHTML = `<strong>${value} мм</strong>`;
+        updateMmArea();
       });
       heightInput.addEventListener("input", (e) => {
         const value = Number(e.target.value || 160);
         state.heightMm = String(value);
         persistState();
         heightHint.innerHTML = `<strong>${value} мм</strong>`;
+        updateMmArea();
       });
     }
 
