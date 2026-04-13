@@ -29,7 +29,7 @@
       padding: 18px;
     }
     .quiz-shell {
-      max-width: 820px;
+      max-width: 1080px;
       margin: 0 auto;
       border: 1px solid var(--line);
       background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
@@ -72,6 +72,61 @@
     }
     .quiz-body {
       padding: 22px;
+    }
+    .step-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      gap: 14px;
+      align-items: start;
+    }
+    .live-preview {
+      border: 1px solid #29405b;
+      background: linear-gradient(180deg, #0d1a2b 0%, #0b1625 100%);
+      border-radius: 14px;
+      padding: 12px;
+      position: sticky;
+      top: 12px;
+    }
+    .live-preview h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #bae6fd;
+      letter-spacing: .02em;
+    }
+    .preview-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 7px;
+    }
+    .preview-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px dashed #1f3349;
+      padding-bottom: 5px;
+      font-size: 12px;
+    }
+    .preview-list li:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .preview-k {
+      color: #8cb1ce;
+    }
+    .preview-v {
+      text-align: right;
+      color: #e2e8f0;
+      font-weight: 600;
+      max-width: 62%;
+      overflow-wrap: anywhere;
+    }
+    .preview-note {
+      margin: 10px 0 0 0;
+      color: #9ec3dd;
+      font-size: 11px;
+      line-height: 1.35;
     }
     h1.step-title {
       margin: 0;
@@ -141,8 +196,8 @@
     input[type="range"] {
       width: 100%;
       appearance: none;
-      height: 16px;
-      border-radius: 999px;
+      height: 18px;
+      border-radius: 6px;
       border: 1px solid #2a3a4e;
       background: linear-gradient(180deg, #1b2e47, #122338);
       outline: none;
@@ -150,22 +205,22 @@
     }
     input[type="range"]::-webkit-slider-thumb {
       appearance: none;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
+      width: 20px;
+      height: 34px;
+      border-radius: 4px;
       border: 3px solid #065f88;
-      background: #38bdf8;
+      background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
       cursor: pointer;
-      box-shadow: 0 0 0 5px #38bdf833;
+      box-shadow: 0 0 0 4px #38bdf822;
     }
     input[type="range"]::-moz-range-thumb {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
+      width: 20px;
+      height: 34px;
+      border-radius: 4px;
       border: 3px solid #065f88;
-      background: #38bdf8;
+      background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
       cursor: pointer;
-      box-shadow: 0 0 0 5px #38bdf833;
+      box-shadow: 0 0 0 4px #38bdf822;
     }
     textarea {
       resize: vertical;
@@ -237,6 +292,8 @@
       body { padding: 10px; }
       .quiz-head, .quiz-body, .quiz-foot { padding-left: 14px; padding-right: 14px; }
       .option-grid, .fields { grid-template-columns: 1fr; }
+      .step-layout { grid-template-columns: 1fr; }
+      .live-preview { position: static; }
       h1.step-title { font-size: 20px; }
       .quiz-foot .btn { flex: 1; min-width: 0; }
     }
@@ -258,7 +315,10 @@
     <section class="quiz-body">
       <h1 id="stepTitle" class="step-title"></h1>
       <p id="stepHint" class="step-hint"></p>
-      <div id="stepContent"></div>
+      <div class="step-layout">
+        <div id="stepContent"></div>
+        <aside id="livePreview" class="live-preview"></aside>
+      </div>
       <div id="errorBox" class="error-box"></div>
     </section>
 
@@ -284,7 +344,7 @@
       1: "Выберите формат проекта. Это влияет на доступные варианты конструкции.",
       2: "Покажем только релевантные варианты для выбранного типа.",
       3: "Для точного расчёта используем реальные размеры будущего экрана.",
-      4: "Подскажем шаг пикселя по условиям эксплуатации.",
+      4: "Минимальная дистанция просмотра обычно близка к значению шага пикселя (в метрах).",
       5: "Выберите вариант работы монтажной команды.",
       6: "Оставьте контакт и город — менеджер пришлёт расчёт и КП."
     };
@@ -299,22 +359,27 @@
     };
 
     const OUTDOOR_PITCH = [
-      "P2.5 — от 2.5 метров",
-      "P3 — от 3 метров",
-      "P4 — от 4 метров",
-      "P5 — от 5 метров",
-      "P6 — от 6 метров",
-      "P8 — от 8 метров",
-      "P10 — от 10 метров"
+      "P2.5 — комфортно от 2.5 м",
+      "P3 — комфортно от 3 м",
+      "P4 — комфортно от 4 м",
+      "P5 — комфортно от 5 м",
+      "P6 — комфортно от 6 м",
+      "P8 — комфортно от 8 м",
+      "P10 — комфортно от 10 м"
     ];
-    const RENTAL_PITCH = ["P1.9", "P2.6", "P3.9", "P4.8"];
+    const RENTAL_PITCH = [
+      "P1.9 — комфортно от 1.9 м",
+      "P2.6 — комфортно от 2.6 м",
+      "P3.9 — комфортно от 3.9 м",
+      "P4.8 — комфортно от 4.8 м"
+    ];
     const INDOOR_PITCH = [
-      "P1.25 — от 1.25 метров",
-      "P1.5 — от 1.5 метров",
-      "P2 — от 2 метров",
-      "P2.5 — от 2.5 метров",
-      "P3.07 — от 3.07 метров",
-      "P4 — от 4 метров"
+      "P1.25 — комфортно от 1.25 м",
+      "P1.5 — комфортно от 1.5 м",
+      "P2 — комфортно от 2 м",
+      "P2.5 — комфортно от 2.5 м",
+      "P3.07 — комфортно от 3.07 м",
+      "P4 — комфортно от 4 м"
     ];
     const INSTALL_OPTIONS = ["Под ключ", "Шеф-монтаж", "Без монтажа"];
     const CONTACT_METHODS = ["Телефон", "Telegram", "WhatsApp", "Email", "Звонок"];
@@ -359,6 +424,7 @@
     const stepTitle = document.getElementById("stepTitle");
     const stepHint = document.getElementById("stepHint");
     const stepContent = document.getElementById("stepContent");
+    const livePreview = document.getElementById("livePreview");
     const errorBox = document.getElementById("errorBox");
     const backBtn = document.getElementById("backBtn");
     const nextBtn = document.getElementById("nextBtn");
@@ -440,6 +506,54 @@
 
     function formatArea(value) {
       return (Math.round(Number(value) * 100) / 100).toFixed(2);
+    }
+
+    function extractPitchMeters(label) {
+      const match = String(label || "").match(/P(\d+(?:\.\d+)?)/i);
+      if (!match) return "";
+      return Number(match[1]).toString();
+    }
+
+    function currentSizeInfo() {
+      const isRental = state.screenType === "Прокатный";
+      if (isRental) {
+        const w = Number(state.widthM || 0);
+        const h = Number(state.heightM || 0);
+        if (!(w > 0 && h > 0)) return { size: "—", area: "—" };
+        return {
+          size: `${formatMeters(w)} × ${formatMeters(h)} м`,
+          area: `${formatArea(w * h)} м²`
+        };
+      }
+      const w = Number(state.widthMm || 0);
+      const h = Number(state.heightMm || 0);
+      if (!(w > 0 && h > 0)) return { size: "—", area: "—" };
+      return {
+        size: `${w} × ${h} мм`,
+        area: `${formatArea((w * h) / 1000000)} м²`
+      };
+    }
+
+    function renderLivePreview() {
+      const size = currentSizeInfo();
+      const contact = (state.contactValues[state.contactMethod] || "").trim() || "—";
+      const pitchDistance = extractPitchMeters(state.pixelPitch);
+      const distance = pitchDistance ? `от ${pitchDistance} м` : "—";
+      livePreview.innerHTML = `
+        <h3>Live preview заявки</h3>
+        <ul class="preview-list">
+          <li><span class="preview-k">Тип</span><span class="preview-v">${escapeHtml(state.screenType || "—")}</span></li>
+          <li><span class="preview-k">Исполнение</span><span class="preview-v">${escapeHtml(state.subtype || "—")}</span></li>
+          <li><span class="preview-k">Размер</span><span class="preview-v">${escapeHtml(size.size)}</span></li>
+          <li><span class="preview-k">Площадь</span><span class="preview-v">${escapeHtml(size.area)}</span></li>
+          <li><span class="preview-k">Шаг пикселя</span><span class="preview-v">${escapeHtml(state.pixelPitch || "—")}</span></li>
+          <li><span class="preview-k">Дистанция</span><span class="preview-v">${escapeHtml(distance)}</span></li>
+          <li><span class="preview-k">Монтаж</span><span class="preview-v">${escapeHtml(state.installation || "—")}</span></li>
+          <li><span class="preview-k">Город</span><span class="preview-v">${escapeHtml(state.city || "—")}</span></li>
+          <li><span class="preview-k">Контакт</span><span class="preview-v">${escapeHtml(contact)}</span></li>
+        </ul>
+        <p class="preview-note">Подсказка: минимальная комфортная дистанция обзора обычно близка к значению P в метрах.</p>
+      `;
     }
 
     function applyDefaultDimensionsByType(type) {
@@ -572,6 +686,7 @@
           fields.querySelector("#widthMValue").innerHTML = `<strong>${formatMeters(value)} м</strong> (${Math.round(value * 1000)} мм)`;
           updateRentalArea();
           persistState();
+          renderLivePreview();
         });
         fields.querySelector("#heightM").addEventListener("input", (e) => {
           const value = Number(e.target.value || 0);
@@ -579,6 +694,7 @@
           fields.querySelector("#heightMValue").innerHTML = `<strong>${formatMeters(value)} м</strong> (${Math.round(value * 1000)} мм)`;
           updateRentalArea();
           persistState();
+          renderLivePreview();
         });
         return;
       }
@@ -625,6 +741,7 @@
         persistState();
         widthHint.innerHTML = `<strong>${value} мм</strong>`;
         updateMmArea();
+        renderLivePreview();
       });
       heightInput.addEventListener("input", (e) => {
         const value = Number(e.target.value || 160);
@@ -632,6 +749,7 @@
         persistState();
         heightHint.innerHTML = `<strong>${value} мм</strong>`;
         updateMmArea();
+        renderLivePreview();
       });
     }
 
@@ -719,6 +837,7 @@
       fields.querySelector("#city").addEventListener("input", (e) => {
         state.city = e.target.value;
         persistState();
+        renderLivePreview();
       });
       fields.querySelector("#comment").addEventListener("input", (e) => {
         state.comment = e.target.value;
@@ -727,6 +846,7 @@
       fields.querySelector("#contactValue").addEventListener("input", (e) => {
         state.contactValues[state.contactMethod] = e.target.value;
         persistState();
+        renderLivePreview();
       });
     }
 
@@ -905,6 +1025,7 @@
       if (state.step === 4) renderStep4();
       if (state.step === 5) renderStep5();
       if (state.step === 6) renderStep6();
+      renderLivePreview();
     }
 
     render();
