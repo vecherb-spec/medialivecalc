@@ -51,11 +51,36 @@ def _escape_html(text: str) -> str:
     )
 
 
-def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> None:
+def _telegram_send_message(token: str, body: dict[str, Any]) -> tuple[bool, str]:
+    req = urllib.request.Request(
+        url=f"https://api.telegram.org/bot{token}/sendMessage",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            data = json.loads(raw) if raw else {}
+            if data.get("ok") is True:
+                return True, "ok"
+            return False, f"telegram_api_not_ok: {raw[:300]}"
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            detail = str(exc)
+        return False, f"http_{exc.code}: {detail[:300]}"
+    except (urllib.error.URLError, TimeoutError) as exc:
+        return False, str(exc)
+
+
+def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> tuple[bool, str]:
     token = _to_text(os.environ.get("TELEGRAM_BOT_TOKEN"))
     chat_id = _to_text(os.environ.get("TELEGRAM_CHAT_ID"))
     if not token or not chat_id:
-        return
+        return False, "disabled_missing_env"
 
     req_id = _to_text(payload.get("request_id") or payload.get("id") or payload.get("lead_id")) or "—"
     project = _to_text(payload.get("project_name") or payload.get("project")) or "—"
@@ -83,6 +108,18 @@ def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> None:
         f"Время: {_escape_html(_to_text(record.get('received_at')))}",
     ]
     text = "\n".join(lines)
+    plain_text = (
+        "Новая заявка LED\n"
+        f"ID: {req_id}\n"
+        f"Проект: {project}\n"
+        f"Город: {city}\n"
+        f"Тип: {screen_type} / {subtype}\n"
+        f"Размер: {size}\n"
+        f"Шаг пикселя: {pixel}\n"
+        f"Монтаж: {installation}\n"
+        f"Контакт: {contact_method} — {contact_value}\n"
+        f"Время: {_to_text(record.get('received_at'))}"
+    )
 
     body: dict[str, Any] = {
         "chat_id": chat_id,
@@ -97,17 +134,31 @@ def _notify_telegram(payload: dict, record: dict, saved_to: Path) -> None:
         except ValueError:
             pass
 
-    req = urllib.request.Request(
-        url=f"https://api.telegram.org/bot{token}/sendMessage",
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=8):
-            pass
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
-        print(f"[telegram_notify] failed: {exc}; saved={saved_to}")
+    ok, note = _telegram_send_message(token, body)
+    if not ok:
+        # Fallback: plain text without parse_mode (some chats reject HTML entities/format)
+        fallback_body = {
+            "chat_id": chat_id,
+            "text": plain_text,
+            "disable_web_page_preview": True,
+        }
+        if "message_thread_id" in body:
+            fallback_body["message_thread_id"] = body["message_thread_id"]
+        ok2, note2 = _telegram_send_message(token, fallback_body)
+        if ok2:
+            print(
+                f"[telegram_notify] fallback_plain_text_ok saved={saved_to} first_error={note}",
+                flush=True,
+            )
+            return True, "fallback_plain_text_ok"
+        print(
+            f"[telegram_notify] failed saved={saved_to} html_error={note}; plain_error={note2}",
+            flush=True,
+        )
+        return False, note2
+
+    print(f"[telegram_notify] ok saved={saved_to}", flush=True)
+    return True, note
 
 
 def _with_cors(resp):
@@ -182,7 +233,7 @@ def incoming():
         ),
         encoding="utf-8",
     )
-    _notify_telegram(normalized, record, target_path)
+    tg_ok, tg_note = _notify_telegram(normalized, record, target_path)
 
     return _with_cors(
         jsonify(
@@ -190,6 +241,8 @@ def incoming():
                 "ok": True,
                 "saved_to": str(target_path),
                 "received_at": record["received_at"],
+                "telegram_notified": tg_ok,
+                "telegram_note": tg_note,
             }
         )
     )
