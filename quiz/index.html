@@ -1,0 +1,1079 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Medialive LED Quiz</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --muted: #94a3b8;
+      --text: #e2e8f0;
+      --line: #1f2937;
+      --brand: #38bdf8;
+      --brand-strong: #0ea5e9;
+      --ok: #22c55e;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 100% -10%, #0b3c5d33 0%, transparent 55%),
+        radial-gradient(1200px 700px at 0% 120%, #0ea5e922 0%, transparent 45%),
+        var(--bg);
+      min-height: 100vh;
+      padding: 18px;
+    }
+    .quiz-shell {
+      max-width: 1080px;
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(2, 8, 23, 0.45);
+    }
+    .quiz-head {
+      padding: 20px 22px 16px 22px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(15, 23, 42, 0.86);
+      backdrop-filter: blur(6px);
+    }
+    .quiz-brand {
+      margin: 0 0 12px 0;
+      font-size: 18px;
+      letter-spacing: 0.02em;
+      font-weight: 700;
+    }
+    .progress-line {
+      height: 10px;
+      border-radius: 999px;
+      background: #1e293b;
+      overflow: hidden;
+      border: 1px solid #243244;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      transition: width .25s ease;
+      background: linear-gradient(90deg, var(--brand), var(--brand-strong));
+    }
+    .progress-meta {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .quiz-body {
+      padding: 22px;
+    }
+    .step-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      gap: 14px;
+      align-items: start;
+    }
+    .live-preview {
+      border: 1px solid #29405b;
+      background: linear-gradient(180deg, #0d1a2b 0%, #0b1625 100%);
+      border-radius: 14px;
+      padding: 12px;
+      position: sticky;
+      top: 12px;
+    }
+    .live-preview h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #bae6fd;
+      letter-spacing: .02em;
+    }
+    .preview-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 7px;
+    }
+    .preview-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px dashed #1f3349;
+      padding-bottom: 5px;
+      font-size: 12px;
+    }
+    .preview-list li:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .preview-k {
+      color: #8cb1ce;
+    }
+    .preview-v {
+      text-align: right;
+      color: #e2e8f0;
+      font-weight: 600;
+      max-width: 62%;
+      overflow-wrap: anywhere;
+    }
+    .preview-note {
+      margin: 10px 0 0 0;
+      color: #9ec3dd;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    h1.step-title {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+    .step-hint {
+      margin: 8px 0 18px 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .option-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .option-card {
+      width: 100%;
+      border: 1px solid #263447;
+      background: #0f1a2c;
+      color: var(--text);
+      border-radius: 12px;
+      min-height: 54px;
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: all .16s ease;
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+    .option-card:hover { border-color: #335a7c; }
+    .option-card.active {
+      border-color: #2586c0;
+      background: #0b2a40;
+      box-shadow: inset 0 0 0 1px #2586c0;
+    }
+    .fields {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    input:not([type="range"]), textarea {
+      width: 100%;
+      border: 1px solid #2a3a4e;
+      border-radius: 10px;
+      padding: 11px 12px;
+      background: #0b1422;
+      color: var(--text);
+      outline: none;
+      font-size: 15px;
+    }
+    input:not([type="range"]):focus, textarea:focus {
+      border-color: #2b90c7;
+      box-shadow: 0 0 0 2px #2b90c733;
+    }
+    input[type="range"] {
+      width: 100%;
+      appearance: none;
+      height: 18px;
+      border-radius: 6px;
+      border: 1px solid #2a3a4e;
+      background: linear-gradient(180deg, #1b2e47, #122338);
+      outline: none;
+      margin: 10px 0 6px 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 34px;
+      border-radius: 4px;
+      border: 3px solid #065f88;
+      background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+      cursor: pointer;
+      box-shadow: 0 0 0 4px #38bdf822;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 34px;
+      border-radius: 4px;
+      border: 3px solid #065f88;
+      background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+      cursor: pointer;
+      box-shadow: 0 0 0 4px #38bdf822;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 92px;
+    }
+    .full { grid-column: 1 / -1; }
+    .mini-note {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .mini-note.ok { color: var(--ok); }
+    .error-box {
+      margin-top: 14px;
+      font-size: 14px;
+      color: #fecaca;
+      background: #450a0a;
+      border: 1px solid #7f1d1d;
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: none;
+    }
+    .quiz-foot {
+      border-top: 1px solid var(--line);
+      padding: 14px 22px 22px 22px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .btn {
+      border-radius: 10px;
+      border: 1px solid #2a3a4e;
+      background: #0f1a2c;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 15px;
+      padding: 11px 16px;
+      min-width: 132px;
+      cursor: pointer;
+      transition: all .16s ease;
+    }
+    .btn:hover:not(:disabled) { border-color: #3f5d7d; }
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: .45;
+    }
+    .btn-primary {
+      border-color: #1c7eb3;
+      background: linear-gradient(180deg, #1a7bae, #14638c);
+    }
+    .btn-primary:hover:not(:disabled) {
+      border-color: #4aa6d7;
+    }
+    .thanks {
+      text-align: center;
+      padding: 24px 0 6px 0;
+    }
+    .thanks h2 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+    }
+    .thanks p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    @media (max-width: 760px) {
+      body { padding: 10px; }
+      .quiz-head, .quiz-body, .quiz-foot { padding-left: 14px; padding-right: 14px; }
+      .option-grid, .fields { grid-template-columns: 1fr; }
+      .step-layout { grid-template-columns: 1fr; }
+      .live-preview { position: static; }
+      h1.step-title { font-size: 20px; }
+      .quiz-foot .btn { flex: 1; min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="quiz-shell">
+    <header class="quiz-head">
+      <p class="quiz-brand">Medialive · LED Quiz</p>
+      <div class="progress-line">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <div class="progress-meta">
+        <span id="progressStep">Шаг 1 из 6</span>
+        <span id="progressPercent">17%</span>
+      </div>
+    </header>
+
+    <section class="quiz-body">
+      <h1 id="stepTitle" class="step-title"></h1>
+      <p id="stepHint" class="step-hint"></p>
+      <div class="step-layout">
+        <div id="stepContent"></div>
+        <aside id="livePreview" class="live-preview"></aside>
+      </div>
+      <div id="errorBox" class="error-box"></div>
+    </section>
+
+    <footer id="quizFoot" class="quiz-foot">
+      <button id="backBtn" class="btn" type="button">Назад</button>
+      <button id="nextBtn" class="btn btn-primary" type="button">Далее</button>
+    </footer>
+  </main>
+
+  <script>
+    const STEP_TOTAL = 6;
+    const STORAGE_KEY = "medialive-quiz-state-v1";
+    const DEFAULT_WEBHOOK_URL = "https://calc.medialive.ru/incoming";
+    const WEBHOOK_URL = window.MEDIALIVE_WEBHOOK_URL || DEFAULT_WEBHOOK_URL;
+    const STEP_TITLES = {
+      1: "Тип экрана",
+      2: "Тип исполнения",
+      3: "Шаг пикселя",
+      4: "Размеры",
+      5: "Монтаж",
+      6: "Контакты"
+    };
+    const STEP_HINTS = {
+      1: "Выберите формат проекта. Это влияет на доступные варианты конструкции.",
+      2: "Покажем только релевантные варианты для выбранного типа.",
+      3: "Минимальная дистанция просмотра обычно близка к значению шага пикселя (в метрах).",
+      4: "Для точного расчёта используем реальные размеры будущего экрана.",
+      5: "Выберите вариант работы монтажной команды.",
+      6: "Оставьте контакт и город — менеджер пришлёт расчёт и КП."
+    };
+
+    const SCREEN_TYPES = ["Уличный", "Интерьерный", "Пилон", "В окно", "Прокатный"];
+    const DEPENDENT_TYPES = {
+      "Уличный": ["Фасад", "Отдельно стоящий", "Медиафасад"],
+      "Интерьерный": ["На стену", "Подвесной", "Отдельно стоящий", "Гибкий"],
+      "Пилон": ["Уличный", "Интерьерный"],
+      "В окно": ["Уличный (повышенная яркость)", "Интерьерный (обычная яркость)"],
+      "Прокатный": ["Интерьерный", "Уличный"]
+    };
+
+    const OUTDOOR_PITCH = [
+      "P2.5 — комфортно от 2.5 м",
+      "P3 — комфортно от 3 м",
+      "P4 — комфортно от 4 м",
+      "P5 — комфортно от 5 м",
+      "P6 — комфортно от 6 м",
+      "P8 — комфортно от 8 м",
+      "P10 — комфортно от 10 м"
+    ];
+    const RENTAL_PITCH = [
+      "P1.9 — комфортно от 1.9 м",
+      "P2.6 — комфортно от 2.6 м",
+      "P3.9 — комфортно от 3.9 м",
+      "P4.8 — комфортно от 4.8 м"
+    ];
+    const INDOOR_PITCH = [
+      "P1.25 — комфортно от 1.25 м",
+      "P1.5 — комфортно от 1.5 м",
+      "P2 — комфортно от 2 м",
+      "P2.5 — комфортно от 2.5 м",
+      "P3.07 — комфортно от 3.07 м",
+      "P4 — комфортно от 4 м"
+    ];
+    const INSTALL_OPTIONS = ["Под ключ", "Шеф-монтаж", "Без монтажа"];
+    const CONTACT_METHODS = ["Телефон", "Telegram", "WhatsApp", "Email", "Звонок"];
+    const DEFAULT_DIMENSIONS = {
+      "Уличный": { widthMm: 5760, heightMm: 2880 },
+      "Интерьерный": { widthMm: 5120, heightMm: 3040 },
+      "Пилон": { widthMm: 960, heightMm: 1920 },
+      "В окно": { widthMm: 960, heightMm: 1280 },
+      "Прокатный": { widthM: 5, heightM: 3 }
+    };
+
+    const defaultState = {
+      step: 1,
+      submitted: false,
+      sending: false,
+      requestId: "",
+      screenType: "",
+      subtype: "",
+      widthMm: "",
+      heightMm: "",
+      widthM: "",
+      heightM: "",
+      pixelPitch: "",
+      installation: "",
+      clientName: "",
+      city: "",
+      comment: "",
+      contactMethod: "Телефон",
+      contactValues: {
+        "Телефон": "",
+        "Telegram": "",
+        "WhatsApp": "",
+        "Email": "",
+        "Звонок": ""
+      }
+    };
+
+    const state = loadState();
+
+    const progressFill = document.getElementById("progressFill");
+    const progressStep = document.getElementById("progressStep");
+    const progressPercent = document.getElementById("progressPercent");
+    const stepTitle = document.getElementById("stepTitle");
+    const stepHint = document.getElementById("stepHint");
+    const stepContent = document.getElementById("stepContent");
+    const livePreview = document.getElementById("livePreview");
+    const errorBox = document.getElementById("errorBox");
+    const backBtn = document.getElementById("backBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const quizFoot = document.getElementById("quizFoot");
+
+    backBtn.addEventListener("click", () => {
+      clearError();
+      if (state.submitted) {
+        resetQuiz();
+        return;
+      }
+      state.step = Math.max(1, state.step - 1);
+      persistState();
+      render();
+    });
+
+    nextBtn.addEventListener("click", async () => {
+      clearError();
+      if (state.submitted) {
+        resetQuiz();
+        return;
+      }
+      const validationError = validateStep(state.step);
+      if (validationError) {
+        showError(validationError);
+        return;
+      }
+      if (state.step === 6) {
+        await submitLead();
+        return;
+      }
+      state.step += 1;
+      persistState();
+      render();
+    });
+
+    function loadState() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        return {
+          ...defaultState,
+          ...parsed,
+          contactValues: {
+            ...defaultState.contactValues,
+            ...(parsed.contactValues || {})
+          },
+          step: Math.min(Math.max(Number(parsed.step || 1), 1), STEP_TOTAL),
+          submitted: false,
+          sending: false
+        };
+      } catch (e) {
+        return { ...defaultState };
+      }
+    }
+
+    function persistState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function clearError() {
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.style.display = "block";
+    }
+
+    function roundToStep(value, step, minValue) {
+      if (!Number.isFinite(value)) return minValue;
+      const rounded = Math.round(value / step) * step;
+      return Math.max(minValue, rounded);
+    }
+
+    function formatMeters(value) {
+      return (Math.round(Number(value) * 10) / 10).toFixed(1);
+    }
+
+    function formatArea(value) {
+      return (Math.round(Number(value) * 100) / 100).toFixed(2);
+    }
+
+    function extractPitchMeters(label) {
+      const match = String(label || "").match(/P(\d+(?:\.\d+)?)/i);
+      if (!match) return "";
+      return Number(match[1]).toString();
+    }
+
+    function currentSizeInfo() {
+      const isRental = state.screenType === "Прокатный";
+      if (isRental) {
+        const w = Number(state.widthM || 0);
+        const h = Number(state.heightM || 0);
+        if (!(w > 0 && h > 0)) return { size: "—", area: "—" };
+        return {
+          size: `${formatMeters(w)} × ${formatMeters(h)} м`,
+          area: `${formatArea(w * h)} м²`
+        };
+      }
+      const w = Number(state.widthMm || 0);
+      const h = Number(state.heightMm || 0);
+      if (!(w > 0 && h > 0)) return { size: "—", area: "—" };
+      return {
+        size: `${w} × ${h} мм`,
+        area: `${formatArea((w * h) / 1000000)} м²`
+      };
+    }
+
+    function renderLivePreview() {
+      const size = currentSizeInfo();
+      const contact = (state.contactValues[state.contactMethod] || "").trim() || "—";
+      const showPixel = state.submitted || state.step >= 3;
+      const showSize = state.submitted || state.step >= 4;
+      const showInstallation = state.submitted || state.step >= 5;
+      const showContacts = state.submitted || state.step >= 6;
+      const pitchDistance = extractPitchMeters(state.pixelPitch);
+      const distance = showPixel && pitchDistance ? `от ${pitchDistance} м` : "—";
+      const sizeLabel = showSize ? size.size : "—";
+      const areaLabel = showSize ? size.area : "—";
+      const pitchLabel = showPixel ? (state.pixelPitch || "—") : "—";
+      const installLabel = showInstallation ? (state.installation || "—") : "—";
+      const nameLabel = showContacts ? (state.clientName || "—") : "—";
+      const contactLabel = showContacts ? contact : "—";
+      livePreview.innerHTML = `
+        <h3>Live preview заявки</h3>
+        <ul class="preview-list">
+          <li><span class="preview-k">Тип</span><span class="preview-v">${escapeHtml(state.screenType || "—")}</span></li>
+          <li><span class="preview-k">Исполнение</span><span class="preview-v">${escapeHtml(state.subtype || "—")}</span></li>
+          <li><span class="preview-k">Размер</span><span class="preview-v">${escapeHtml(sizeLabel)}</span></li>
+          <li><span class="preview-k">Площадь</span><span class="preview-v">${escapeHtml(areaLabel)}</span></li>
+          <li><span class="preview-k">Шаг пикселя</span><span class="preview-v">${escapeHtml(pitchLabel)}</span></li>
+          <li><span class="preview-k">Дистанция</span><span class="preview-v">${escapeHtml(distance)}</span></li>
+          <li><span class="preview-k">Монтаж</span><span class="preview-v">${escapeHtml(installLabel)}</span></li>
+          <li><span class="preview-k">Имя</span><span class="preview-v">${escapeHtml(nameLabel)}</span></li>
+          <li><span class="preview-k">Город</span><span class="preview-v">${escapeHtml(state.city || "—")}</span></li>
+          <li><span class="preview-k">Контакт</span><span class="preview-v">${escapeHtml(contactLabel)}</span></li>
+        </ul>
+        <p class="preview-note">Подсказка: минимальная комфортная дистанция обзора обычно близка к значению P в метрах.</p>
+      `;
+    }
+
+    function webhookCandidates() {
+      const urls = [WEBHOOK_URL, "/incoming", DEFAULT_WEBHOOK_URL];
+      return [...new Set(urls.filter(Boolean))];
+    }
+
+    function applyDefaultDimensionsByType(type) {
+      const defaults = DEFAULT_DIMENSIONS[type];
+      if (!defaults) return;
+      if (type === "Прокатный") {
+        state.widthM = String(defaults.widthM);
+        state.heightM = String(defaults.heightM);
+        state.widthMm = "";
+        state.heightMm = "";
+        return;
+      }
+      state.widthMm = String(defaults.widthMm);
+      state.heightMm = String(defaults.heightMm);
+      state.widthM = "";
+      state.heightM = "";
+    }
+
+    function ensureDimensionsInitialized() {
+      if (!state.screenType) return;
+      const defaults = DEFAULT_DIMENSIONS[state.screenType];
+      if (!defaults) return;
+      if (state.screenType === "Прокатный") {
+        if (!(Number(state.widthM) > 0)) state.widthM = String(defaults.widthM);
+        if (!(Number(state.heightM) > 0)) state.heightM = String(defaults.heightM);
+        return;
+      }
+      if (!(Number(state.widthMm) > 0)) state.widthMm = String(defaults.widthMm);
+      if (!(Number(state.heightMm) > 0)) state.heightMm = String(defaults.heightMm);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function resolveOutdoorContext() {
+      if (state.screenType === "Прокатный") return state.subtype === "Уличный";
+      if (state.screenType === "Уличный") return true;
+      if (state.screenType === "Пилон") return state.subtype === "Уличный";
+      if (state.screenType === "В окно") return state.subtype.startsWith("Уличный");
+      return false;
+    }
+
+    function renderOptionCards(options, selected, onSelect) {
+      const grid = document.createElement("div");
+      grid.className = "option-grid";
+      options.forEach((option) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "option-card" + (selected === option ? " active" : "");
+        button.textContent = option;
+        button.addEventListener("click", () => onSelect(option));
+        grid.appendChild(button);
+      });
+      return grid;
+    }
+
+    function renderStep1() {
+      const wrap = document.createElement("div");
+      wrap.appendChild(
+        renderOptionCards(SCREEN_TYPES, state.screenType, (value) => {
+          state.screenType = value;
+          state.subtype = "";
+          state.pixelPitch = "";
+          applyDefaultDimensionsByType(value);
+          persistState();
+          render();
+        })
+      );
+      stepContent.replaceChildren(wrap);
+    }
+
+    function renderStep2() {
+      const options = DEPENDENT_TYPES[state.screenType] || [];
+      const wrap = document.createElement("div");
+      wrap.appendChild(
+        renderOptionCards(options, state.subtype, (value) => {
+          state.subtype = value;
+          state.pixelPitch = "";
+          persistState();
+          render();
+        })
+      );
+      stepContent.replaceChildren(wrap);
+    }
+
+    function renderStep3() {
+      const wrap = document.createElement("div");
+      const fields = document.createElement("div");
+      fields.className = "fields";
+      const isRental = state.screenType === "Прокатный";
+      ensureDimensionsInitialized();
+
+      if (isRental) {
+        const widthMValue = Math.max(1, Number(state.widthM || 5));
+        const heightMValue = Math.max(1, Number(state.heightM || 3));
+        fields.innerHTML = `
+          <div class="field">
+            <label for="widthM">Ширина, м (бегунок)</label>
+            <input id="widthM" type="range" min="1" max="20" step="0.1" value="${escapeHtml(widthMValue)}" />
+            <p id="widthMValue" class="mini-note ok"><strong>${formatMeters(widthMValue)} м</strong> (${Math.round(widthMValue * 1000)} мм)</p>
+          </div>
+          <div class="field">
+            <label for="heightM">Высота, м (бегунок)</label>
+            <input id="heightM" type="range" min="1" max="12" step="0.1" value="${escapeHtml(heightMValue)}" />
+            <p id="heightMValue" class="mini-note ok"><strong>${formatMeters(heightMValue)} м</strong> (${Math.round(heightMValue * 1000)} мм)</p>
+          </div>
+          <p id="sizeArea" class="mini-note full ok">
+            Размер: <strong>${formatMeters(widthMValue)} × ${formatMeters(heightMValue)} м</strong> · Площадь: <strong>${formatArea(widthMValue * heightMValue)} м²</strong>
+          </p>
+          <p class="mini-note full">Для прокатных экранов размер вводится в метрах.</p>
+        `;
+        wrap.appendChild(fields);
+        stepContent.replaceChildren(wrap);
+        const areaSummary = fields.querySelector("#sizeArea");
+        const updateRentalArea = () => {
+          const w = Number(state.widthM || 0);
+          const h = Number(state.heightM || 0);
+          areaSummary.innerHTML =
+            `Размер: <strong>${formatMeters(w)} × ${formatMeters(h)} м</strong> · Площадь: <strong>${formatArea(w * h)} м²</strong>`;
+        };
+        fields.querySelector("#widthM").addEventListener("input", (e) => {
+          const value = Number(e.target.value || 0);
+          state.widthM = String(value);
+          fields.querySelector("#widthMValue").innerHTML = `<strong>${formatMeters(value)} м</strong> (${Math.round(value * 1000)} мм)`;
+          updateRentalArea();
+          persistState();
+          renderLivePreview();
+        });
+        fields.querySelector("#heightM").addEventListener("input", (e) => {
+          const value = Number(e.target.value || 0);
+          state.heightM = String(value);
+          fields.querySelector("#heightMValue").innerHTML = `<strong>${formatMeters(value)} м</strong> (${Math.round(value * 1000)} мм)`;
+          updateRentalArea();
+          persistState();
+          renderLivePreview();
+        });
+        return;
+      }
+
+      const widthValue = roundToStep(Number(state.widthMm || 0), 320, 320);
+      const heightValue = roundToStep(Number(state.heightMm || 0), 160, 160);
+      state.widthMm = String(widthValue);
+      state.heightMm = String(heightValue);
+
+      fields.innerHTML = `
+        <div class="field">
+          <label for="widthMm">Ширина, мм (бегунок · шаг 320)</label>
+          <input id="widthMm" type="range" min="320" max="15360" step="320" value="${escapeHtml(widthValue)}" />
+          <p id="widthHint" class="mini-note ok"><strong>${widthValue} мм</strong></p>
+        </div>
+        <div class="field">
+          <label for="heightMm">Высота, мм (бегунок · шаг 160)</label>
+          <input id="heightMm" type="range" min="160" max="8640" step="160" value="${escapeHtml(heightValue)}" />
+          <p id="heightHint" class="mini-note ok"><strong>${heightValue} мм</strong></p>
+        </div>
+        <p id="sizeArea" class="mini-note full ok">
+          Размер: <strong>${widthValue} × ${heightValue} мм</strong> (${formatMeters(widthValue / 1000)} × ${formatMeters(heightValue / 1000)} м) · Площадь: <strong>${formatArea((widthValue * heightValue) / 1000000)} м²</strong>
+        </p>
+      `;
+
+      wrap.appendChild(fields);
+      stepContent.replaceChildren(wrap);
+
+      const widthInput = fields.querySelector("#widthMm");
+      const heightInput = fields.querySelector("#heightMm");
+      const widthHint = fields.querySelector("#widthHint");
+      const heightHint = fields.querySelector("#heightHint");
+      const areaSummary = fields.querySelector("#sizeArea");
+      const updateMmArea = () => {
+        const w = Number(state.widthMm || 0);
+        const h = Number(state.heightMm || 0);
+        areaSummary.innerHTML =
+          `Размер: <strong>${w} × ${h} мм</strong> (${formatMeters(w / 1000)} × ${formatMeters(h / 1000)} м) · Площадь: <strong>${formatArea((w * h) / 1000000)} м²</strong>`;
+      };
+
+      widthInput.addEventListener("input", (e) => {
+        const value = Number(e.target.value || 320);
+        state.widthMm = String(value);
+        persistState();
+        widthHint.innerHTML = `<strong>${value} мм</strong>`;
+        updateMmArea();
+        renderLivePreview();
+      });
+      heightInput.addEventListener("input", (e) => {
+        const value = Number(e.target.value || 160);
+        state.heightMm = String(value);
+        persistState();
+        heightHint.innerHTML = `<strong>${value} мм</strong>`;
+        updateMmArea();
+        renderLivePreview();
+      });
+    }
+
+    function renderStep4() {
+      const isRental = state.screenType === "Прокатный";
+      const options = isRental ? RENTAL_PITCH : (resolveOutdoorContext() ? OUTDOOR_PITCH : INDOOR_PITCH);
+      const wrap = document.createElement("div");
+      wrap.appendChild(
+        renderOptionCards(options, state.pixelPitch, (value) => {
+          state.pixelPitch = value;
+          persistState();
+          render();
+        })
+      );
+      stepContent.replaceChildren(wrap);
+    }
+
+    function renderStep5() {
+      const wrap = document.createElement("div");
+      wrap.appendChild(
+        renderOptionCards(INSTALL_OPTIONS, state.installation, (value) => {
+          state.installation = value;
+          persistState();
+          render();
+        })
+      );
+      stepContent.replaceChildren(wrap);
+    }
+
+    function contactValueLabel() {
+      switch (state.contactMethod) {
+        case "Telegram": return "Telegram (номер или @ник)";
+        case "WhatsApp": return "WhatsApp номер";
+        case "Email": return "Email";
+        case "Звонок": return "Номер для звонка";
+        default: return "Телефон";
+      }
+    }
+
+    function contactPlaceholder() {
+      switch (state.contactMethod) {
+        case "Telegram": return "@username или +79990000000";
+        case "WhatsApp": return "+79990000000";
+        case "Email": return "name@example.com";
+        case "Звонок": return "+79990000000";
+        default: return "+79990000000";
+      }
+    }
+
+    function renderStep6() {
+      const wrap = document.createElement("div");
+      const fields = document.createElement("div");
+      fields.className = "fields";
+      const currentContact = state.contactValues[state.contactMethod] || "";
+      fields.innerHTML = `
+        <div class="field">
+          <label for="clientName">Имя</label>
+          <input id="clientName" type="text" value="${escapeHtml(state.clientName)}" placeholder="Как к вам обращаться" />
+        </div>
+        <div class="field">
+          <label>${contactValueLabel()}</label>
+          <input id="contactValue" type="text" value="${escapeHtml(currentContact)}" placeholder="${escapeHtml(contactPlaceholder())}" />
+        </div>
+        <div class="field">
+          <label for="city">Город</label>
+          <input id="city" type="text" value="${escapeHtml(state.city)}" placeholder="Например, Челябинск" />
+        </div>
+        <div class="field full">
+          <label>Способ связи</label>
+          <div id="contactMethods"></div>
+        </div>
+        <div class="field full">
+          <label for="comment">Комментарий</label>
+          <textarea id="comment" placeholder="Задача, дедлайн, адрес монтажа, особенности проекта...">${escapeHtml(state.comment)}</textarea>
+        </div>
+      `;
+      wrap.appendChild(fields);
+      stepContent.replaceChildren(wrap);
+
+      const methodContainer = fields.querySelector("#contactMethods");
+      methodContainer.appendChild(
+        renderOptionCards(CONTACT_METHODS, state.contactMethod, (value) => {
+          state.contactMethod = value;
+          persistState();
+          renderStep6();
+        })
+      );
+
+      fields.querySelector("#clientName").addEventListener("input", (e) => {
+        state.clientName = e.target.value;
+        persistState();
+        renderLivePreview();
+      });
+      fields.querySelector("#city").addEventListener("input", (e) => {
+        state.city = e.target.value;
+        persistState();
+        renderLivePreview();
+      });
+      fields.querySelector("#comment").addEventListener("input", (e) => {
+        state.comment = e.target.value;
+        persistState();
+      });
+      fields.querySelector("#contactValue").addEventListener("input", (e) => {
+        state.contactValues[state.contactMethod] = e.target.value;
+        persistState();
+        renderLivePreview();
+      });
+    }
+
+    function validateStep(step) {
+      if (step === 1 && !state.screenType) return "Выберите тип экрана.";
+      if (step === 2 && !state.subtype) return "Выберите тип исполнения.";
+      if (step === 3 && !state.pixelPitch) return "Выберите шаг пикселя.";
+      if (step === 4) {
+        if (state.screenType === "Прокатный") {
+          const w = Number(state.widthM);
+          const h = Number(state.heightM);
+          if (!w || !h || w <= 0 || h <= 0) {
+            return "Укажите ширину и высоту в метрах.";
+          }
+        } else {
+          const w = Number(state.widthMm);
+          const h = Number(state.heightMm);
+          if (!w || !h || w <= 0 || h <= 0) {
+            return "Укажите ширину и высоту в миллиметрах.";
+          }
+          state.widthMm = String(roundToStep(w, 320, 320));
+          state.heightMm = String(roundToStep(h, 160, 160));
+          persistState();
+        }
+      }
+      if (step === 5 && !state.installation) return "Выберите вариант монтажа.";
+      if (step === 6) {
+        if (!state.clientName.trim()) return "Введите имя.";
+        if (!state.city.trim()) return "Введите город.";
+        const contact = (state.contactValues[state.contactMethod] || "").trim();
+        if (!contact) return "Укажите контакт для связи.";
+      }
+      return "";
+    }
+
+    function formatProjectName(widthMm, heightMm) {
+      const city = state.city.trim() || "Без города";
+      return `${state.screenType} ${state.subtype} ${city} ${widthMm}x${heightMm}`.replace(/\s+/g, " ").trim();
+    }
+
+    function buildPayload() {
+      const isRental = state.screenType === "Прокатный";
+      const widthMm = isRental
+        ? Math.max(1, Math.round(Number(state.widthM || 0) * 1000))
+        : roundToStep(Number(state.widthMm || 0), 320, 320);
+      const heightMm = isRental
+        ? Math.max(1, Math.round(Number(state.heightM || 0) * 1000))
+        : roundToStep(Number(state.heightMm || 0), 160, 160);
+      const clientName = state.clientName.trim();
+      const contactValue = (state.contactValues[state.contactMethod] || "").trim();
+      const messengerMap = {
+        "Телефон": "mobile",
+        "Telegram": "telegram",
+        "WhatsApp": "whatsapp",
+        "Email": "email",
+        "Звонок": "mobile"
+      };
+      const env = (state.screenType === "Прокатный")
+        ? (state.subtype === "Уличный" ? "Outdoor" : "Indoor")
+        : (resolveOutdoorContext() ? "Outdoor" : "Indoor");
+
+      const payload = {
+        request_id: `lead-${Date.now()}`,
+        project_name: formatProjectName(widthMm, heightMm),
+        client_name: clientName || contactValue,
+        name: clientName || "",
+        city: state.city.trim(),
+        type: state.screenType,
+        subtype: state.subtype,
+        env,
+        width_mm: widthMm,
+        height_mm: heightMm,
+        width_m: isRental ? Number(state.widthM || 0) : null,
+        height_m: isRental ? Number(state.heightM || 0) : null,
+        pixel_pitch: state.pixelPitch,
+        installation_choice: state.installation,
+        installation_note: state.installation,
+        mount_type: isRental ? "В кабинетах" : "Монолитный (Магниты/Профиль)",
+        comment: state.comment.trim(),
+        contact_method: state.contactMethod,
+        contact_value: contactValue,
+        messenger: messengerMap[state.contactMethod] || "mobile",
+        phone: ["Телефон", "WhatsApp", "Звонок"].includes(state.contactMethod) ? contactValue : "",
+        telegram: state.contactMethod === "Telegram" ? contactValue : "",
+        whatsapp: state.contactMethod === "WhatsApp" ? contactValue : "",
+        email: state.contactMethod === "Email" ? contactValue : "",
+        margin_percent: 30,
+        logistics_rub: 0,
+        installation_rub: 0,
+        display_currency: "RUB",
+        vat_mode: "С НДС 22%"
+      };
+      return payload;
+    }
+
+    async function submitLead() {
+      if (state.sending) return;
+      state.sending = true;
+      nextBtn.disabled = true;
+      nextBtn.textContent = "Отправляем...";
+      persistState();
+      try {
+        const payload = buildPayload();
+        let delivered = false;
+        let lastError = null;
+
+        for (const endpoint of webhookCandidates()) {
+          try {
+            const resp = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.ok) {
+              throw new Error(data.error || `HTTP ${resp.status}`);
+            }
+            delivered = true;
+            break;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        if (!delivered) {
+          throw (lastError || new Error("delivery_failed"));
+        }
+        state.requestId = payload.request_id;
+        state.submitted = true;
+        state.sending = false;
+        persistState();
+        render();
+      } catch (err) {
+        state.sending = false;
+        nextBtn.disabled = false;
+        nextBtn.textContent = "Отправить заявку";
+        persistState();
+        showError("Не удалось отправить заявку. Проверьте интернет и попробуйте еще раз.");
+      }
+    }
+
+    function resetQuiz() {
+      Object.assign(state, JSON.parse(JSON.stringify(defaultState)));
+      persistState();
+      render();
+    }
+
+    function renderThanks() {
+      stepTitle.textContent = "Спасибо! Мы скоро с вами свяжемся";
+      stepHint.textContent = "Заявка отправлена. Менеджер Medialive уточнит детали и подготовит расчет.";
+      stepContent.innerHTML = `
+        <div class="thanks">
+          <h2>Заявка принята</h2>
+          <p>Номер заявки: <strong>${escapeHtml(state.requestId || "—")}</strong></p>
+        </div>
+      `;
+      quizFoot.style.display = "flex";
+      backBtn.disabled = false;
+      backBtn.textContent = "Новая заявка";
+      nextBtn.style.display = "none";
+      progressFill.style.width = "100%";
+      progressStep.textContent = "Готово";
+      progressPercent.textContent = "100%";
+    }
+
+    function render() {
+      clearError();
+      if (state.submitted) {
+        renderThanks();
+        return;
+      }
+      if (!state.screenType && state.step > 1) state.step = 1;
+      if (!state.subtype && state.step > 2) state.step = 2;
+      ensureDimensionsInitialized();
+
+      const percent = Math.round((state.step / STEP_TOTAL) * 100);
+      progressFill.style.width = `${percent}%`;
+      progressStep.textContent = `Шаг ${state.step} из ${STEP_TOTAL}`;
+      progressPercent.textContent = `${percent}%`;
+
+      stepTitle.textContent = `${state.step}. ${STEP_TITLES[state.step]}`;
+      stepHint.textContent = STEP_HINTS[state.step];
+
+      quizFoot.style.display = "flex";
+      nextBtn.style.display = "";
+      backBtn.textContent = "Назад";
+      backBtn.disabled = state.step === 1;
+      nextBtn.disabled = false;
+      nextBtn.textContent = state.step === STEP_TOTAL ? "Отправить заявку" : "Далее";
+
+      if (state.step === 1) renderStep1();
+      if (state.step === 2) renderStep2();
+      if (state.step === 3) renderStep4();
+      if (state.step === 4) renderStep3();
+      if (state.step === 5) renderStep5();
+      if (state.step === 6) renderStep6();
+      renderLivePreview();
+    }
+
+    render();
+  </script>
+</body>
+</html>
