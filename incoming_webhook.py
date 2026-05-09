@@ -90,6 +90,180 @@ def _as_float(v: Any) -> float | None:
         return None
 
 
+def _is_truthy(raw: str) -> bool:
+    return (raw or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _bitrix_method_url(webhook_url: str, method: str) -> str:
+    base = (webhook_url or "").strip()
+    if not base:
+        return ""
+    if method in base:
+        return base
+    return f"{base.rstrip('/')}/{method}"
+
+
+def _looks_like_email(value: str) -> bool:
+    return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value or ""))
+
+
+def _detect_contacts(payload: dict[str, Any]) -> tuple[str, str]:
+    contact_method = _to_text(payload.get("contact_method")).lower()
+    contact_value = _to_text(payload.get("contact_value"))
+    direct_phone = _to_text(payload.get("phone"))
+    direct_email = _to_text(payload.get("email"))
+
+    phone = _extract_phone(direct_phone)
+    email = direct_email if _looks_like_email(direct_email) else ""
+
+    if not phone and any(x in contact_method for x in ("телефон", "звонок", "whatsapp", "mobile")):
+        phone = _extract_phone(contact_value)
+    if not email and ("email" in contact_method or _looks_like_email(contact_value)):
+        email = contact_value
+    if not phone:
+        phone = _extract_phone(contact_value)
+    if not email and _looks_like_email(contact_value):
+        email = contact_value
+
+    return phone, email
+
+
+def _build_bitrix_comment(payload: dict, record: dict) -> str:
+    req_id = _to_text(payload.get("request_id") or payload.get("id") or payload.get("lead_id")) or "—"
+    project = _to_text(payload.get("project_name") or payload.get("project")) or "—"
+    city = _to_text(payload.get("city")) or "—"
+    screen_type = _to_text(payload.get("type") or payload.get("screenType")) or "—"
+    subtype = _to_text(payload.get("subtype")) or "—"
+    pixel = _to_text(payload.get("pixel_pitch") or payload.get("pixelPitch")) or "—"
+    installation = _to_text(payload.get("installation_choice") or payload.get("installation_note")) or "—"
+    source = _to_text(payload.get("source") or payload.get("lead_source")) or "quiz/webhook"
+    width = _to_text(payload.get("width_mm"))
+    height = _to_text(payload.get("height_mm"))
+    size = f"{width}x{height} мм" if width and height else "—"
+
+    area = "—"
+    w_float = _as_float(payload.get("width_mm"))
+    h_float = _as_float(payload.get("height_mm"))
+    if w_float and h_float and w_float > 0 and h_float > 0:
+        area = f"{(w_float * h_float) / 1_000_000:.2f} м²"
+
+    lines = [
+        "Заявка Medialive (webhook).",
+        "",
+        f"ID: {req_id}",
+        f"Проект: {project}",
+        f"Город: {city}",
+        f"Тип экрана: {screen_type} / {subtype}",
+        f"Размер: {size}",
+        f"Площадь: {area}",
+        f"Шаг пикселя: {pixel}",
+        f"Монтаж: {installation}",
+        f"Источник: {source}",
+        f"Время: {_to_text(record.get('received_at'))}",
+    ]
+    return "\n".join(lines)
+
+
+def _bitrix_post(url: str, body: dict[str, Any]) -> tuple[bool, Any]:
+    req = urllib.request.Request(
+        url=url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            data = json.loads(raw) if raw else {}
+            if "error" in data:
+                return False, data
+            return True, data
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            detail = str(exc)
+        return False, {"error": f"http_{exc.code}", "error_description": detail[:500]}
+    except (urllib.error.URLError, TimeoutError) as exc:
+        return False, {"error": "request_failed", "error_description": str(exc)}
+
+
+def _notify_bitrix(payload: dict, record: dict, saved_to: Path) -> tuple[bool, str, int | None]:
+    webhook_url = _to_text(os.environ.get("BITRIX_WEBHOOK_URL"))
+    if not webhook_url:
+        return False, "disabled_missing_env", None
+
+    phone, email = _detect_contacts(payload)
+    duplicate_check = _is_truthy(_to_text(os.environ.get("BITRIX_CHECK_DUPLICATES")))
+    create_on_duplicate = _is_truthy(_to_text(os.environ.get("BITRIX_CREATE_ON_DUPLICATE")))
+
+    duplicate_lead_ids: set[int] = set()
+    if duplicate_check:
+        duplicate_url = _bitrix_method_url(webhook_url, "crm.duplicate.findbycomm.json")
+        for comm_type, value in (("PHONE", phone), ("EMAIL", email)):
+            if not value:
+                continue
+            ok_dup, dup_resp = _bitrix_post(duplicate_url, {"type": comm_type, "values": [value]})
+            if ok_dup and isinstance(dup_resp, dict):
+                dup_result = dup_resp.get("result") or {}
+                for lead_id in dup_result.get("LEAD", []):
+                    try:
+                        duplicate_lead_ids.add(int(lead_id))
+                    except (TypeError, ValueError):
+                        continue
+
+    if duplicate_lead_ids and not create_on_duplicate:
+        duplicate_id = sorted(duplicate_lead_ids)[0]
+        note = f"duplicate_lead_{duplicate_id}"
+        print(f"[bitrix_notify] skipped_duplicate saved={saved_to} note={note}", flush=True)
+        return True, note, duplicate_id
+
+    lead_title = _to_text(payload.get("project_name") or payload.get("project")) or "Заявка с калькулятора Medialive"
+    lead_name = _to_text(payload.get("client_name") or payload.get("name") or payload.get("client"))
+
+    fields: dict[str, Any] = {
+        "TITLE": lead_title,
+        "COMMENTS": _build_bitrix_comment(payload, record),
+        "SOURCE_ID": _to_text(os.environ.get("BITRIX_SOURCE_ID")) or "WEB",
+        "SOURCE_DESCRIPTION": _to_text(payload.get("source") or payload.get("lead_source")) or "quiz/webhook",
+    }
+    if lead_name:
+        fields["NAME"] = lead_name
+    if phone:
+        fields["PHONE"] = [{"VALUE": phone, "VALUE_TYPE": "WORK"}]
+    if email:
+        fields["EMAIL"] = [{"VALUE": email, "VALUE_TYPE": "WORK"}]
+
+    assigned_by = _to_text(os.environ.get("BITRIX_ASSIGNED_BY_ID"))
+    if assigned_by:
+        try:
+            fields["ASSIGNED_BY_ID"] = int(assigned_by)
+        except ValueError:
+            pass
+
+    lead_add_url = _bitrix_method_url(webhook_url, "crm.lead.add.json")
+    ok, response = _bitrix_post(lead_add_url, {"fields": fields})
+    if not ok:
+        print(f"[bitrix_notify] failed saved={saved_to} response={response}", flush=True)
+        err = _to_text(response.get("error")) if isinstance(response, dict) else "unknown_error"
+        desc = _to_text(response.get("error_description")) if isinstance(response, dict) else ""
+        note = f"{err}: {desc[:180]}".strip(": ")
+        return False, note or "request_failed", None
+
+    lead_id: int | None = None
+    if isinstance(response, dict):
+        result = response.get("result")
+        try:
+            if result is not None:
+                lead_id = int(result)
+        except (TypeError, ValueError):
+            lead_id = None
+    note = f"lead_created_{lead_id}" if lead_id else "lead_created"
+    print(f"[bitrix_notify] ok saved={saved_to} note={note}", flush=True)
+    return True, note, lead_id
+
+
 def _telegram_send_message(token: str, body: dict[str, Any]) -> tuple[bool, str]:
     req = urllib.request.Request(
         url=f"https://api.telegram.org/bot{token}/sendMessage",
@@ -304,6 +478,7 @@ def incoming():
         encoding="utf-8",
     )
     tg_ok, tg_note = _notify_telegram(normalized, record, target_path)
+    bitrix_ok, bitrix_note, bitrix_lead_id = _notify_bitrix(normalized, record, target_path)
 
     return _with_cors(
         jsonify(
@@ -313,6 +488,9 @@ def incoming():
                 "received_at": record["received_at"],
                 "telegram_notified": tg_ok,
                 "telegram_note": tg_note,
+                "bitrix_synced": bitrix_ok,
+                "bitrix_note": bitrix_note,
+                "bitrix_lead_id": bitrix_lead_id,
             }
         )
     )

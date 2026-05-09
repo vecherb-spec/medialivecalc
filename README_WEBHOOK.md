@@ -3,7 +3,8 @@
 Этот проект умеет:
 
 - принимать JSON-заявки и загружать их в интерфейс калькулятора;
-- отдавать готовую страницу квиза (`/quiz`) для встраивания на сайт.
+- отдавать готовую страницу квиза (`/quiz`) для встраивания на сайт;
+- (опционально) отправлять новые заявки в Telegram и Bitrix24.
 
 ## 1) Запуск webhook-сервиса
 
@@ -147,6 +148,44 @@ sudo systemctl daemon-reload
 sudo systemctl restart medialive-webhook
 sudo systemctl status medialive-webhook --no-pager -l
 ```
+
+## 6) Отправка лида в Bitrix24 (опционально)
+
+Webhook может автоматически создавать лиды в Bitrix24 на каждый `POST /incoming`.
+
+Нужны переменные окружения:
+
+- `BITRIX_WEBHOOK_URL` — webhook URL Bitrix24.
+  - Можно указать либо базовый URL (`https://<portal>/rest/<user>/<code>`),
+  - либо полный URL метода (`.../crm.lead.add.json`).
+- `BITRIX_ASSIGNED_BY_ID` — (опционально) ID ответственного.
+- `BITRIX_SOURCE_ID` — (опционально) источник лида, по умолчанию `WEB`.
+- `BITRIX_CHECK_DUPLICATES` — (опционально) `true/false`, проверка дублей по телефону/email до создания лида.
+- `BITRIX_CREATE_ON_DUPLICATE` — (опционально) `true/false`, создавать новый лид даже если найден дубль.
+
+Пример для systemd (`medialive-webhook.service`):
+
+```ini
+Environment=BITRIX_WEBHOOK_URL=https://yourportal.bitrix24.ru/rest/1/xxxxxxxxxxxx
+Environment=BITRIX_ASSIGNED_BY_ID=1
+Environment=BITRIX_SOURCE_ID=WEB
+Environment=BITRIX_CHECK_DUPLICATES=true
+Environment=BITRIX_CREATE_ON_DUPLICATE=false
+```
+
+После изменения:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart medialive-webhook
+sudo systemctl status medialive-webhook --no-pager -l
+```
+
+Ответ `POST /incoming` теперь содержит поля:
+
+- `bitrix_synced` — успешно ли обработана отправка (или найден дубль);
+- `bitrix_note` — диагностический статус (`lead_created_*`, `duplicate_lead_*`, ошибка и т.д.);
+- `bitrix_lead_id` — ID созданного/найденного лида (если есть).
 
 ## Поддерживаемые поля (основные)
 
