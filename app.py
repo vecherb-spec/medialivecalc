@@ -1566,6 +1566,10 @@ if "_incoming_payload_to_apply" in st.session_state:
     )
     st.rerun()
 
+# Нормализация object-ключей выбора на каждом запуске:
+# защищает от "залипших" старых dict-значений после обновления прайса.
+coerce_session_object_references()
+
 def fit_ratio(ratio):
     width = float(st.session_state.get("width_input", 320))
     ideal = width / ratio
