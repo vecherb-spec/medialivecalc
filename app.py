@@ -2531,18 +2531,21 @@ with col_ctrl2:
         key="main_card_select",
     )
     
-    # --- НОВЫЙ БЛОК: КРАТНОСТЬ МОДУЛЕЙ ---
-    # Список значений, как ты просил + стандартные для больших экранов
+    # Кратность модулей нужна только для монолитного режима.
     card_mods_options = [6, 8, 10, 12, 14, 16, 18]
-    
-    modules_per_card = st.selectbox(
-        "Кол-во модулей на 1 карту:",
-        options=card_mods_options,
-        index=card_mods_options.index(10),
-        key="mods_per_card_select",
-        help="Выберите физическую кратность модулей для одной приёмной карты.",
-    )
-    # -------------------------------------
+    if "кабинетах" in mount_type:
+        modules_per_card = 0
+        st.caption(
+            "Кабинетный монтаж: карты считаются автоматически (1 карта на кабинет, кроме 320×160)."
+        )
+    else:
+        modules_per_card = st.selectbox(
+            "Кол-во модулей на 1 карту:",
+            options=card_mods_options,
+            index=card_mods_options.index(10),
+            key="mods_per_card_select",
+            help="Выберите физическую кратность модулей для одной приёмной карты.",
+        )
 
     receiving_card = selected_card
     card_name = receiving_card["name"]
