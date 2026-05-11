@@ -560,6 +560,93 @@ LEDCAPITAL_PRICES_CSV_URL = (
     "1zjZO0LalspkhYoR2ayikqKTaz_hgpjLI/gviz/tq?tqx=out:csv&gid=0"
 )
 
+CABINET_ALLOWLIST = [
+    {
+        "name": "Кабинет алюминиевый 640х640-C indoor",
+        "width_mm": 640.0,
+        "height_mm": 640.0,
+        "env_support": ("Indoor",),
+        "aliases": ("640х640-c indoor", "640x640-c indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 640х640-E indoor",
+        "width_mm": 640.0,
+        "height_mm": 640.0,
+        "env_support": ("Indoor",),
+        "aliases": ("640х640-e indoor", "640x640-e indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 640x480-C indoor",
+        "width_mm": 640.0,
+        "height_mm": 480.0,
+        "env_support": ("Indoor",),
+        "aliases": ("640x480-c indoor", "640х480-c indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 320х640-E indoor",
+        "width_mm": 320.0,
+        "height_mm": 640.0,
+        "env_support": ("Indoor",),
+        "aliases": ("320х640-e indoor", "320x640-e indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 320х480-E indoor",
+        "width_mm": 320.0,
+        "height_mm": 480.0,
+        "env_support": ("Indoor",),
+        "aliases": ("320х480-e indoor", "320x480-e indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 320x160-C indoor",
+        "width_mm": 320.0,
+        "height_mm": 160.0,
+        "env_support": ("Indoor",),
+        "aliases": ("320x160-c indoor", "320х160-c indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 960х960 indoor с коммутацией",
+        "width_mm": 960.0,
+        "height_mm": 960.0,
+        "env_support": ("Indoor",),
+        "aliases": ("960х960 indoor с коммутацией", "960x960 indoor с коммутацией"),
+    },
+    {
+        "name": "Кабинет алюминиевый 960х960 outdoor с коммутацией",
+        "width_mm": 960.0,
+        "height_mm": 960.0,
+        "env_support": ("Outdoor",),
+        "aliases": ("960х960 outdoor с коммутацией", "960x960 outdoor с коммутацией"),
+    },
+    {
+        "name": "Кабинет железный тыльный 960х960 outdoor",
+        "width_mm": 960.0,
+        "height_mm": 960.0,
+        "env_support": ("Outdoor",),
+        "aliases": ("кабинет железный 960х960 outdoor", "кабинет железный тыльный 960х960 outdoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый DM 500х1000 с коммутацией",
+        "width_mm": 500.0,
+        "height_mm": 1000.0,
+        "env_support": ("Indoor", "Outdoor"),
+        "aliases": ("dm 500х1000 с коммутацией", "dm 500x1000 с коммутацией"),
+    },
+    {
+        "name": "Кабинет алюминиевый DM 500х500 с коммутацией",
+        "width_mm": 500.0,
+        "height_mm": 500.0,
+        "env_support": ("Indoor", "Outdoor"),
+        "aliases": ("dm 500х500 с коммутацией", "dm 500x500 с коммутацией"),
+    },
+    {
+        "name": "Кабинет алюминиевый 640х640 с коммутацией",
+        "width_mm": 640.0,
+        "height_mm": 640.0,
+        "env_support": ("Indoor", "Outdoor"),
+        "aliases": ("640х640 с коммутацией", "640x640 с коммутацией"),
+    },
+]
+
 
 def _normalize_price_name(value: str) -> str:
     normalized = (value or "").lower().replace("ё", "е")
@@ -608,12 +695,16 @@ def _load_ledcapital_sheet_catalog_rows(csv_url: str) -> list[dict]:
         if len(cells) < 2:
             continue
 
-        price = None
-        for cell in cells:
-            parsed = _parse_usd_cell(cell)
-            if parsed is not None:
-                price = parsed
-                break
+        price = _parse_usd_cell(cells[2]) if len(cells) > 2 else None
+        if price is None:
+            # Fallback for non-standard rows.
+            price = _parse_usd_cell(cells[3]) if len(cells) > 3 else None
+        if price is None:
+            for cell in cells:
+                parsed = _parse_usd_cell(cell)
+                if parsed is not None:
+                    price = parsed
+                    break
         if price is None:
             continue
 
@@ -777,50 +868,18 @@ def _normalize_mm_for_display(value: float) -> str:
 def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
     fallback = [
         {
-            "name": "Кабинет алюминиевый 640х640 с коммутацией",
-            "width_mm": 640.0,
-            "height_mm": 640.0,
-            "price_usd": 81.22,
-            "env_support": ("Indoor", "Outdoor"),
-            "weight_kg": _estimate_cabinet_weight_kg(640.0, 640.0),
-        },
-        {
-            "name": "Кабинет алюминиевый DM 500х500 с коммутацией",
-            "width_mm": 500.0,
-            "height_mm": 500.0,
-            "price_usd": 57.44,
-            "env_support": ("Indoor", "Outdoor"),
-            "weight_kg": _estimate_cabinet_weight_kg(500.0, 500.0),
-        },
-        {
-            "name": "Кабинет алюминиевый DM 500х1000 с коммутацией",
-            "width_mm": 500.0,
-            "height_mm": 1000.0,
-            "price_usd": 82.20,
-            "env_support": ("Indoor", "Outdoor"),
-            "weight_kg": _estimate_cabinet_weight_kg(500.0, 1000.0),
-        },
-        {
-            "name": "Кабинет алюминиевый 960х960 outdoor с коммутацией",
-            "width_mm": 960.0,
-            "height_mm": 960.0,
-            "price_usd": 140.64,
-            "env_support": ("Outdoor",),
-            "weight_kg": _estimate_cabinet_weight_kg(960.0, 960.0),
-        },
-        {
-            "name": "Кабинет алюминиевый 960х960 indoor с коммутацией",
-            "width_mm": 960.0,
-            "height_mm": 960.0,
-            "price_usd": 140.64,
-            "env_support": ("Indoor",),
-            "weight_kg": _estimate_cabinet_weight_kg(960.0, 960.0),
-        },
+            "name": spec["name"],
+            "width_mm": spec["width_mm"],
+            "height_mm": spec["height_mm"],
+            "price_usd": 0.0,
+            "env_support": spec["env_support"],
+            "weight_kg": _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"]),
+        }
+        for spec in CABINET_ALLOWLIST
     ]
     try:
         raw_rows = _load_ledcapital_sheet_catalog_rows(LEDCAPITAL_PRICES_CSV_URL)
-        cabinets: list[dict] = []
-        used = set()
+        candidates: list[dict] = []
         for row in raw_rows:
             name = str(row.get("name", "")).strip()
             if not _is_cabinet_row(name):
@@ -829,33 +888,66 @@ def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
             w, h = _extract_dimensions_mm(f"{name} {desc}")
             if w is None or h is None:
                 continue
-            env_support = _cabinet_env_support(name, desc)
-            price_usd = float(row.get("price_usd", 0.0))
-            key = (_normalize_price_name(name), int(round(w * 10)), int(round(h * 10)))
-            if key in used:
-                continue
-            used.add(key)
-            cabinets.append(
+            candidates.append(
                 {
                     "name": name,
+                    "name_norm": _normalize_price_name(name),
+                    "description": desc,
                     "width_mm": w,
                     "height_mm": h,
-                    "price_usd": price_usd,
-                    "env_support": env_support,
-                    "weight_kg": _estimate_cabinet_weight_kg(w, h),
+                    "price_usd": float(row.get("price_usd", 0.0)),
+                    "env_support": _cabinet_env_support(name, desc),
                 }
             )
-        if not cabinets:
+        if not candidates:
             return fallback, "в таблице не найдены кабинетные позиции, применен резерв"
 
-        cabinets.sort(
-            key=lambda c: (
-                0 if c["env_support"] == ("Indoor",) else 1 if c["env_support"] == ("Outdoor",) else 2,
-                c["width_mm"] * c["height_mm"],
-                c["name"],
+        cabinets: list[dict] = []
+        for spec in CABINET_ALLOWLIST:
+            spec_name_norm = _normalize_price_name(spec["name"])
+            alias_norms = [spec_name_norm] + [
+                _normalize_price_name(alias) for alias in spec.get("aliases", ())
+            ]
+            best: Optional[dict] = None
+            best_score: Optional[tuple[int, int]] = None
+            for candidate in candidates:
+                if abs(candidate["width_mm"] - spec["width_mm"]) > 0.1 or abs(
+                    candidate["height_mm"] - spec["height_mm"]
+                ) > 0.1:
+                    continue
+                if not any(env in candidate["env_support"] for env in spec["env_support"]):
+                    continue
+
+                cand_norm = candidate["name_norm"]
+                name_score = None
+                for alias in alias_norms:
+                    if alias == cand_norm:
+                        name_score = 0
+                        break
+                    if alias in cand_norm or cand_norm in alias:
+                        name_score = min(name_score or 999, 50 + abs(len(alias) - len(cand_norm)))
+
+                if name_score is None:
+                    continue
+                env_penalty = 0 if candidate["env_support"] == spec["env_support"] else 1
+                score = (name_score, env_penalty)
+                if best_score is None or score < best_score:
+                    best_score = score
+                    best = candidate
+
+            price_usd = float(best["price_usd"]) if best else 0.0
+            cabinets.append(
+                {
+                    "name": spec["name"],
+                    "width_mm": spec["width_mm"],
+                    "height_mm": spec["height_mm"],
+                    "price_usd": price_usd,
+                    "env_support": spec["env_support"],
+                    "weight_kg": _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"]),
+                }
             )
-        )
-        return cabinets, f"загружено кабинетов: {len(cabinets)}"
+        found_count = len([c for c in cabinets if c["price_usd"] > 0])
+        return cabinets, f"по whitelist: {found_count}/{len(cabinets)}"
     except Exception as exc:
         return fallback, f"ошибка загрузки кабинетов: {exc}"
 
