@@ -566,6 +566,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 640.0,
         "height_mm": 640.0,
         "weight_kg": 5.5,
+        "hanger_type": "640",
         "env_support": ("Indoor",),
         "aliases": ("640х640-e indoor", "640x640-e indoor"),
     },
@@ -574,6 +575,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 640.0,
         "height_mm": 480.0,
         "weight_kg": 3.25,
+        "hanger_type": "640",
         "env_support": ("Indoor",),
         "aliases": ("640x480-c indoor", "640х480-c indoor"),
     },
@@ -582,6 +584,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 320.0,
         "height_mm": 640.0,
         "weight_kg": 3.25,
+        "hanger_type": "640",
         "env_support": ("Indoor",),
         "aliases": ("320х640-e indoor", "320x640-e indoor"),
     },
@@ -590,6 +593,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 320.0,
         "height_mm": 480.0,
         "weight_kg": 3.25,
+        "hanger_type": "640",
         "env_support": ("Indoor",),
         "aliases": ("320х480-e indoor", "320x480-e indoor"),
     },
@@ -598,6 +602,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 320.0,
         "height_mm": 160.0,
         "weight_kg": 1.0,
+        "hanger_type": "640",
         "env_support": ("Indoor",),
         "aliases": ("320x160-c indoor", "320х160-c indoor"),
     },
@@ -606,6 +611,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 960.0,
         "height_mm": 960.0,
         "weight_kg": 14.0,
+        "hanger_type": "960",
         "env_support": ("Indoor",),
         "aliases": ("960х960 indoor с коммутацией", "960x960 indoor с коммутацией"),
     },
@@ -614,6 +620,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 960.0,
         "height_mm": 960.0,
         "weight_kg": 14.0,
+        "hanger_type": "960",
         "env_support": ("Outdoor",),
         "aliases": ("960х960 outdoor с коммутацией", "960x960 outdoor с коммутацией"),
     },
@@ -622,6 +629,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 960.0,
         "height_mm": 960.0,
         "weight_kg": 17.5,
+        "hanger_type": "none",
         "env_support": ("Outdoor",),
         "aliases": ("кабинет железный 960х960 outdoor", "кабинет железный тыльный 960х960 outdoor"),
     },
@@ -631,6 +639,7 @@ CABINET_ALLOWLIST = [
         "height_mm": 960.0,
         "weight_kg": 15.0,
         "price_rub": 8870.0,
+        "hanger_type": "none",
         "env_support": ("Outdoor",),
         "aliases": (
             "стальной кабинет 960x960 для модуля 320x160 фронтальный на тягах",
@@ -642,6 +651,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 500.0,
         "height_mm": 1000.0,
         "weight_kg": 6.1,
+        "hanger_type": "500",
         "env_support": ("Indoor", "Outdoor"),
         "aliases": ("dm 500х1000 с коммутацией", "dm 500x1000 с коммутацией"),
     },
@@ -650,6 +660,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 500.0,
         "height_mm": 500.0,
         "weight_kg": 3.8,
+        "hanger_type": "500",
         "env_support": ("Indoor", "Outdoor"),
         "aliases": ("dm 500х500 с коммутацией", "dm 500x500 с коммутацией"),
     },
@@ -658,6 +669,7 @@ CABINET_ALLOWLIST = [
         "width_mm": 640.0,
         "height_mm": 640.0,
         "weight_kg": 5.7,
+        "hanger_type": "640",
         "env_support": ("Indoor", "Outdoor"),
         "aliases": ("640х640 с коммутацией", "640x640 с коммутацией"),
     },
@@ -901,11 +913,23 @@ CABINET_HANGER_960 = {
 }
 
 
-def _cabinet_hanger_spec(cabinet_name: str, width_mm: float, height_mm: float) -> Optional[dict]:
-    low_name = (cabinet_name or "").lower()
+def _cabinet_hanger_spec(cabinet: dict) -> Optional[dict]:
+    low_name = str(cabinet.get("name", "")).lower()
     if "алюминиев" not in low_name:
         return None
 
+    hanger_type = str(cabinet.get("hanger_type", "")).lower().strip()
+    if hanger_type == "none":
+        return None
+    if hanger_type == "500":
+        return CABINET_HANGER_500
+    if hanger_type == "960":
+        return CABINET_HANGER_960
+    if hanger_type == "640":
+        return CABINET_HANGER_640
+
+    width_mm = float(cabinet.get("width_mm", 0.0) or 0.0)
+    height_mm = float(cabinet.get("height_mm", 0.0) or 0.0)
     w = int(round(width_mm))
     h = int(round(height_mm))
     max_side = max(w, h)
@@ -934,6 +958,7 @@ def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
             "height_mm": spec["height_mm"],
             "price_usd": _cabinet_price_usd_from_spec(spec),
             "env_support": spec["env_support"],
+            "hanger_type": str(spec.get("hanger_type", "auto")),
             "weight_kg": float(
                 spec.get("weight_kg")
                 or _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"])
@@ -1011,6 +1036,7 @@ def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
                     "height_mm": spec["height_mm"],
                     "price_usd": price_usd,
                     "env_support": spec["env_support"],
+                    "hanger_type": str(spec.get("hanger_type", "auto")),
                     "weight_kg": float(
                         spec.get("weight_kg")
                         or _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"])
@@ -2105,7 +2131,7 @@ with _ui_bordered_container():
                     unsafe_allow_html=True,
                 )
 
-                _hanger_spec = _cabinet_hanger_spec(cabinet_model, cabinet_width, cabinet_height)
+                _hanger_spec = _cabinet_hanger_spec(selected_cabinet)
                 if _hanger_spec is not None:
                     if "calc_cabinet_hanger_enabled" not in st.session_state:
                         st.session_state.calc_cabinet_hanger_enabled = False
