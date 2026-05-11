@@ -1,6 +1,7 @@
 import streamlit as st
 import math
 import json
+import csv
 import re
 import datetime
 from pathlib import Path
@@ -552,6 +553,147 @@ MAGNETS_DB = [
     {"name": "Магнит 14×13×1,3 мм", "pack_price_usd": 69.33, "pack_qty": 1000},
     {"name": "Магнит 14×17×1,3 мм", "pack_price_usd": 69.33, "pack_qty": 1000},
 ]
+
+
+LEDCAPITAL_PRICES_CSV_URL = (
+    "https://docs.google.com/spreadsheets/d/"
+    "1zjZO0LalspkhYoR2ayikqKTaz_hgpjLI/gviz/tq?tqx=out:csv&gid=0"
+)
+
+
+def _normalize_price_name(value: str) -> str:
+    normalized = (value or "").lower().replace("ё", "е")
+    normalized = normalized.replace("×", "x")
+    normalized = re.sub(
+        r"\b(ссылка|товар|контроллер|процессор|видео|медиа|приемная|карта|асинхронный)\b",
+        " ",
+        normalized,
+    )
+    normalized = re.sub(r"[^a-zа-я0-9]+", "", normalized)
+    return normalized
+
+
+def _parse_usd_cell(raw: str) -> Optional[float]:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    s = s.replace("\u00a0", "").replace(" ", "").replace(",", ".")
+    s = re.sub(r"[^0-9.]", "", s)
+    if not s or s.count(".") > 1:
+        return None
+    try:
+        val = float(s)
+    except ValueError:
+        return None
+    if 0.01 <= val <= 100000:
+        return val
+    return None
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _load_ledcapital_sheet_prices(csv_url: str) -> list[dict]:
+    req = urllib.request.Request(
+        csv_url,
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        text = resp.read().decode("utf-8", errors="replace")
+
+    rows: list[dict] = []
+    reader = csv.reader(text.splitlines())
+    for row in reader:
+        cells = [c.strip() for c in row]
+        if len(cells) < 2:
+            continue
+
+        price = None
+        for cell in cells:
+            parsed = _parse_usd_cell(cell)
+            if parsed is not None:
+                price = parsed
+                break
+        if price is None:
+            continue
+
+        candidate_name = cells[1] if len(cells) > 1 else cells[0]
+        if not candidate_name:
+            candidate_name = cells[0]
+        if not candidate_name:
+            continue
+        if len(_normalize_price_name(candidate_name)) < 5:
+            continue
+
+        rows.append({"name": candidate_name, "price_usd": price})
+    return rows
+
+
+def _find_sheet_price_by_name(name: str, sheet_rows: list[dict]) -> Optional[float]:
+    needle = _normalize_price_name(name)
+    if not needle:
+        return None
+
+    best_price = None
+    best_score = None
+    for row in sheet_rows:
+        row_name = _normalize_price_name(str(row.get("name", "")))
+        if not row_name:
+            continue
+
+        score = None
+        if row_name == needle:
+            score = 0
+        elif needle in row_name or row_name in needle:
+            overlap = min(len(needle), len(row_name))
+            if overlap >= 7:
+                score = 100 + abs(len(row_name) - len(needle))
+
+        if score is not None and (best_score is None or score < best_score):
+            best_score = score
+            best_price = float(row.get("price_usd", 0.0))
+
+    return best_price
+
+
+def _apply_sheet_price_updates(db_rows: list[dict], sheet_rows: list[dict], price_key: str = "price_usd") -> int:
+    updated = 0
+    for row in db_rows:
+        current_name = str(row.get("name", ""))
+        matched_price = _find_sheet_price_by_name(current_name, sheet_rows)
+        if matched_price is None:
+            continue
+        if abs(float(row.get(price_key, 0.0)) - matched_price) < 1e-9:
+            continue
+        row[price_key] = matched_price
+        updated += 1
+    return updated
+
+
+def sync_ledcapital_prices_from_google_sheet() -> dict:
+    try:
+        sheet_rows = _load_ledcapital_sheet_prices(LEDCAPITAL_PRICES_CSV_URL)
+        if not sheet_rows:
+            return {"ok": False, "updated": 0, "note": "Google Sheet вернул пустой прайс"}
+
+        updated = 0
+        updated += _apply_sheet_price_updates(MODULES_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(SYNC_CONTROLLERS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(ASYNC_CONTROLLERS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(RECEIVING_CARDS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(PSU_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(HUBS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(PATCH_CORDS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(CARD_POWER_CABLES_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(POWER_JUMPERS_MONOLITH_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(MAGNETS_DB, sheet_rows, "pack_price_usd")
+
+        return {"ok": True, "updated": updated, "note": f"обновлено позиций: {updated}"}
+    except Exception as exc:
+        return {"ok": False, "updated": 0, "note": f"ошибка загрузки Google Sheet: {exc}"}
+
+
+LEDCAPITAL_PRICE_SYNC = sync_ledcapital_prices_from_google_sheet()
 
 
 def magnet_unit_usd(m):
@@ -1267,6 +1409,21 @@ if _incoming_apply_clicked and _incoming_files:
 
 st.sidebar.markdown("---")
 st.sidebar.header("💵 Финансы")
+if st.sidebar.button(
+    "🔄 Обновить прайс LEDCapital",
+    key="ledcapital_prices_refresh_btn",
+    use_container_width=True,
+):
+    _load_ledcapital_sheet_prices.clear()
+    st.rerun()
+if LEDCAPITAL_PRICE_SYNC.get("ok"):
+    st.sidebar.caption(
+        f"LEDCapital: Google Sheet подключен ({LEDCAPITAL_PRICE_SYNC.get('note', 'ok')})"
+    )
+else:
+    st.sidebar.caption(
+        f"LEDCapital: используется встроенный прайс ({LEDCAPITAL_PRICE_SYNC.get('note', 'нет данных')})"
+    )
 
 # Получаем актуальный курс
 current_cbr_rate = get_cbr_usd_rate()
