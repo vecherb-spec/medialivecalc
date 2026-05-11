@@ -1021,6 +1021,7 @@ SESSION_STATE_KEYS_TO_PERSIST: frozenset[str] = frozenset(
         "calc_module_name",
         "calc_sensor",
         "calc_mount_type",
+        "calc_cabinet_group",
         "calc_cabinet_model",
         "calc_cabinet_w",
         "calc_cabinet_h",
@@ -1988,17 +1989,49 @@ with _ui_bordered_container():
         cabinet_price_usd = 0.0
         
         if "кабинетах" in mount_type:
-            _cabinet_env = "Indoor" if env_key == "Indoor" else "Outdoor"
-            compatible_cabinets = [c for c in CABINETS_DB if _cabinet_env in c.get("env_support", ())]
-            if not compatible_cabinets:
-                compatible_cabinets = CABINETS_DB
+            group_order = ["Indoor", "Outdoor", "Indoor/Outdoor"]
+            grouped_cabinets: dict[str, list[dict]] = {g: [] for g in group_order}
+            for c in CABINETS_DB:
+                env_support = tuple(c.get("env_support", ()))
+                if env_support == ("Indoor",):
+                    grouped_cabinets["Indoor"].append(c)
+                elif env_support == ("Outdoor",):
+                    grouped_cabinets["Outdoor"].append(c)
+                else:
+                    grouped_cabinets["Indoor/Outdoor"].append(c)
+
+            for group in group_order:
+                grouped_cabinets[group].sort(
+                    key=lambda c: (c["width_mm"] * c["height_mm"], c["name"])
+                )
+
+            nonempty_groups = [g for g in group_order if grouped_cabinets[g]]
+            if not nonempty_groups:
+                grouped_cabinets["Indoor/Outdoor"] = CABINETS_DB
+                nonempty_groups = ["Indoor/Outdoor"]
+            default_group = "Indoor" if env_key == "Indoor" else "Outdoor"
+            if default_group not in nonempty_groups:
+                default_group = nonempty_groups[0] if nonempty_groups else "Indoor/Outdoor"
+
+            if (
+                "calc_cabinet_group" not in st.session_state
+                or st.session_state.calc_cabinet_group not in nonempty_groups
+            ):
+                st.session_state.calc_cabinet_group = default_group
+
+            cabinet_group = st.selectbox(
+                "Группа кабинетов",
+                nonempty_groups,
+                key="calc_cabinet_group",
+                format_func=lambda g: f"{g} ({len(grouped_cabinets[g])})",
+            )
+            compatible_cabinets = grouped_cabinets.get(cabinet_group, [])
 
             _cabinet_labels = []
             _cabinet_lookup: dict[str, dict] = {}
             for c in compatible_cabinets:
-                env_tag = "/".join(c.get("env_support", ("Indoor", "Outdoor")))
                 size_tag = f"{_normalize_mm_for_display(c['width_mm'])}×{_normalize_mm_for_display(c['height_mm'])}"
-                label = f"{c['name']} [{env_tag}, {size_tag} мм, ${c['price_usd']:.2f}]"
+                label = f"{c['name']} [{size_tag} мм, ${c['price_usd']:.2f}]"
                 _cabinet_labels.append(label)
                 _cabinet_lookup[label] = c
 
@@ -2011,7 +2044,7 @@ with _ui_bordered_container():
                 st.session_state.calc_cabinet_model = cabinet_options[0]
 
             st.caption(
-                f"Кабинеты из таблицы LEDCapital ({_cabinet_env}): {len(compatible_cabinets)} · {CABINETS_SYNC_NOTE}"
+                f"Кабинеты из таблицы LEDCapital: {cabinet_group} · {len(compatible_cabinets)} шт · {CABINETS_SYNC_NOTE}"
             )
             cabinet_model = st.selectbox("Модель кабинета", cabinet_options, key="calc_cabinet_model")
             if cabinet_model == custom_label:
