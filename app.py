@@ -723,16 +723,9 @@ def _load_ledcapital_sheet_catalog_rows(csv_url: str) -> list[dict]:
         if len(cells) < 2:
             continue
 
+        # Берем цену только из ценовой колонки прайса (USD),
+        # чтобы не цеплять размеры/разрешения из описаний.
         price = _parse_usd_cell(cells[2]) if len(cells) > 2 else None
-        if price is None:
-            # Fallback for non-standard rows.
-            price = _parse_usd_cell(cells[3]) if len(cells) > 3 else None
-        if price is None:
-            for cell in cells:
-                parsed = _parse_usd_cell(cell)
-                if parsed is not None:
-                    price = parsed
-                    break
         if price is None:
             continue
 
