@@ -1073,7 +1073,8 @@ if "_incoming_payload_to_apply" in st.session_state:
     st.rerun()
 
 def fit_ratio(ratio):
-    ideal = st.session_state.width_input / ratio
+    width = float(st.session_state.get("width_input", 320))
+    ideal = width / ratio
     lower = math.floor(ideal / 160) * 160
     upper = math.ceil(ideal / 160) * 160
     st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
@@ -1408,19 +1409,35 @@ with _ui_bordered_container():
     with col_ratio_buttons:
         st.markdown('<p class="size-subtitle">Быстрые пропорции</p>', unsafe_allow_html=True)
         r1c1, r1c2 = st.columns(2, gap="small")
-        if r1c1.button("16:9", key="ratio_btn_16_9", use_container_width=True):
-            fit_ratio(1.7777777777777777)
-            st.rerun()
-        if r1c2.button("4:3", key="ratio_btn_4_3", use_container_width=True):
-            fit_ratio(1.3333333333333333)
-            st.rerun()
+        r1c1.button(
+            "16:9",
+            key="ratio_btn_16_9",
+            use_container_width=True,
+            on_click=fit_ratio,
+            args=(1.7777777777777777,),
+        )
+        r1c2.button(
+            "4:3",
+            key="ratio_btn_4_3",
+            use_container_width=True,
+            on_click=fit_ratio,
+            args=(1.3333333333333333,),
+        )
         r2c1, r2c2 = st.columns(2, gap="small")
-        if r2c1.button("21:9", key="ratio_btn_21_9", use_container_width=True):
-            fit_ratio(2.3333333333333335)
-            st.rerun()
-        if r2c2.button("1:1", key="ratio_btn_1_1", use_container_width=True):
-            fit_ratio(1.0)
-            st.rerun()
+        r2c1.button(
+            "21:9",
+            key="ratio_btn_21_9",
+            use_container_width=True,
+            on_click=fit_ratio,
+            args=(2.3333333333333335,),
+        )
+        r2c2.button(
+            "1:1",
+            key="ratio_btn_1_1",
+            use_container_width=True,
+            on_click=fit_ratio,
+            args=(1.0,),
+        )
         st.markdown(
             '<div class="ratio-hint">Высота подгоняется автоматически с шагом 160 мм.</div>',
             unsafe_allow_html=True,
