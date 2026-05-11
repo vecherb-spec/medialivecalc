@@ -881,6 +881,40 @@ def _normalize_mm_for_display(value: float) -> str:
     return f"{value:.1f}"
 
 
+CABINET_HANGER_500 = {
+    "name": "Подвес кабинета 500 мм",
+    "weight_kg": 2.5,
+    "source_url": "https://ledcapital.ru/svetodiodnyekran/catalog/podves_kabineta_500_mm.html",
+}
+CABINET_HANGER_640 = {
+    "name": "Подвес кабинета 640x480-C indoor",
+    "weight_kg": 2.3,
+    "source_url": "https://ledcapital.ru/catalog/kabinety/podvesy/podves_kabineta_640x480_c_indoor.html",
+}
+CABINET_HANGER_960 = {
+    "name": "Подвес кабинета 960 мм",
+    "weight_kg": 2.3,
+    "source_url": "https://ledcapital.ru/catalog/kabinety/podvesy/podves_kabineta_960kh960.html",
+}
+
+
+def _cabinet_hanger_spec(cabinet_name: str, width_mm: float, height_mm: float) -> Optional[dict]:
+    low_name = (cabinet_name or "").lower()
+    if "алюминиев" not in low_name:
+        return None
+
+    w = int(round(width_mm))
+    h = int(round(height_mm))
+    max_side = max(w, h)
+    min_side = min(w, h)
+
+    if max_side >= 900 and min_side >= 900:
+        return CABINET_HANGER_960
+    if 500 in (w, h):
+        return CABINET_HANGER_500
+    return CABINET_HANGER_640
+
+
 def _cabinet_price_usd_from_spec(spec: dict) -> float:
     if spec.get("price_rub") is not None:
         rate = float(get_cbr_usd_rate() or 95.0)
@@ -1025,6 +1059,8 @@ SESSION_STATE_KEYS_TO_PERSIST: frozenset[str] = frozenset(
         "calc_cabinet_w",
         "calc_cabinet_h",
         "calc_cabinet_weight",
+        "calc_cabinet_hanger_enabled",
+        "calc_cabinet_hanger_qty",
         "main_magnet_select",
         "magnets_per_module_input",
         "sys_type_radio",
@@ -1986,6 +2022,10 @@ with _ui_bordered_container():
         cabinet_model = "Монолит"
         cabinet_width, cabinet_height, cabinet_weight_per = 640.0, 480.0, 20.0
         cabinet_price_usd = 0.0
+        cabinet_hanger_model = ""
+        cabinet_hanger_weight_kg = 0.0
+        cabinet_hanger_enabled = False
+        cabinet_hanger_qty = 0
         
         if "кабинетах" in mount_type:
             _cabinet_env = "Indoor" if env_key == "Indoor" else "Outdoor"
@@ -2059,6 +2099,36 @@ with _ui_bordered_container():
                     f'</div>',
                     unsafe_allow_html=True,
                 )
+
+                _hanger_spec = _cabinet_hanger_spec(cabinet_model, cabinet_width, cabinet_height)
+                if _hanger_spec is not None:
+                    if "calc_cabinet_hanger_enabled" not in st.session_state:
+                        st.session_state.calc_cabinet_hanger_enabled = False
+                    if "calc_cabinet_hanger_qty" not in st.session_state:
+                        st.session_state.calc_cabinet_hanger_qty = 1
+
+                    cabinet_hanger_model = str(_hanger_spec["name"])
+                    cabinet_hanger_weight_kg = float(_hanger_spec["weight_kg"])
+                    cabinet_hanger_enabled = st.checkbox(
+                        "Добавить балку подвеса",
+                        key="calc_cabinet_hanger_enabled",
+                        help="Вес балки будет учтен в общем весе экрана.",
+                    )
+                    st.caption(
+                        f"Балка: {cabinet_hanger_model} · {cabinet_hanger_weight_kg:.1f} кг/шт (LEDCapital)"
+                    )
+                    _hanger_source = str(_hanger_spec.get("source_url", "")).strip()
+                    if _hanger_source:
+                        st.caption(f"Источник: {_hanger_source}")
+                    if cabinet_hanger_enabled:
+                        cabinet_hanger_qty = int(
+                            st.number_input(
+                                "Количество балок подвеса",
+                                min_value=1,
+                                step=1,
+                                key="calc_cabinet_hanger_qty",
+                            )
+                        )
         else:
             selected_magnet = st.selectbox(
                 "Магниты (из прайса):",
@@ -2640,16 +2710,19 @@ module_weight = 0.37 if "Indoor" in env_key else 0.5
 weight_modules = total_modules_order * module_weight
 
 total_cabinet_weight = 0
+total_hanger_weight = 0.0
 cabinets_w, cabinets_h, total_cabinets = 0, 0, 0
 if "кабинетах" in mount_type:
     cabinets_w = math.ceil(real_width / cabinet_width)
     cabinets_h = math.ceil(real_height / cabinet_height)
     total_cabinets = cabinets_w * cabinets_h
     total_cabinet_weight = total_cabinets * cabinet_weight_per
+    if cabinet_hanger_enabled and cabinet_hanger_qty > 0 and cabinet_hanger_weight_kg > 0:
+        total_hanger_weight = cabinet_hanger_qty * cabinet_hanger_weight_kg
 
 weight_carcas = total_profile_length * 2 if "Монолитный" in mount_type else 0
-weight_extra = (weight_modules + weight_carcas + total_cabinet_weight) * 0.05
-total_weight = weight_modules + weight_carcas + total_cabinet_weight + weight_extra
+weight_extra = (weight_modules + weight_carcas + total_cabinet_weight + total_hanger_weight) * 0.05
+total_weight = weight_modules + weight_carcas + total_cabinet_weight + total_hanger_weight + weight_extra
 
 # Логистика
 num_boxes = math.ceil(total_modules_order / 40)
@@ -2679,6 +2752,8 @@ if num_power_jumpers:
     _spec_qty_cells.append(("Перемычки БП", f"{num_power_jumpers} шт."))
 if profile_purchased_m > 0:
     _spec_qty_cells.append(("Профиль 40×20×1,5", f"{profile_purchased_m:.1f} м"))
+if total_hanger_weight > 0:
+    _spec_qty_cells.append(("Балки подвеса", f"{cabinet_hanger_qty} шт."))
 if buy_screws_4x16_usd > 0:
     _spec_qty_cells.append(("Саморезы", f"{num_screws_4x16_order} шт."))
 if buy_m6_frame_usd > 0:
@@ -2889,6 +2964,9 @@ if "кабинетах" in mount_type:
         - **Общее количество**: **{total_cabinets} шт.**
         - **Вес одного**: {cabinet_weight_per:.1f} кг
         - **Общий вес кабинетов**: {total_cabinet_weight:.1f} кг
+        - **Балка подвеса**: {cabinet_hanger_model if total_hanger_weight > 0 else "не выбрана"}
+        - **Количество балок**: {cabinet_hanger_qty if total_hanger_weight > 0 else 0} шт.
+        - **Общий вес балок**: {total_hanger_weight:.1f} кг
         """)
 
 with st.expander("Принимающие карты", expanded=True):
@@ -3016,7 +3094,7 @@ with st.expander("Коммутация", expanded=True):
 with st.expander("Весовые характеристики", expanded=True):
     st.markdown(f"""
     - **Вес модулей**: {weight_modules:.1f} кг
-    - **Вес каркаса / кабинетов**: {weight_carcas + total_cabinet_weight:.1f} кг
+    - **Вес каркаса / кабинетов / балок**: {weight_carcas + total_cabinet_weight + total_hanger_weight:.1f} кг
     - **Метизы и проводка (5%)**: {weight_extra:.1f} кг
     - **Общий расчётный вес экрана**: **{total_weight:.1f} кг**
     """)
@@ -3072,6 +3150,11 @@ figma_data = {
     "power_jumpers_zip_spare_qty": num_power_jumpers_zip_spare,
     "power_jumper_model": selected_power_jumper["name"] if selected_power_jumper else None,
     "power_jumpers_cost_usd": round(buy_power_jumpers_total, 2),
+    "cabinet_hanger_enabled": bool(total_hanger_weight > 0),
+    "cabinet_hanger_model": cabinet_hanger_model if total_hanger_weight > 0 else "",
+    "cabinet_hanger_qty": int(cabinet_hanger_qty if total_hanger_weight > 0 else 0),
+    "cabinet_hanger_weight_kg_each": round(cabinet_hanger_weight_kg, 3),
+    "cabinet_hanger_weight_total_kg": round(total_hanger_weight, 3),
     "profile_40x20_stick_length_m": PROFILE_40X20_STICK_M,
     "profile_40x20_sticks_6m": profile_sticks_6m,
     "profile_purchased_m": round(profile_purchased_m, 3),
@@ -3147,6 +3230,8 @@ if num_magnets:
     _pdf_spec_rows.append(("Магниты", f"{num_magnets} шт."))
 if num_power_jumpers:
     _pdf_spec_rows.append(("Перемычки БП", f"{num_power_jumpers} шт."))
+if total_hanger_weight > 0:
+    _pdf_spec_rows.append(("Балки подвеса", f"{cabinet_hanger_qty} шт."))
 if profile_purchased_m > 0:
     _pdf_spec_rows.append(("Профиль 40×20×1,5", f"{profile_purchased_m:.1f} м"))
 if buy_m6_frame_usd > 0:
