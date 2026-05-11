@@ -2447,6 +2447,30 @@ cabinet_commutation_included_selection = (
     and all(bool(c.get("commutation_included", False)) for c in selected_cabinet_specs_for_logic)
 )
 
+# Ранняя проверка кратности экрана кабинетам:
+# показываем ошибку сразу после блока "Размеры/Монтаж", а не внизу отчёта.
+cabinet_layout_preview = None
+if "кабинетах" in mount_type and selected_cabinet_spec is not None:
+    _pre_real_width = math.ceil(width_mm / 320) * 320
+    _pre_real_height = math.ceil(height_mm / 160) * 160
+    cabinet_layout_preview = solve_cabinet_layout(
+        _pre_real_width,
+        _pre_real_height,
+        selected_cabinet_spec,
+        secondary_cabinet_spec if cabinet_second_enabled else None,
+    )
+    if not cabinet_layout_preview.get("ok"):
+        st.error(
+            "❌ Несоответствие размера экрана кабинетам: "
+            + str(
+                cabinet_layout_preview.get(
+                    "error",
+                    "размер экрана не собирается из выбранных кабинетов",
+                )
+            )
+        )
+        st.stop()
+
 # ==========================================
 # ==========================================
 # БЛОК 3: УПРАВЛЕНИЕ И КОНТРОЛЛЕРЫ
@@ -2797,11 +2821,15 @@ if "кабинетах" in mount_type:
             "hanger_type": "auto",
             "commutation_included": False,
         }
-    cabinet_layout = solve_cabinet_layout(
-        real_width,
-        real_height,
-        selected_cabinet_spec,
-        secondary_cabinet_spec if cabinet_second_enabled else None,
+    cabinet_layout = (
+        cabinet_layout_preview
+        if cabinet_layout_preview is not None
+        else solve_cabinet_layout(
+            real_width,
+            real_height,
+            selected_cabinet_spec,
+            secondary_cabinet_spec if cabinet_second_enabled else None,
+        )
     )
     if not cabinet_layout.get("ok"):
         st.error(
