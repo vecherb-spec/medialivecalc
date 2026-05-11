@@ -562,14 +562,6 @@ LEDCAPITAL_PRICES_CSV_URL = (
 
 CABINET_ALLOWLIST = [
     {
-        "name": "Кабинет алюминиевый 640х640-C indoor",
-        "width_mm": 640.0,
-        "height_mm": 640.0,
-        "weight_kg": 5.5,
-        "env_support": ("Indoor",),
-        "aliases": ("640х640-c indoor", "640x640-c indoor"),
-    },
-    {
         "name": "Кабинет алюминиевый 640х640-E indoor",
         "width_mm": 640.0,
         "height_mm": 640.0,
@@ -632,6 +624,18 @@ CABINET_ALLOWLIST = [
         "weight_kg": 17.5,
         "env_support": ("Outdoor",),
         "aliases": ("кабинет железный 960х960 outdoor", "кабинет железный тыльный 960х960 outdoor"),
+    },
+    {
+        "name": "Кабинет стальной 960х960 фронтальный (тяги, P10)",
+        "width_mm": 960.0,
+        "height_mm": 960.0,
+        "weight_kg": 15.0,
+        "price_rub": 8870.0,
+        "env_support": ("Outdoor",),
+        "aliases": (
+            "стальной кабинет 960x960 для модуля 320x160 фронтальный на тягах",
+            "стальной кабинет 960х960 фронтальный",
+        ),
     },
     {
         "name": "Кабинет алюминиевый DM 500х1000 с коммутацией",
@@ -877,13 +881,21 @@ def _normalize_mm_for_display(value: float) -> str:
     return f"{value:.1f}"
 
 
+def _cabinet_price_usd_from_spec(spec: dict) -> float:
+    if spec.get("price_rub") is not None:
+        rate = float(get_cbr_usd_rate() or 95.0)
+        if rate > 0:
+            return round(float(spec["price_rub"]) / rate, 2)
+    return 0.0
+
+
 def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
     fallback = [
         {
             "name": spec["name"],
             "width_mm": spec["width_mm"],
             "height_mm": spec["height_mm"],
-            "price_usd": 0.0,
+            "price_usd": _cabinet_price_usd_from_spec(spec),
             "env_support": spec["env_support"],
             "weight_kg": float(
                 spec.get("weight_kg")
@@ -950,7 +962,11 @@ def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
                     best_score = score
                     best = candidate
 
-            price_usd = float(best["price_usd"]) if best else 0.0
+            price_usd = (
+                float(best["price_usd"])
+                if best is not None
+                else _cabinet_price_usd_from_spec(spec)
+            )
             cabinets.append(
                 {
                     "name": spec["name"],
