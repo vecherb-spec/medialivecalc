@@ -2123,13 +2123,15 @@ with _ui_bordered_container():
                         key="calc_cabinet_hanger_enabled",
                         help="Вес балки будет учтен в общем весе экрана.",
                     )
-                    st.caption(
-                        f"Балка: {cabinet_hanger_model} · {cabinet_hanger_weight_kg:.1f} кг/шт · "
-                        f"${cabinet_hanger_price_usd:.2f} ({cabinet_hanger_price_rub:,.0f} ₽)"
+                    st.markdown(
+                        f'<div style="margin: 4px 0 8px 0;">'
+                        f'<span style="color:#a0aec0;font-size:13px;">'
+                        f'Балка: {cabinet_hanger_model} · {cabinet_hanger_weight_kg:.1f} кг/шт · '
+                        f'<strong style="color:#48bb78;">${cabinet_hanger_price_usd:.2f}</strong> '
+                        f'({cabinet_hanger_price_rub:,.0f} ₽)'
+                        f"</span></div>",
+                        unsafe_allow_html=True,
                     )
-                    _hanger_source = str(_hanger_spec.get("source_url", "")).strip()
-                    if _hanger_source:
-                        st.caption(f"Источник: {_hanger_source}")
                     if cabinet_hanger_enabled:
                         cabinet_hanger_qty = int(
                             st.number_input(
