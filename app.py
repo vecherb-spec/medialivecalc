@@ -593,7 +593,7 @@ def _parse_usd_cell(raw: str) -> Optional[float]:
 
 
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
-def _load_ledcapital_sheet_prices(csv_url: str) -> list[dict]:
+def _load_ledcapital_sheet_catalog_rows(csv_url: str) -> list[dict]:
     req = urllib.request.Request(
         csv_url,
         headers={"User-Agent": "Mozilla/5.0"},
@@ -625,8 +625,21 @@ def _load_ledcapital_sheet_prices(csv_url: str) -> list[dict]:
         if len(_normalize_price_name(candidate_name)) < 5:
             continue
 
-        rows.append({"name": candidate_name, "price_usd": price})
+        rows.append(
+            {
+                "name": candidate_name,
+                "price_usd": price,
+                "description": cells[3] if len(cells) > 3 else "",
+                "cells": cells,
+            }
+        )
     return rows
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _load_ledcapital_sheet_prices(csv_url: str) -> list[dict]:
+    rows = _load_ledcapital_sheet_catalog_rows(csv_url)
+    return [{"name": r["name"], "price_usd": r["price_usd"]} for r in rows]
 
 
 def _find_sheet_price_by_name(name: str, sheet_rows: list[dict]) -> Optional[float]:
@@ -693,7 +706,162 @@ def sync_ledcapital_prices_from_google_sheet() -> dict:
         return {"ok": False, "updated": 0, "note": f"ошибка загрузки Google Sheet: {exc}"}
 
 
+def _extract_dimensions_mm(text: str) -> tuple[Optional[float], Optional[float]]:
+    raw = (text or "").lower().replace("×", "x").replace("*", "x").replace("х", "x")
+    m = re.search(r"(\d{2,4}(?:[.,]\d+)?)\s*x\s*(\d{2,4}(?:[.,]\d+)?)", raw)
+    if not m:
+        return None, None
+    try:
+        w = float(m.group(1).replace(",", "."))
+        h = float(m.group(2).replace(",", "."))
+    except ValueError:
+        return None, None
+    if w <= 0 or h <= 0:
+        return None, None
+    return w, h
+
+
+def _is_cabinet_row(name: str) -> bool:
+    low = (name or "").lower().strip()
+    if not low:
+        return False
+    if any(
+        bad in low
+        for bad in (
+            "подвес",
+            "крышка",
+            "вентилятор",
+            "светодиодный модуль",
+            " модуль ",
+            "зип",
+            "аксессуар",
+            "аксессуары",
+        )
+    ):
+        return False
+    if low.startswith("кабинет "):
+        return True
+    if any(brand in low for brand in ("tentech", "vistech")) and "cob" in low:
+        return True
+    if any(brand in low for brand in ("tentech", "vistech")) and re.search(r"\d{3,4}\s*[xх*]\s*\d{3,4}", low):
+        return True
+    return False
+
+
+def _cabinet_env_support(name: str, description: str) -> tuple[str, ...]:
+    text = f"{name} {description}".lower()
+    has_indoor = ("indoor" in text) or ("интерьер" in text)
+    has_outdoor = ("outdoor" in text) or ("улич" in text)
+    if has_indoor and has_outdoor:
+        return ("Indoor", "Outdoor")
+    if has_indoor:
+        return ("Indoor",)
+    if has_outdoor:
+        return ("Outdoor",)
+    return ("Indoor", "Outdoor")
+
+
+def _estimate_cabinet_weight_kg(width_mm: float, height_mm: float) -> float:
+    # Базовая оценка от площади (опорная точка: 640x480 ≈ 20 кг)
+    ref_area = 640.0 * 480.0
+    est = 20.0 * ((width_mm * height_mm) / ref_area)
+    return round(max(6.0, min(est, 60.0)), 1)
+
+
+def _normalize_mm_for_display(value: float) -> str:
+    if abs(value - round(value)) < 1e-9:
+        return str(int(round(value)))
+    return f"{value:.1f}"
+
+
+def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
+    fallback = [
+        {
+            "name": "Кабинет алюминиевый 640х640 с коммутацией",
+            "width_mm": 640.0,
+            "height_mm": 640.0,
+            "price_usd": 81.22,
+            "env_support": ("Indoor", "Outdoor"),
+            "weight_kg": _estimate_cabinet_weight_kg(640.0, 640.0),
+        },
+        {
+            "name": "Кабинет алюминиевый DM 500х500 с коммутацией",
+            "width_mm": 500.0,
+            "height_mm": 500.0,
+            "price_usd": 57.44,
+            "env_support": ("Indoor", "Outdoor"),
+            "weight_kg": _estimate_cabinet_weight_kg(500.0, 500.0),
+        },
+        {
+            "name": "Кабинет алюминиевый DM 500х1000 с коммутацией",
+            "width_mm": 500.0,
+            "height_mm": 1000.0,
+            "price_usd": 82.20,
+            "env_support": ("Indoor", "Outdoor"),
+            "weight_kg": _estimate_cabinet_weight_kg(500.0, 1000.0),
+        },
+        {
+            "name": "Кабинет алюминиевый 960х960 outdoor с коммутацией",
+            "width_mm": 960.0,
+            "height_mm": 960.0,
+            "price_usd": 140.64,
+            "env_support": ("Outdoor",),
+            "weight_kg": _estimate_cabinet_weight_kg(960.0, 960.0),
+        },
+        {
+            "name": "Кабинет алюминиевый 960х960 indoor с коммутацией",
+            "width_mm": 960.0,
+            "height_mm": 960.0,
+            "price_usd": 140.64,
+            "env_support": ("Indoor",),
+            "weight_kg": _estimate_cabinet_weight_kg(960.0, 960.0),
+        },
+    ]
+    try:
+        raw_rows = _load_ledcapital_sheet_catalog_rows(LEDCAPITAL_PRICES_CSV_URL)
+        cabinets: list[dict] = []
+        used = set()
+        for row in raw_rows:
+            name = str(row.get("name", "")).strip()
+            if not _is_cabinet_row(name):
+                continue
+            desc = str(row.get("description", "")).strip()
+            w, h = _extract_dimensions_mm(f"{name} {desc}")
+            if w is None or h is None:
+                continue
+            env_support = _cabinet_env_support(name, desc)
+            price_usd = float(row.get("price_usd", 0.0))
+            key = (_normalize_price_name(name), int(round(w * 10)), int(round(h * 10)))
+            if key in used:
+                continue
+            used.add(key)
+            cabinets.append(
+                {
+                    "name": name,
+                    "width_mm": w,
+                    "height_mm": h,
+                    "price_usd": price_usd,
+                    "env_support": env_support,
+                    "weight_kg": _estimate_cabinet_weight_kg(w, h),
+                }
+            )
+        if not cabinets:
+            return fallback, "в таблице не найдены кабинетные позиции, применен резерв"
+
+        cabinets.sort(
+            key=lambda c: (
+                0 if c["env_support"] == ("Indoor",) else 1 if c["env_support"] == ("Outdoor",) else 2,
+                c["width_mm"] * c["height_mm"],
+                c["name"],
+            )
+        )
+        return cabinets, f"загружено кабинетов: {len(cabinets)}"
+    except Exception as exc:
+        return fallback, f"ошибка загрузки кабинетов: {exc}"
+
+
 LEDCAPITAL_PRICE_SYNC = sync_ledcapital_prices_from_google_sheet()
+CABINETS_DB, CABINETS_SYNC_NOTE = load_ledcapital_cabinets_from_google_sheet()
 
 
 def magnet_unit_usd(m):
@@ -1414,6 +1582,7 @@ if st.sidebar.button(
     key="ledcapital_prices_refresh_btn",
     use_container_width=True,
 ):
+    _load_ledcapital_sheet_catalog_rows.clear()
     _load_ledcapital_sheet_prices.clear()
     st.rerun()
 if LEDCAPITAL_PRICE_SYNC.get("ok"):
@@ -1689,20 +1858,38 @@ with _ui_bordered_container():
         selected_power_jumper = None
 
         cabinet_model = "Монолит"
-        cabinet_width, cabinet_height, cabinet_weight_per = 640, 480, 20.0
+        cabinet_width, cabinet_height, cabinet_weight_per = 640.0, 480.0, 20.0
+        cabinet_price_usd = 0.0
         
         if "кабинетах" in mount_type:
-            cabinet_options = [
-                "QM Series (640×480 мм, indoor, ~20 кг)",
-                "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
-                "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
-                "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
-                "Custom (введите размер и вес вручную)",
-            ]
-            if "calc_cabinet_model" not in st.session_state or st.session_state.calc_cabinet_model not in cabinet_options:
+            _cabinet_env = "Indoor" if env_key == "Indoor" else "Outdoor"
+            compatible_cabinets = [c for c in CABINETS_DB if _cabinet_env in c.get("env_support", ())]
+            if not compatible_cabinets:
+                compatible_cabinets = CABINETS_DB
+
+            _cabinet_labels = []
+            _cabinet_lookup: dict[str, dict] = {}
+            for c in compatible_cabinets:
+                env_tag = "/".join(c.get("env_support", ("Indoor", "Outdoor")))
+                size_tag = f"{_normalize_mm_for_display(c['width_mm'])}×{_normalize_mm_for_display(c['height_mm'])}"
+                label = f"{c['name']} [{env_tag}, {size_tag} мм, ${c['price_usd']:.2f}]"
+                _cabinet_labels.append(label)
+                _cabinet_lookup[label] = c
+
+            custom_label = "Свой кабинет (ввести размер и вес вручную)"
+            cabinet_options = _cabinet_labels + [custom_label]
+            if (
+                "calc_cabinet_model" not in st.session_state
+                or st.session_state.calc_cabinet_model not in cabinet_options
+            ):
                 st.session_state.calc_cabinet_model = cabinet_options[0]
+
+            st.caption(
+                f"Кабинеты из таблицы LEDCapital ({_cabinet_env}): {len(compatible_cabinets)} · {CABINETS_SYNC_NOTE}"
+            )
             cabinet_model = st.selectbox("Модель кабинета", cabinet_options, key="calc_cabinet_model")
-            if "Custom" in cabinet_model:
+            if cabinet_model == custom_label:
+                cabinet_model = "Свой кабинет"
                 cc1, cc2, cc3 = st.columns(3)
                 with cc1:
                     if "calc_cabinet_w" not in st.session_state:
@@ -1717,12 +1904,35 @@ with _ui_bordered_container():
                         st.session_state.calc_cabinet_weight = 20.0
                     cabinet_weight_per = st.number_input("Вес (кг)", min_value=1.0, key="calc_cabinet_weight")
             else:
-                cab_map = {
-                    "QM": (640, 480, 20.0), "MG": (960, 960, 40.0), 
-                    "QF": (500, 500, 13.5), "QS": (960, 960, 45.0)
-                }
-                key_prefix = cabinet_model.split()[0]
-                cabinet_width, cabinet_height, cabinet_weight_per = cab_map.get(key_prefix, (640, 480, 20.0))
+                selected_cabinet = _cabinet_lookup[cabinet_model]
+                cabinet_model = str(selected_cabinet["name"])
+                cabinet_width = float(selected_cabinet["width_mm"])
+                cabinet_height = float(selected_cabinet["height_mm"])
+                cabinet_price_usd = float(selected_cabinet.get("price_usd", 0.0))
+                _cab_state_key = (
+                    f"{selected_cabinet['name']}|{cabinet_width}|{cabinet_height}"
+                )
+                if st.session_state.get("_calc_cabinet_prev_key") != _cab_state_key:
+                    st.session_state.calc_cabinet_weight = float(
+                        selected_cabinet.get("weight_kg")
+                        or _estimate_cabinet_weight_kg(cabinet_width, cabinet_height)
+                    )
+                    st.session_state._calc_cabinet_prev_key = _cab_state_key
+                cabinet_weight_per = st.number_input(
+                    "Вес 1 кабинета (кг)",
+                    min_value=1.0,
+                    step=0.1,
+                    key="calc_cabinet_weight",
+                )
+                st.markdown(
+                    f'<div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">'
+                    f'<span style="color: #a0aec0; font-size: 13px;">'
+                    f'Размер кабинета: <strong>{_normalize_mm_for_display(cabinet_width)}×{_normalize_mm_for_display(cabinet_height)} мм</strong> '
+                    f'&nbsp;|&nbsp; Закупка: <strong style="color: #48bb78;">${cabinet_price_usd:.2f}</strong>'
+                    f'</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
         else:
             selected_magnet = st.selectbox(
                 "Магниты (из прайса):",
