@@ -884,16 +884,19 @@ def _normalize_mm_for_display(value: float) -> str:
 CABINET_HANGER_500 = {
     "name": "Подвес кабинета 500 мм",
     "weight_kg": 2.5,
+    "price_rub": 2157.38,
     "source_url": "https://ledcapital.ru/svetodiodnyekran/catalog/podves_kabineta_500_mm.html",
 }
 CABINET_HANGER_640 = {
     "name": "Подвес кабинета 640x480-C indoor",
     "weight_kg": 2.3,
+    "price_rub": 2393.75,
     "source_url": "https://ledcapital.ru/catalog/kabinety/podvesy/podves_kabineta_640x480_c_indoor.html",
 }
 CABINET_HANGER_960 = {
     "name": "Подвес кабинета 960 мм",
     "weight_kg": 2.3,
+    "price_rub": 3846.51,
     "source_url": "https://ledcapital.ru/catalog/kabinety/podvesy/podves_kabineta_960kh960.html",
 }
 
@@ -2024,6 +2027,8 @@ with _ui_bordered_container():
         cabinet_price_usd = 0.0
         cabinet_hanger_model = ""
         cabinet_hanger_weight_kg = 0.0
+        cabinet_hanger_price_rub = 0.0
+        cabinet_hanger_price_usd = 0.0
         cabinet_hanger_enabled = False
         cabinet_hanger_qty = 0
         
@@ -2109,13 +2114,18 @@ with _ui_bordered_container():
 
                     cabinet_hanger_model = str(_hanger_spec["name"])
                     cabinet_hanger_weight_kg = float(_hanger_spec["weight_kg"])
+                    cabinet_hanger_price_rub = float(_hanger_spec.get("price_rub") or 0.0)
+                    cabinet_hanger_price_usd = (
+                        cabinet_hanger_price_rub / exchange_rate if exchange_rate else 0.0
+                    )
                     cabinet_hanger_enabled = st.checkbox(
                         "Добавить балку подвеса",
                         key="calc_cabinet_hanger_enabled",
                         help="Вес балки будет учтен в общем весе экрана.",
                     )
                     st.caption(
-                        f"Балка: {cabinet_hanger_model} · {cabinet_hanger_weight_kg:.1f} кг/шт (LEDCapital)"
+                        f"Балка: {cabinet_hanger_model} · {cabinet_hanger_weight_kg:.1f} кг/шт · "
+                        f"${cabinet_hanger_price_usd:.2f} ({cabinet_hanger_price_rub:,.0f} ₽)"
                     )
                     _hanger_source = str(_hanger_spec.get("source_url", "")).strip()
                     if _hanger_source:
@@ -2596,6 +2606,18 @@ else:
     buy_metal_plates_rub = 0.0
     buy_metal_plates_usd = 0.0
 
+if (
+    "кабинетах" in mount_type
+    and cabinet_hanger_enabled
+    and cabinet_hanger_qty > 0
+    and cabinet_hanger_price_rub > 0
+):
+    buy_hangers_total_rub = cabinet_hanger_qty * cabinet_hanger_price_rub
+    buy_hangers_total_usd = buy_hangers_total_rub / exchange_rate if exchange_rate else 0.0
+else:
+    buy_hangers_total_rub = 0.0
+    buy_hangers_total_usd = 0.0
+
 # --- 5. ФИНАНСЫ (USD) ---
 
 # 1. Сначала определяем цену модуля для расчетов (берем ту, что введена выше)
@@ -2622,7 +2644,8 @@ total_buy_usd = (
     buy_profile_usd +
     buy_screws_4x16_usd +
     buy_m6_frame_usd +
-    buy_metal_plates_usd
+    buy_metal_plates_usd +
+    buy_hangers_total_usd
 )
 
 # 4. Пересчет модулей для отчета (как у тебя в коде)
@@ -2639,6 +2662,7 @@ buy_frame_usd = (
     + buy_m6_frame_usd
     + buy_metal_plates_usd
     + buy_magnets_total
+    + buy_hangers_total_usd
 )
 buy_components_usd = total_buy_usd - buy_frame_usd
 buy_frame_rub = buy_frame_usd * exchange_rate
@@ -2967,6 +2991,7 @@ if "кабинетах" in mount_type:
         - **Балка подвеса**: {cabinet_hanger_model if total_hanger_weight > 0 else "не выбрана"}
         - **Количество балок**: {cabinet_hanger_qty if total_hanger_weight > 0 else 0} шт.
         - **Общий вес балок**: {total_hanger_weight:.1f} кг
+        - **Стоимость балок**: ${buy_hangers_total_usd:.2f} ({buy_hangers_total_rub:,.0f} ₽)
         """)
 
 with st.expander("Принимающие карты", expanded=True):
@@ -3155,6 +3180,10 @@ figma_data = {
     "cabinet_hanger_qty": int(cabinet_hanger_qty if total_hanger_weight > 0 else 0),
     "cabinet_hanger_weight_kg_each": round(cabinet_hanger_weight_kg, 3),
     "cabinet_hanger_weight_total_kg": round(total_hanger_weight, 3),
+    "cabinet_hanger_price_rub_each": round(cabinet_hanger_price_rub, 2),
+    "cabinet_hanger_price_usd_each": round(cabinet_hanger_price_usd, 2),
+    "cabinet_hanger_cost_total_usd": round(buy_hangers_total_usd, 2),
+    "cabinet_hanger_cost_total_rub": round(buy_hangers_total_rub, 2),
     "profile_40x20_stick_length_m": PROFILE_40X20_STICK_M,
     "profile_40x20_sticks_6m": profile_sticks_6m,
     "profile_purchased_m": round(profile_purchased_m, 3),
