@@ -565,6 +565,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 640х640-C indoor",
         "width_mm": 640.0,
         "height_mm": 640.0,
+        "weight_kg": 5.5,
         "env_support": ("Indoor",),
         "aliases": ("640х640-c indoor", "640x640-c indoor"),
     },
@@ -572,6 +573,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 640х640-E indoor",
         "width_mm": 640.0,
         "height_mm": 640.0,
+        "weight_kg": 5.5,
         "env_support": ("Indoor",),
         "aliases": ("640х640-e indoor", "640x640-e indoor"),
     },
@@ -579,6 +581,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 640x480-C indoor",
         "width_mm": 640.0,
         "height_mm": 480.0,
+        "weight_kg": 3.25,
         "env_support": ("Indoor",),
         "aliases": ("640x480-c indoor", "640х480-c indoor"),
     },
@@ -586,6 +589,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 320х640-E indoor",
         "width_mm": 320.0,
         "height_mm": 640.0,
+        "weight_kg": 3.25,
         "env_support": ("Indoor",),
         "aliases": ("320х640-e indoor", "320x640-e indoor"),
     },
@@ -593,6 +597,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 320х480-E indoor",
         "width_mm": 320.0,
         "height_mm": 480.0,
+        "weight_kg": 3.25,
         "env_support": ("Indoor",),
         "aliases": ("320х480-e indoor", "320x480-e indoor"),
     },
@@ -600,6 +605,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 320x160-C indoor",
         "width_mm": 320.0,
         "height_mm": 160.0,
+        "weight_kg": 1.0,
         "env_support": ("Indoor",),
         "aliases": ("320x160-c indoor", "320х160-c indoor"),
     },
@@ -607,6 +613,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 960х960 indoor с коммутацией",
         "width_mm": 960.0,
         "height_mm": 960.0,
+        "weight_kg": 14.0,
         "env_support": ("Indoor",),
         "aliases": ("960х960 indoor с коммутацией", "960x960 indoor с коммутацией"),
     },
@@ -614,6 +621,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 960х960 outdoor с коммутацией",
         "width_mm": 960.0,
         "height_mm": 960.0,
+        "weight_kg": 14.0,
         "env_support": ("Outdoor",),
         "aliases": ("960х960 outdoor с коммутацией", "960x960 outdoor с коммутацией"),
     },
@@ -621,6 +629,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет железный тыльный 960х960 outdoor",
         "width_mm": 960.0,
         "height_mm": 960.0,
+        "weight_kg": 17.5,
         "env_support": ("Outdoor",),
         "aliases": ("кабинет железный 960х960 outdoor", "кабинет железный тыльный 960х960 outdoor"),
     },
@@ -628,6 +637,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый DM 500х1000 с коммутацией",
         "width_mm": 500.0,
         "height_mm": 1000.0,
+        "weight_kg": 6.1,
         "env_support": ("Indoor", "Outdoor"),
         "aliases": ("dm 500х1000 с коммутацией", "dm 500x1000 с коммутацией"),
     },
@@ -635,6 +645,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый DM 500х500 с коммутацией",
         "width_mm": 500.0,
         "height_mm": 500.0,
+        "weight_kg": 3.8,
         "env_support": ("Indoor", "Outdoor"),
         "aliases": ("dm 500х500 с коммутацией", "dm 500x500 с коммутацией"),
     },
@@ -642,6 +653,7 @@ CABINET_ALLOWLIST = [
         "name": "Кабинет алюминиевый 640х640 с коммутацией",
         "width_mm": 640.0,
         "height_mm": 640.0,
+        "weight_kg": 5.7,
         "env_support": ("Indoor", "Outdoor"),
         "aliases": ("640х640 с коммутацией", "640x640 с коммутацией"),
     },
@@ -873,7 +885,10 @@ def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
             "height_mm": spec["height_mm"],
             "price_usd": 0.0,
             "env_support": spec["env_support"],
-            "weight_kg": _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"]),
+            "weight_kg": float(
+                spec.get("weight_kg")
+                or _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"])
+            ),
         }
         for spec in CABINET_ALLOWLIST
     ]
@@ -943,7 +958,10 @@ def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
                     "height_mm": spec["height_mm"],
                     "price_usd": price_usd,
                     "env_support": spec["env_support"],
-                    "weight_kg": _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"]),
+                    "weight_kg": float(
+                        spec.get("weight_kg")
+                        or _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"])
+                    ),
                 }
             )
         found_count = len([c for c in cabinets if c["price_usd"] > 0])
