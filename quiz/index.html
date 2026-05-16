@@ -343,6 +343,7 @@
 
   <script>
     const STEP_TOTAL = 6;
+    const AUTO_ADVANCE_STEPS = new Set([1, 2, 3, 5]);
     const STORAGE_KEY = "medialive-quiz-state-v1";
     const DEFAULT_WEBHOOK_URL = "https://calc.medialive.ru/incoming";
     const WEBHOOK_URL = window.MEDIALIVE_WEBHOOK_URL || DEFAULT_WEBHOOK_URL;
@@ -671,7 +672,9 @@
           state.screenType = value;
           state.subtype = "";
           state.pixelPitch = "";
+          state.installation = "";
           applyDefaultDimensionsByType(value);
+          state.step = Math.min(STEP_TOTAL, 2);
           persistState();
           render();
         })
@@ -686,6 +689,8 @@
         renderOptionCards(options, state.subtype, (value) => {
           state.subtype = value;
           state.pixelPitch = "";
+          state.installation = "";
+          state.step = Math.min(STEP_TOTAL, 3);
           persistState();
           render();
         })
@@ -829,6 +834,7 @@
       wrap.appendChild(
         renderOptionCards(INSTALL_OPTIONS, state.installation, (value) => {
           state.installation = value;
+          state.step = Math.min(STEP_TOTAL, 6);
           persistState();
           render();
         })
@@ -1097,7 +1103,7 @@
       stepHint.textContent = STEP_HINTS[state.step];
 
       quizFoot.style.display = "flex";
-      nextBtn.style.display = state.step === 3 ? "none" : "";
+      nextBtn.style.display = AUTO_ADVANCE_STEPS.has(state.step) ? "none" : "";
       backBtn.textContent = "Назад";
       backBtn.disabled = state.step === 1;
       nextBtn.disabled = false;
