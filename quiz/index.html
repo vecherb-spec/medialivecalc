@@ -78,6 +78,50 @@
       gap: 8px;
       font-weight: 500;
     }
+    .step-pills {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 7px;
+    }
+    .step-pill {
+      border: 1px solid #335283;
+      border-radius: 999px;
+      padding: 6px 8px;
+      text-align: center;
+      font-size: 11px;
+      color: #9bb8de;
+      background: #0f1b36a6;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .step-pill.active {
+      color: #e6f6ff;
+      border-color: #7cc8ff;
+      background: linear-gradient(120deg, #163764, #1b4e7f);
+      box-shadow: 0 0 0 2px #67e8f929;
+    }
+    .step-pill.done {
+      color: #d3f9eb;
+      border-color: #4aa489;
+      background: #11372f;
+    }
+    .trust-row {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .trust-chip {
+      border: 1px solid #36598d;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      color: #cde6ff;
+      background: #0e1b37b3;
+      letter-spacing: .02em;
+    }
     .quiz-body {
       padding: 24px;
     }
@@ -334,6 +378,14 @@
       font-size: 16px;
       line-height: 1.55;
     }
+    .step-enter {
+      animation: stepIn .22s ease;
+      transform-origin: 50% 20%;
+    }
+    @keyframes stepIn {
+      from { opacity: .2; transform: translateY(8px) scale(.995); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
     @media (max-width: 920px) {
       .step-layout { grid-template-columns: 1fr; }
       .live-preview { position: static; }
@@ -345,6 +397,7 @@
       .option-grid, .fields { grid-template-columns: 1fr; }
       h1.step-title { font-size: 23px; }
       .quiz-foot .btn { flex: 1; min-width: 0; }
+      .step-pills { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
   </style>
 </head>
@@ -358,6 +411,12 @@
       <div class="progress-meta">
         <span id="progressStep">Шаг 1 из 6</span>
         <span id="progressPercent">17%</span>
+      </div>
+      <div id="stepPills" class="step-pills" aria-label="Этапы квиза"></div>
+      <div class="trust-row">
+        <span class="trust-chip">⚡ Заполнение за 60 секунд</span>
+        <span class="trust-chip">🧠 Подбор конфигурации по задаче</span>
+        <span class="trust-chip">🔒 Данные не передаются третьим лицам</span>
       </div>
     </header>
 
@@ -388,6 +447,14 @@
       2: "Тип исполнения",
       3: "Шаг пикселя",
       4: "Размеры",
+      5: "Монтаж",
+      6: "Контакты"
+    };
+    const STEP_SHORT_TITLES = {
+      1: "Тип",
+      2: "Исполнение",
+      3: "Пиксель",
+      4: "Размер",
       5: "Монтаж",
       6: "Контакты"
     };
@@ -431,6 +498,25 @@
     };
     const INSTALL_OPTIONS = ["Под ключ", "Шеф-монтаж", "Без монтажа"];
     const CONTACT_METHODS = ["Телефон", "Telegram", "WhatsApp", "Email", "Звонок"];
+    const SCREEN_TYPE_ICONS = {
+      "Уличный": "🌆",
+      "Интерьерный": "🏢",
+      "Пилон": "🗼",
+      "В окно": "🪟",
+      "Прокатный": "🎤"
+    };
+    const INSTALL_ICONS = {
+      "Под ключ": "🛠️",
+      "Шеф-монтаж": "👷",
+      "Без монтажа": "📦"
+    };
+    const CONTACT_METHOD_ICONS = {
+      "Телефон": "📞",
+      "Telegram": "✈️",
+      "WhatsApp": "💬",
+      "Email": "✉️",
+      "Звонок": "☎️"
+    };
     const DEFAULT_DIMENSIONS = {
       "Уличный": { widthMm: 5760, heightMm: 2880 },
       "Интерьерный": { widthMm: 5120, heightMm: 3040 },
@@ -470,6 +556,7 @@
     const progressFill = document.getElementById("progressFill");
     const progressStep = document.getElementById("progressStep");
     const progressPercent = document.getElementById("progressPercent");
+    const stepPills = document.getElementById("stepPills");
     const stepTitle = document.getElementById("stepTitle");
     const stepHint = document.getElementById("stepHint");
     const stepContent = document.getElementById("stepContent");
@@ -680,20 +767,21 @@
         const optionValue = isObject ? String(option.value || "") : String(option || "");
         const optionLabel = isObject ? String(option.label || optionValue) : optionValue;
         const optionMeta = isObject ? String(option.meta || "") : "";
+        const optionIcon = isObject ? String(option.icon || "") : "";
         const button = document.createElement("button");
         button.type = "button";
         button.className = "option-card" + (selected === optionValue ? " active" : "");
         if (optionMeta) {
           const title = document.createElement("span");
           title.className = "option-card-title";
-          title.textContent = optionLabel;
+          title.textContent = optionIcon ? `${optionIcon} ${optionLabel}` : optionLabel;
           const meta = document.createElement("span");
           meta.className = "option-card-meta";
           meta.textContent = optionMeta;
           button.appendChild(title);
           button.appendChild(meta);
         } else {
-          button.textContent = optionLabel;
+          button.textContent = optionIcon ? `${optionIcon} ${optionLabel}` : optionLabel;
         }
         button.addEventListener("click", () => onSelect(optionValue));
         grid.appendChild(button);
@@ -701,10 +789,28 @@
       return grid;
     }
 
+    function renderStepPills() {
+      if (!stepPills) return;
+      stepPills.innerHTML = "";
+      for (let i = 1; i <= STEP_TOTAL; i += 1) {
+        const pill = document.createElement("div");
+        pill.className = "step-pill";
+        if (i < state.step) pill.classList.add("done");
+        if (i === state.step) pill.classList.add("active");
+        pill.textContent = `${i}. ${STEP_SHORT_TITLES[i] || i}`;
+        stepPills.appendChild(pill);
+      }
+    }
+
     function renderStep1() {
+      const options = SCREEN_TYPES.map((value) => ({
+        value,
+        label: value,
+        icon: SCREEN_TYPE_ICONS[value] || ""
+      }));
       const wrap = document.createElement("div");
       wrap.appendChild(
-        renderOptionCards(SCREEN_TYPES, state.screenType, (value) => {
+        renderOptionCards(options, state.screenType, (value) => {
           state.screenType = value;
           state.subtype = "";
           state.pixelPitch = "";
@@ -866,9 +972,14 @@
     }
 
     function renderStep5() {
+      const options = INSTALL_OPTIONS.map((value) => ({
+        value,
+        label: value,
+        icon: INSTALL_ICONS[value] || ""
+      }));
       const wrap = document.createElement("div");
       wrap.appendChild(
-        renderOptionCards(INSTALL_OPTIONS, state.installation, (value) => {
+        renderOptionCards(options, state.installation, (value) => {
           state.installation = value;
           state.step = Math.min(STEP_TOTAL, 6);
           persistState();
@@ -929,8 +1040,13 @@
       stepContent.replaceChildren(wrap);
 
       const methodContainer = fields.querySelector("#contactMethods");
+      const methodOptions = CONTACT_METHODS.map((value) => ({
+        value,
+        label: value,
+        icon: CONTACT_METHOD_ICONS[value] || ""
+      }));
       methodContainer.appendChild(
-        renderOptionCards(CONTACT_METHODS, state.contactMethod, (value) => {
+        renderOptionCards(methodOptions, state.contactMethod, (value) => {
           state.contactMethod = value;
           persistState();
           renderStep6();
@@ -1134,6 +1250,7 @@
       progressFill.style.width = `${percent}%`;
       progressStep.textContent = `Шаг ${state.step} из ${STEP_TOTAL}`;
       progressPercent.textContent = `${percent}%`;
+      renderStepPills();
 
       stepTitle.textContent = `${state.step}. ${STEP_TITLES[state.step]}`;
       stepHint.textContent = STEP_HINTS[state.step];
@@ -1151,6 +1268,9 @@
       if (state.step === 4) renderStep3();
       if (state.step === 5) renderStep5();
       if (state.step === 6) renderStep6();
+      stepContent.classList.remove("step-enter");
+      void stepContent.offsetWidth;
+      stepContent.classList.add("step-enter");
       renderLivePreview();
     }
 
