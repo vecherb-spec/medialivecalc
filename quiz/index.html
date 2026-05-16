@@ -816,6 +816,7 @@
       wrap.appendChild(
         renderOptionCards(options, state.pixelPitch, (value) => {
           state.pixelPitch = value;
+          state.step = Math.min(STEP_TOTAL, 4);
           persistState();
           render();
         })
@@ -1096,7 +1097,7 @@
       stepHint.textContent = STEP_HINTS[state.step];
 
       quizFoot.style.display = "flex";
-      nextBtn.style.display = "";
+      nextBtn.style.display = state.step === 3 ? "none" : "";
       backBtn.textContent = "Назад";
       backBtn.disabled = state.step === 1;
       nextBtn.disabled = false;
