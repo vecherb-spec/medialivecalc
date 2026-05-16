@@ -1,6 +1,7 @@
 import streamlit as st
 import math
 import json
+import csv
 import re
 import datetime
 from pathlib import Path
@@ -554,6 +555,684 @@ MAGNETS_DB = [
 ]
 
 
+LEDCAPITAL_PRICES_CSV_URL = (
+    "https://docs.google.com/spreadsheets/d/"
+    "1zjZO0LalspkhYoR2ayikqKTaz_hgpjLI/gviz/tq?tqx=out:csv&gid=0"
+)
+
+CABINET_ALLOWLIST = [
+    {
+        "name": "Кабинет алюминиевый 640х640-E indoor",
+        "width_mm": 640.0,
+        "height_mm": 640.0,
+        "weight_kg": 5.5,
+        "hanger_type": "640",
+        "commutation_included": False,
+        "env_support": ("Indoor",),
+        "aliases": ("640х640-e indoor", "640x640-e indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 640x480-C indoor",
+        "width_mm": 640.0,
+        "height_mm": 480.0,
+        "weight_kg": 3.25,
+        "hanger_type": "640",
+        "commutation_included": False,
+        "env_support": ("Indoor",),
+        "aliases": ("640x480-c indoor", "640х480-c indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 320х640-E indoor",
+        "width_mm": 320.0,
+        "height_mm": 640.0,
+        "weight_kg": 3.25,
+        "hanger_type": "640",
+        "commutation_included": False,
+        "env_support": ("Indoor",),
+        "aliases": ("320х640-e indoor", "320x640-e indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 320х480-E indoor",
+        "width_mm": 320.0,
+        "height_mm": 480.0,
+        "weight_kg": 3.25,
+        "hanger_type": "640",
+        "commutation_included": False,
+        "env_support": ("Indoor",),
+        "aliases": ("320х480-e indoor", "320x480-e indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 320x160-C indoor",
+        "width_mm": 320.0,
+        "height_mm": 160.0,
+        "weight_kg": 1.0,
+        "hanger_type": "640",
+        "commutation_included": False,
+        "env_support": ("Indoor",),
+        "aliases": ("320x160-c indoor", "320х160-c indoor"),
+    },
+    {
+        "name": "Кабинет алюминиевый 960х960 indoor с коммутацией",
+        "width_mm": 960.0,
+        "height_mm": 960.0,
+        "weight_kg": 14.0,
+        "hanger_type": "960",
+        "commutation_included": True,
+        "env_support": ("Indoor",),
+        "aliases": ("960х960 indoor с коммутацией", "960x960 indoor с коммутацией"),
+    },
+    {
+        "name": "Кабинет алюминиевый 960х960 outdoor с коммутацией",
+        "width_mm": 960.0,
+        "height_mm": 960.0,
+        "weight_kg": 14.0,
+        "hanger_type": "960",
+        "commutation_included": True,
+        "env_support": ("Outdoor",),
+        "aliases": ("960х960 outdoor с коммутацией", "960x960 outdoor с коммутацией"),
+    },
+    {
+        "name": "Кабинет железный тыльный 960х960 outdoor",
+        "width_mm": 960.0,
+        "height_mm": 960.0,
+        "weight_kg": 17.5,
+        "hanger_type": "none",
+        "commutation_included": False,
+        "env_support": ("Outdoor",),
+        "aliases": ("кабинет железный 960х960 outdoor", "кабинет железный тыльный 960х960 outdoor"),
+    },
+    {
+        "name": "Кабинет стальной 960х960 фронтальный (тяги, Креатива)",
+        "width_mm": 960.0,
+        "height_mm": 960.0,
+        "weight_kg": 15.0,
+        "price_rub": 8870.0,
+        "hanger_type": "none",
+        "commutation_included": False,
+        "env_support": ("Outdoor",),
+        "aliases": (
+            "стальной кабинет 960x960 для модуля 320x160 фронтальный на тягах",
+            "стальной кабинет 960х960 фронтальный",
+        ),
+    },
+    {
+        "name": "Кабинет алюминиевый DM 500х1000 с коммутацией",
+        "width_mm": 500.0,
+        "height_mm": 1000.0,
+        "weight_kg": 6.1,
+        "hanger_type": "500",
+        "commutation_included": True,
+        "env_support": ("Indoor", "Outdoor"),
+        "aliases": ("dm 500х1000 с коммутацией", "dm 500x1000 с коммутацией"),
+    },
+    {
+        "name": "Кабинет алюминиевый DM 500х500 с коммутацией",
+        "width_mm": 500.0,
+        "height_mm": 500.0,
+        "weight_kg": 3.8,
+        "hanger_type": "500",
+        "commutation_included": True,
+        "env_support": ("Indoor", "Outdoor"),
+        "aliases": ("dm 500х500 с коммутацией", "dm 500x500 с коммутацией"),
+    },
+    {
+        "name": "Кабинет алюминиевый 640х640 с коммутацией",
+        "width_mm": 640.0,
+        "height_mm": 640.0,
+        "weight_kg": 5.7,
+        "hanger_type": "640",
+        "commutation_included": True,
+        "env_support": ("Indoor", "Outdoor"),
+        "aliases": ("640х640 с коммутацией", "640x640 с коммутацией"),
+    },
+]
+
+
+def _normalize_price_name(value: str) -> str:
+    normalized = (value or "").lower().replace("ё", "е")
+    normalized = normalized.replace("×", "x")
+    normalized = re.sub(
+        r"\b(ссылка|товар|контроллер|процессор|видео|медиа|приемная|карта|асинхронный)\b",
+        " ",
+        normalized,
+    )
+    normalized = re.sub(r"[^a-zа-я0-9]+", "", normalized)
+    return normalized
+
+
+def _parse_usd_cell(raw: str) -> Optional[float]:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    s = s.replace("\u00a0", "").replace(" ", "").replace(",", ".")
+    s = re.sub(r"[^0-9.]", "", s)
+    if not s or s.count(".") > 1:
+        return None
+    try:
+        val = float(s)
+    except ValueError:
+        return None
+    if 0.01 <= val <= 100000:
+        return val
+    return None
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _load_ledcapital_sheet_catalog_rows(csv_url: str) -> list[dict]:
+    req = urllib.request.Request(
+        csv_url,
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        text = resp.read().decode("utf-8", errors="replace")
+
+    rows: list[dict] = []
+    reader = csv.reader(text.splitlines())
+    for row in reader:
+        cells = [c.strip() for c in row]
+        if len(cells) < 2:
+            continue
+
+        # Берем цену только из ценовой колонки прайса (USD),
+        # чтобы не цеплять размеры/разрешения из описаний.
+        price = _parse_usd_cell(cells[2]) if len(cells) > 2 else None
+        if price is None:
+            continue
+
+        candidate_name = cells[1] if len(cells) > 1 else cells[0]
+        if not candidate_name:
+            candidate_name = cells[0]
+        if not candidate_name:
+            continue
+        if len(_normalize_price_name(candidate_name)) < 5:
+            continue
+
+        rows.append(
+            {
+                "name": candidate_name,
+                "price_usd": price,
+                "description": cells[3] if len(cells) > 3 else "",
+                "cells": cells,
+            }
+        )
+    return rows
+
+
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def _load_ledcapital_sheet_prices(csv_url: str) -> list[dict]:
+    rows = _load_ledcapital_sheet_catalog_rows(csv_url)
+    return [{"name": r["name"], "price_usd": r["price_usd"]} for r in rows]
+
+
+def _find_sheet_price_by_name(name: str, sheet_rows: list[dict]) -> Optional[float]:
+    needle = _normalize_price_name(name)
+    if not needle:
+        return None
+
+    best_price = None
+    best_score = None
+    for row in sheet_rows:
+        row_name = _normalize_price_name(str(row.get("name", "")))
+        if not row_name:
+            continue
+
+        score = None
+        if row_name == needle:
+            score = 0
+        elif needle in row_name or row_name in needle:
+            overlap = min(len(needle), len(row_name))
+            if overlap >= 7:
+                score = 100 + abs(len(row_name) - len(needle))
+
+        if score is not None and (best_score is None or score < best_score):
+            best_score = score
+            best_price = float(row.get("price_usd", 0.0))
+
+    return best_price
+
+
+def _apply_sheet_price_updates(db_rows: list[dict], sheet_rows: list[dict], price_key: str = "price_usd") -> int:
+    updated = 0
+    for row in db_rows:
+        current_name = str(row.get("name", ""))
+        matched_price = _find_sheet_price_by_name(current_name, sheet_rows)
+        if matched_price is None:
+            continue
+        if abs(float(row.get(price_key, 0.0)) - matched_price) < 1e-9:
+            continue
+        row[price_key] = matched_price
+        updated += 1
+    return updated
+
+
+def sync_ledcapital_prices_from_google_sheet() -> dict:
+    try:
+        sheet_rows = _load_ledcapital_sheet_prices(LEDCAPITAL_PRICES_CSV_URL)
+        if not sheet_rows:
+            return {"ok": False, "updated": 0, "note": "Google Sheet вернул пустой прайс"}
+
+        updated = 0
+        updated += _apply_sheet_price_updates(MODULES_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(SYNC_CONTROLLERS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(ASYNC_CONTROLLERS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(RECEIVING_CARDS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(PSU_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(HUBS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(PATCH_CORDS_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(CARD_POWER_CABLES_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(POWER_JUMPERS_MONOLITH_DB, sheet_rows, "price_usd")
+        updated += _apply_sheet_price_updates(MAGNETS_DB, sheet_rows, "pack_price_usd")
+
+        return {"ok": True, "updated": updated, "note": f"обновлено позиций: {updated}"}
+    except Exception as exc:
+        return {"ok": False, "updated": 0, "note": f"ошибка загрузки Google Sheet: {exc}"}
+
+
+def _extract_dimensions_mm(text: str) -> tuple[Optional[float], Optional[float]]:
+    raw = (text or "").lower().replace("×", "x").replace("*", "x").replace("х", "x")
+    m = re.search(r"(\d{2,4}(?:[.,]\d+)?)\s*x\s*(\d{2,4}(?:[.,]\d+)?)", raw)
+    if not m:
+        return None, None
+    try:
+        w = float(m.group(1).replace(",", "."))
+        h = float(m.group(2).replace(",", "."))
+    except ValueError:
+        return None, None
+    if w <= 0 or h <= 0:
+        return None, None
+    return w, h
+
+
+def _is_cabinet_row(name: str) -> bool:
+    low = (name or "").lower().strip()
+    if not low:
+        return False
+    if any(
+        bad in low
+        for bad in (
+            "подвес",
+            "крышка",
+            "вентилятор",
+            "светодиодный модуль",
+            " модуль ",
+            "зип",
+            "аксессуар",
+            "аксессуары",
+        )
+    ):
+        return False
+    if low.startswith("кабинет "):
+        return True
+    if any(brand in low for brand in ("tentech", "vistech")) and "cob" in low:
+        return True
+    if any(brand in low for brand in ("tentech", "vistech")) and re.search(r"\d{3,4}\s*[xх*]\s*\d{3,4}", low):
+        return True
+    return False
+
+
+def _cabinet_env_support(name: str, description: str) -> tuple[str, ...]:
+    text = f"{name} {description}".lower()
+    has_indoor = ("indoor" in text) or ("интерьер" in text)
+    has_outdoor = ("outdoor" in text) or ("улич" in text)
+    if has_indoor and has_outdoor:
+        return ("Indoor", "Outdoor")
+    if has_indoor:
+        return ("Indoor",)
+    if has_outdoor:
+        return ("Outdoor",)
+    return ("Indoor", "Outdoor")
+
+
+def _estimate_cabinet_weight_kg(width_mm: float, height_mm: float) -> float:
+    # Базовая оценка от площади (опорная точка: 640x480 ≈ 20 кг)
+    ref_area = 640.0 * 480.0
+    est = 20.0 * ((width_mm * height_mm) / ref_area)
+    return round(max(6.0, min(est, 60.0)), 1)
+
+
+def _normalize_mm_for_display(value: float) -> str:
+    if abs(value - round(value)) < 1e-9:
+        return str(int(round(value)))
+    return f"{value:.1f}"
+
+
+def _is_ce_series_name(name: str) -> bool:
+    low = (name or "").lower().replace("х", "x").replace("×", "x")
+    return ("-c indoor" in low) or ("-e indoor" in low)
+
+
+def _cabinet_units(cabinet: dict) -> tuple[int, int]:
+    w = int(round(float(cabinet.get("width_mm", 0.0)) / 320.0))
+    h = int(round(float(cabinet.get("height_mm", 0.0)) / 160.0))
+    return max(0, w), max(0, h)
+
+
+def _solve_linear_combo(total: int, a: int, b: int, require_b_positive: bool = False) -> Optional[tuple[int, int]]:
+    best = None
+    best_score = None
+    b_start = 1 if require_b_positive else 0
+    for y in range(b_start, (total // b) + 1):
+        rem = total - y * b
+        if rem < 0:
+            break
+        if rem % a != 0:
+            continue
+        x = rem // a
+        score = x + y
+        if best_score is None or score < best_score:
+            best_score = score
+            best = (x, y)
+    return best
+
+
+def solve_cabinet_layout(
+    screen_width_mm: float,
+    screen_height_mm: float,
+    primary: dict,
+    secondary: Optional[dict] = None,
+) -> dict:
+    sw_u = int(round(screen_width_mm / 320.0))
+    sh_u = int(round(screen_height_mm / 160.0))
+    w1, h1 = _cabinet_units(primary)
+    if w1 <= 0 or h1 <= 0:
+        return {"ok": False, "error": "Некорректный размер выбранного кабинета"}
+
+    if secondary is None:
+        if sw_u % w1 != 0 or sh_u % h1 != 0:
+            return {
+                "ok": False,
+                "error": "Размер экрана не кратен выбранному кабинету",
+            }
+        c_w = sw_u // w1
+        c_h = sh_u // h1
+        count = c_w * c_h
+        return {
+            "ok": True,
+            "items": [{"cabinet": primary, "count": count}],
+            "total": count,
+            "arrangement": f"{c_w} × {c_h}",
+        }
+
+    w2, h2 = _cabinet_units(secondary)
+    if w2 <= 0 or h2 <= 0:
+        return {"ok": False, "error": "Некорректный размер второго кабинета"}
+
+    # 1) Одинаковая высота: смешивание по ширине в каждом ряду.
+    if h1 == h2:
+        if sh_u % h1 != 0:
+            return {"ok": False, "error": "Высота экрана не кратна высоте выбранных кабинетов"}
+        combo = _solve_linear_combo(sw_u, w1, w2, require_b_positive=True)
+        if combo is None:
+            return {"ok": False, "error": "По ширине нельзя собрать экран из выбранных кабинетов"}
+        x, y = combo
+        rows = sh_u // h1
+        return {
+            "ok": True,
+            "items": [
+                {"cabinet": primary, "count": x * rows},
+                {"cabinet": secondary, "count": y * rows},
+            ],
+            "total": (x + y) * rows,
+            "arrangement": f"Ряд: {x} + {y}; рядов: {rows}",
+        }
+
+    # 2) Одинаковая ширина: смешивание по высоте в каждой колонне.
+    if w1 == w2:
+        if sw_u % w1 != 0:
+            return {"ok": False, "error": "Ширина экрана не кратна ширине выбранных кабинетов"}
+        combo = _solve_linear_combo(sh_u, h1, h2, require_b_positive=True)
+        if combo is None:
+            return {"ok": False, "error": "По высоте нельзя собрать экран из выбранных кабинетов"}
+        x, y = combo
+        cols = sw_u // w1
+        return {
+            "ok": True,
+            "items": [
+                {"cabinet": primary, "count": x * cols},
+                {"cabinet": secondary, "count": y * cols},
+            ],
+            "total": (x + y) * cols,
+            "arrangement": f"Колонна: {x} + {y}; колонн: {cols}",
+        }
+
+    # 3) Разная ширина и высота: горизонтальные пояса.
+    if sw_u % w1 != 0 or sw_u % w2 != 0:
+        return {"ok": False, "error": "Ширина экрана не укладывается в выбранные кабинеты"}
+
+    best = None
+    best_score = None
+    for bands2 in range(1, (sh_u // h2) + 1):
+        rem_h = sh_u - bands2 * h2
+        if rem_h < 0:
+            break
+        if rem_h % h1 != 0:
+            continue
+        bands1 = rem_h // h1
+        count1 = bands1 * (sw_u // w1)
+        count2 = bands2 * (sw_u // w2)
+        score = count1 + count2
+        if best_score is None or score < best_score:
+            best_score = score
+            best = (bands1, bands2, count1, count2)
+
+    if best is None:
+        return {"ok": False, "error": "Невозможно собрать экран из выбранной пары кабинетов"}
+    bands1, bands2, count1, count2 = best
+    return {
+        "ok": True,
+        "items": [
+            {"cabinet": primary, "count": count1},
+            {"cabinet": secondary, "count": count2},
+        ],
+        "total": count1 + count2,
+        "arrangement": f"Пояса по высоте: {bands1} + {bands2}",
+    }
+
+
+def cabinet_cards_per_piece(cabinet: dict) -> int:
+    w = int(round(float(cabinet.get("width_mm", 0.0))))
+    h = int(round(float(cabinet.get("height_mm", 0.0))))
+    if min(w, h) == 160 and max(w, h) == 320:
+        return 0
+    return 1
+
+
+def cabinet_psu_profile(cabinet: dict, env_key: str) -> tuple[int, int]:
+    w = int(round(float(cabinet.get("width_mm", 0.0))))
+    h = int(round(float(cabinet.get("height_mm", 0.0))))
+    low = str(cabinet.get("name", "")).lower()
+    is_ce = _is_ce_series_name(low)
+
+    if env_key == "Outdoor":
+        if min(w, h) == 640 and max(w, h) == 640:
+            return 1, 400
+        if min(w, h) == 960 and max(w, h) == 960:
+            return 2, 400
+        if min(w, h) == 160 and max(w, h) == 320:
+            return 0, 400
+        return 1, 400
+
+    if is_ce:
+        if min(w, h) == 160 and max(w, h) == 320:
+            return 0, 200
+        return 1, 200
+    if min(w, h) == 960 and max(w, h) == 960:
+        return 2, 200
+    if min(w, h) == 500 and max(w, h) == 1000:
+        return 2, 200
+    if min(w, h) == 500 and max(w, h) == 500:
+        return 1, 200
+    if min(w, h) == 640 and max(w, h) == 640:
+        return 1, 200
+    if min(w, h) == 160 and max(w, h) == 320:
+        return 0, 200
+    return 1, 200
+
+
+CABINET_HANGER_500 = {
+    "name": "Подвес кабинета 500 мм",
+    "weight_kg": 2.5,
+    "price_rub": 2157.38,
+    "source_url": "https://ledcapital.ru/svetodiodnyekran/catalog/podves_kabineta_500_mm.html",
+}
+CABINET_HANGER_640 = {
+    "name": "Подвес кабинета 640x480-C indoor",
+    "weight_kg": 2.3,
+    "price_rub": 2393.75,
+    "source_url": "https://ledcapital.ru/catalog/kabinety/podvesy/podves_kabineta_640x480_c_indoor.html",
+}
+CABINET_HANGER_960 = {
+    "name": "Подвес кабинета 960 мм",
+    "weight_kg": 2.3,
+    "price_rub": 3846.51,
+    "source_url": "https://ledcapital.ru/catalog/kabinety/podvesy/podves_kabineta_960kh960.html",
+}
+
+
+def _cabinet_hanger_spec(cabinet: dict) -> Optional[dict]:
+    low_name = str(cabinet.get("name", "")).lower()
+    if "алюминиев" not in low_name:
+        return None
+
+    hanger_type = str(cabinet.get("hanger_type", "")).lower().strip()
+    if hanger_type == "none":
+        return None
+    if hanger_type == "500":
+        return CABINET_HANGER_500
+    if hanger_type == "960":
+        return CABINET_HANGER_960
+    if hanger_type == "640":
+        return CABINET_HANGER_640
+
+    width_mm = float(cabinet.get("width_mm", 0.0) or 0.0)
+    height_mm = float(cabinet.get("height_mm", 0.0) or 0.0)
+    w = int(round(width_mm))
+    h = int(round(height_mm))
+    max_side = max(w, h)
+    min_side = min(w, h)
+
+    if max_side >= 900 and min_side >= 900:
+        return CABINET_HANGER_960
+    if 500 in (w, h):
+        return CABINET_HANGER_500
+    return CABINET_HANGER_640
+
+
+def _cabinet_price_usd_from_spec(spec: dict) -> float:
+    if spec.get("price_rub") is not None:
+        rate = float(get_cbr_usd_rate() or 95.0)
+        if rate > 0:
+            return round(float(spec["price_rub"]) / rate, 2)
+    return 0.0
+
+
+def load_ledcapital_cabinets_from_google_sheet() -> tuple[list[dict], str]:
+    fallback = [
+        {
+            "name": spec["name"],
+            "width_mm": spec["width_mm"],
+            "height_mm": spec["height_mm"],
+            "price_usd": _cabinet_price_usd_from_spec(spec),
+            "env_support": spec["env_support"],
+            "hanger_type": str(spec.get("hanger_type", "auto")),
+            "commutation_included": bool(spec.get("commutation_included", False)),
+            "weight_kg": float(
+                spec.get("weight_kg")
+                or _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"])
+            ),
+        }
+        for spec in CABINET_ALLOWLIST
+    ]
+    try:
+        raw_rows = _load_ledcapital_sheet_catalog_rows(LEDCAPITAL_PRICES_CSV_URL)
+        candidates: list[dict] = []
+        for row in raw_rows:
+            name = str(row.get("name", "")).strip()
+            if not _is_cabinet_row(name):
+                continue
+            desc = str(row.get("description", "")).strip()
+            w, h = _extract_dimensions_mm(f"{name} {desc}")
+            if w is None or h is None:
+                continue
+            candidates.append(
+                {
+                    "name": name,
+                    "name_norm": _normalize_price_name(name),
+                    "description": desc,
+                    "width_mm": w,
+                    "height_mm": h,
+                    "price_usd": float(row.get("price_usd", 0.0)),
+                    "env_support": _cabinet_env_support(name, desc),
+                }
+            )
+        if not candidates:
+            return fallback, "в таблице не найдены кабинетные позиции, применен резерв"
+
+        cabinets: list[dict] = []
+        for spec in CABINET_ALLOWLIST:
+            spec_name_norm = _normalize_price_name(spec["name"])
+            alias_norms = [spec_name_norm] + [
+                _normalize_price_name(alias) for alias in spec.get("aliases", ())
+            ]
+            best: Optional[dict] = None
+            best_score: Optional[tuple[int, int]] = None
+            for candidate in candidates:
+                if abs(candidate["width_mm"] - spec["width_mm"]) > 0.1 or abs(
+                    candidate["height_mm"] - spec["height_mm"]
+                ) > 0.1:
+                    continue
+                if not any(env in candidate["env_support"] for env in spec["env_support"]):
+                    continue
+
+                cand_norm = candidate["name_norm"]
+                name_score = None
+                for alias in alias_norms:
+                    if alias == cand_norm:
+                        name_score = 0
+                        break
+                    if alias in cand_norm or cand_norm in alias:
+                        name_score = min(name_score or 999, 50 + abs(len(alias) - len(cand_norm)))
+
+                if name_score is None:
+                    continue
+                env_penalty = 0 if candidate["env_support"] == spec["env_support"] else 1
+                score = (name_score, env_penalty)
+                if best_score is None or score < best_score:
+                    best_score = score
+                    best = candidate
+
+            price_usd = (
+                float(best["price_usd"])
+                if best is not None
+                else _cabinet_price_usd_from_spec(spec)
+            )
+            cabinets.append(
+                {
+                    "name": spec["name"],
+                    "width_mm": spec["width_mm"],
+                    "height_mm": spec["height_mm"],
+                    "price_usd": price_usd,
+                    "env_support": spec["env_support"],
+                    "hanger_type": str(spec.get("hanger_type", "auto")),
+                    "commutation_included": bool(spec.get("commutation_included", False)),
+                    "weight_kg": float(
+                        spec.get("weight_kg")
+                        or _estimate_cabinet_weight_kg(spec["width_mm"], spec["height_mm"])
+                    ),
+                }
+            )
+        found_count = len([c for c in cabinets if c["price_usd"] > 0])
+        return cabinets, f"по whitelist: {found_count}/{len(cabinets)}"
+    except Exception as exc:
+        return fallback, f"ошибка загрузки кабинетов: {exc}"
+
+
+LEDCAPITAL_PRICE_SYNC = sync_ledcapital_prices_from_google_sheet()
+CABINETS_DB, CABINETS_SYNC_NOTE = load_ledcapital_cabinets_from_google_sheet()
+
+
 def magnet_unit_usd(m):
     return m["pack_price_usd"] / m["pack_qty"]
 
@@ -586,9 +1265,13 @@ SESSION_STATE_KEYS_TO_PERSIST: frozenset[str] = frozenset(
         "calc_sensor",
         "calc_mount_type",
         "calc_cabinet_model",
+        "calc_cabinet_second_enabled",
+        "calc_cabinet_second_model",
         "calc_cabinet_w",
         "calc_cabinet_h",
         "calc_cabinet_weight",
+        "calc_cabinet_hanger_enabled",
+        "calc_cabinet_hanger_qty",
         "main_magnet_select",
         "magnets_per_module_input",
         "sys_type_radio",
@@ -1072,8 +1755,13 @@ if "_incoming_payload_to_apply" in st.session_state:
     )
     st.rerun()
 
+# Нормализация object-ключей выбора на каждом запуске:
+# защищает от "залипших" старых dict-значений после обновления прайса.
+coerce_session_object_references()
+
 def fit_ratio(ratio):
-    ideal = st.session_state.width_input / ratio
+    width = float(st.session_state.get("width_input", 320))
+    ideal = width / ratio
     lower = math.floor(ideal / 160) * 160
     upper = math.ceil(ideal / 160) * 160
     st.session_state.height_mm = lower if abs(ideal - lower) <= abs(ideal - upper) else upper
@@ -1266,6 +1954,22 @@ if _incoming_apply_clicked and _incoming_files:
 
 st.sidebar.markdown("---")
 st.sidebar.header("💵 Финансы")
+if st.sidebar.button(
+    "🔄 Обновить прайс LEDCapital",
+    key="ledcapital_prices_refresh_btn",
+    use_container_width=True,
+):
+    _load_ledcapital_sheet_catalog_rows.clear()
+    _load_ledcapital_sheet_prices.clear()
+    st.rerun()
+if LEDCAPITAL_PRICE_SYNC.get("ok"):
+    st.sidebar.caption(
+        f"LEDCapital: Google Sheet подключен ({LEDCAPITAL_PRICE_SYNC.get('note', 'ok')})"
+    )
+else:
+    st.sidebar.caption(
+        f"LEDCapital: используется встроенный прайс ({LEDCAPITAL_PRICE_SYNC.get('note', 'нет данных')})"
+    )
 
 # Получаем актуальный курс
 current_cbr_rate = get_cbr_usd_rate()
@@ -1408,19 +2112,35 @@ with _ui_bordered_container():
     with col_ratio_buttons:
         st.markdown('<p class="size-subtitle">Быстрые пропорции</p>', unsafe_allow_html=True)
         r1c1, r1c2 = st.columns(2, gap="small")
-        if r1c1.button("16:9", key="ratio_btn_16_9", use_container_width=True):
-            fit_ratio(1.7777777777777777)
-            st.rerun()
-        if r1c2.button("4:3", key="ratio_btn_4_3", use_container_width=True):
-            fit_ratio(1.3333333333333333)
-            st.rerun()
+        r1c1.button(
+            "16:9",
+            key="ratio_btn_16_9",
+            use_container_width=True,
+            on_click=fit_ratio,
+            args=(1.7777777777777777,),
+        )
+        r1c2.button(
+            "4:3",
+            key="ratio_btn_4_3",
+            use_container_width=True,
+            on_click=fit_ratio,
+            args=(1.3333333333333333,),
+        )
         r2c1, r2c2 = st.columns(2, gap="small")
-        if r2c1.button("21:9", key="ratio_btn_21_9", use_container_width=True):
-            fit_ratio(2.3333333333333335)
-            st.rerun()
-        if r2c2.button("1:1", key="ratio_btn_1_1", use_container_width=True):
-            fit_ratio(1.0)
-            st.rerun()
+        r2c1.button(
+            "21:9",
+            key="ratio_btn_21_9",
+            use_container_width=True,
+            on_click=fit_ratio,
+            args=(2.3333333333333335,),
+        )
+        r2c2.button(
+            "1:1",
+            key="ratio_btn_1_1",
+            use_container_width=True,
+            on_click=fit_ratio,
+            args=(1.0,),
+        )
         st.markdown(
             '<div class="ratio-hint">Высота подгоняется автоматически с шагом 160 мм.</div>',
             unsafe_allow_html=True,
@@ -1513,22 +2233,49 @@ with _ui_bordered_container():
         selected_magnet = None
         magnets_per_module = 0
         selected_power_jumper = None
+        selected_cabinet_spec: Optional[dict] = None
+        secondary_cabinet_spec: Optional[dict] = None
+        cabinet_second_enabled = False
 
         cabinet_model = "Монолит"
-        cabinet_width, cabinet_height, cabinet_weight_per = 640, 480, 20.0
+        cabinet_width, cabinet_height, cabinet_weight_per = 640.0, 480.0, 20.0
+        cabinet_price_usd = 0.0
+        cabinet_hanger_model = ""
+        cabinet_hanger_weight_kg = 0.0
+        cabinet_hanger_price_rub = 0.0
+        cabinet_hanger_price_usd = 0.0
+        cabinet_hanger_enabled = False
+        cabinet_hanger_qty = 0
         
         if "кабинетах" in mount_type:
-            cabinet_options = [
-                "QM Series (640×480 мм, indoor, ~20 кг)",
-                "MG Series (960×960 мм, outdoor/indoor, ~40 кг)",
-                "QF Series (500×500 мм, rental/indoor, ~13.5 кг)",
-                "QS Series (960×960 мм, outdoor fixed, ~45 кг)",
-                "Custom (введите размер и вес вручную)",
-            ]
-            if "calc_cabinet_model" not in st.session_state or st.session_state.calc_cabinet_model not in cabinet_options:
+            _cabinet_env = "Indoor" if env_key == "Indoor" else "Outdoor"
+            compatible_cabinets = [c for c in CABINETS_DB if _cabinet_env in c.get("env_support", ())]
+            if not compatible_cabinets:
+                compatible_cabinets = CABINETS_DB
+
+            _cabinet_labels = []
+            _cabinet_lookup: dict[str, dict] = {}
+            for c in compatible_cabinets:
+                env_tag = "/".join(c.get("env_support", ("Indoor", "Outdoor")))
+                size_tag = f"{_normalize_mm_for_display(c['width_mm'])}×{_normalize_mm_for_display(c['height_mm'])}"
+                label = f"{c['name']} [{env_tag}, {size_tag} мм, ${c['price_usd']:.2f}]"
+                _cabinet_labels.append(label)
+                _cabinet_lookup[label] = c
+
+            custom_label = "Свой кабинет (ввести размер и вес вручную)"
+            cabinet_options = _cabinet_labels + [custom_label]
+            if (
+                "calc_cabinet_model" not in st.session_state
+                or st.session_state.calc_cabinet_model not in cabinet_options
+            ):
                 st.session_state.calc_cabinet_model = cabinet_options[0]
+
+            st.caption(
+                f"Кабинеты из таблицы LEDCapital ({_cabinet_env}): {len(compatible_cabinets)} · {CABINETS_SYNC_NOTE}"
+            )
             cabinet_model = st.selectbox("Модель кабинета", cabinet_options, key="calc_cabinet_model")
-            if "Custom" in cabinet_model:
+            if cabinet_model == custom_label:
+                cabinet_model = "Свой кабинет"
                 cc1, cc2, cc3 = st.columns(3)
                 with cc1:
                     if "calc_cabinet_w" not in st.session_state:
@@ -1542,13 +2289,118 @@ with _ui_bordered_container():
                     if "calc_cabinet_weight" not in st.session_state:
                         st.session_state.calc_cabinet_weight = 20.0
                     cabinet_weight_per = st.number_input("Вес (кг)", min_value=1.0, key="calc_cabinet_weight")
-            else:
-                cab_map = {
-                    "QM": (640, 480, 20.0), "MG": (960, 960, 40.0), 
-                    "QF": (500, 500, 13.5), "QS": (960, 960, 45.0)
+                selected_cabinet_spec = {
+                    "name": cabinet_model,
+                    "width_mm": float(cabinet_width),
+                    "height_mm": float(cabinet_height),
+                    "price_usd": 0.0,
+                    "weight_kg": float(cabinet_weight_per),
+                    "hanger_type": "auto",
+                    "commutation_included": False,
                 }
-                key_prefix = cabinet_model.split()[0]
-                cabinet_width, cabinet_height, cabinet_weight_per = cab_map.get(key_prefix, (640, 480, 20.0))
+            else:
+                selected_cabinet = _cabinet_lookup[cabinet_model]
+                selected_cabinet_spec = selected_cabinet
+                cabinet_model = str(selected_cabinet["name"])
+                cabinet_width = float(selected_cabinet["width_mm"])
+                cabinet_height = float(selected_cabinet["height_mm"])
+                cabinet_price_usd = float(selected_cabinet.get("price_usd", 0.0))
+                _cab_state_key = (
+                    f"{selected_cabinet['name']}|{cabinet_width}|{cabinet_height}"
+                )
+                if st.session_state.get("_calc_cabinet_prev_key") != _cab_state_key:
+                    st.session_state.calc_cabinet_weight = float(
+                        selected_cabinet.get("weight_kg")
+                        or _estimate_cabinet_weight_kg(cabinet_width, cabinet_height)
+                    )
+                    st.session_state._calc_cabinet_prev_key = _cab_state_key
+                cabinet_weight_per = st.number_input(
+                    "Вес 1 кабинета (кг)",
+                    min_value=1.0,
+                    step=0.1,
+                    key="calc_cabinet_weight",
+                )
+                st.markdown(
+                    f'<div style="padding: 12px; border-radius: 8px; background: #1a202c; border: 1px solid #2d3748; line-height: 1.6; margin-bottom: 10px;">'
+                    f'<span style="color: #a0aec0; font-size: 13px;">'
+                    f'Размер кабинета: <strong>{_normalize_mm_for_display(cabinet_width)}×{_normalize_mm_for_display(cabinet_height)} мм</strong> '
+                    f'&nbsp;|&nbsp; Закупка: <strong style="color: #48bb78;">${cabinet_price_usd:.2f}</strong>'
+                    f'</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                if _is_ce_series_name(cabinet_model):
+                    ce_candidates = [
+                        c
+                        for c in compatible_cabinets
+                        if _is_ce_series_name(str(c.get("name", ""))) and c.get("name") != cabinet_model
+                    ]
+                    if ce_candidates:
+                        if "calc_cabinet_second_enabled" not in st.session_state:
+                            st.session_state.calc_cabinet_second_enabled = False
+                        cabinet_second_enabled = st.checkbox(
+                            "Добавить второй кабинет C/E серии",
+                            key="calc_cabinet_second_enabled",
+                        )
+                        if cabinet_second_enabled:
+                            sec_labels = []
+                            sec_lookup: dict[str, dict] = {}
+                            for c in ce_candidates:
+                                s = (
+                                    f"{c['name']} "
+                                    f"[{_normalize_mm_for_display(c['width_mm'])}×{_normalize_mm_for_display(c['height_mm'])} мм, ${c['price_usd']:.2f}]"
+                                )
+                                sec_labels.append(s)
+                                sec_lookup[s] = c
+                            if (
+                                "calc_cabinet_second_model" not in st.session_state
+                                or st.session_state.calc_cabinet_second_model not in sec_labels
+                            ):
+                                st.session_state.calc_cabinet_second_model = sec_labels[0]
+                            sec_pick = st.selectbox(
+                                "Второй кабинет",
+                                sec_labels,
+                                key="calc_cabinet_second_model",
+                            )
+                            secondary_cabinet_spec = sec_lookup[sec_pick]
+
+                _hanger_spec = _cabinet_hanger_spec(selected_cabinet)
+                if _hanger_spec is not None:
+                    if "calc_cabinet_hanger_enabled" not in st.session_state:
+                        st.session_state.calc_cabinet_hanger_enabled = False
+                    if "calc_cabinet_hanger_qty" not in st.session_state:
+                        st.session_state.calc_cabinet_hanger_qty = 1
+
+                    cabinet_hanger_model = str(_hanger_spec["name"])
+                    cabinet_hanger_weight_kg = float(_hanger_spec["weight_kg"])
+                    cabinet_hanger_price_rub = float(_hanger_spec.get("price_rub") or 0.0)
+                    cabinet_hanger_price_usd = (
+                        cabinet_hanger_price_rub / exchange_rate if exchange_rate else 0.0
+                    )
+                    cabinet_hanger_enabled = st.checkbox(
+                        "Добавить балку подвеса",
+                        key="calc_cabinet_hanger_enabled",
+                        help="Вес балки будет учтен в общем весе экрана.",
+                    )
+                    if cabinet_hanger_enabled:
+                        st.markdown(
+                            f'<div style="margin: 4px 0 8px 0;">'
+                            f'<span style="color:#a0aec0;font-size:13px;">'
+                            f'Балка: {cabinet_hanger_model} · {cabinet_hanger_weight_kg:.1f} кг/шт · '
+                            f'<strong style="color:#48bb78;">${cabinet_hanger_price_usd:.2f}</strong> '
+                            f'({cabinet_hanger_price_rub:,.0f} ₽)'
+                            f"</span></div>",
+                            unsafe_allow_html=True,
+                        )
+                        cabinet_hanger_qty = int(
+                            st.number_input(
+                                "Количество балок подвеса",
+                                min_value=1,
+                                step=1,
+                                key="calc_cabinet_hanger_qty",
+                            )
+                        )
         else:
             selected_magnet = st.selectbox(
                 "Магниты (из прайса):",
@@ -1584,6 +2436,40 @@ with _ui_bordered_container():
                 </span>
             </div>
             """, unsafe_allow_html=True)
+
+selected_cabinet_specs_for_logic = []
+if "кабинетах" in mount_type and selected_cabinet_spec is not None:
+    selected_cabinet_specs_for_logic.append(selected_cabinet_spec)
+if "кабинетах" in mount_type and cabinet_second_enabled and secondary_cabinet_spec is not None:
+    selected_cabinet_specs_for_logic.append(secondary_cabinet_spec)
+cabinet_commutation_included_selection = (
+    bool(selected_cabinet_specs_for_logic)
+    and all(bool(c.get("commutation_included", False)) for c in selected_cabinet_specs_for_logic)
+)
+
+# Ранняя проверка кратности экрана кабинетам:
+# показываем ошибку сразу после блока "Размеры/Монтаж", а не внизу отчёта.
+cabinet_layout_preview = None
+if "кабинетах" in mount_type and selected_cabinet_spec is not None:
+    _pre_real_width = math.ceil(width_mm / 320) * 320
+    _pre_real_height = math.ceil(height_mm / 160) * 160
+    cabinet_layout_preview = solve_cabinet_layout(
+        _pre_real_width,
+        _pre_real_height,
+        selected_cabinet_spec,
+        secondary_cabinet_spec if cabinet_second_enabled else None,
+    )
+    if not cabinet_layout_preview.get("ok"):
+        st.error(
+            "❌ Несоответствие размера экрана кабинетам: "
+            + str(
+                cabinet_layout_preview.get(
+                    "error",
+                    "размер экрана не собирается из выбранных кабинетов",
+                )
+            )
+        )
+        st.stop()
 
 # ==========================================
 # ==========================================
@@ -1669,18 +2555,21 @@ with col_ctrl2:
         key="main_card_select",
     )
     
-    # --- НОВЫЙ БЛОК: КРАТНОСТЬ МОДУЛЕЙ ---
-    # Список значений, как ты просил + стандартные для больших экранов
+    # Кратность модулей нужна только для монолитного режима.
     card_mods_options = [6, 8, 10, 12, 14, 16, 18]
-    
-    modules_per_card = st.selectbox(
-        "Кол-во модулей на 1 карту:",
-        options=card_mods_options,
-        index=card_mods_options.index(10),
-        key="mods_per_card_select",
-        help="Выберите физическую кратность модулей для одной приёмной карты.",
-    )
-    # -------------------------------------
+    if "кабинетах" in mount_type:
+        modules_per_card = 0
+        st.caption(
+            "Кабинетный монтаж: карты считаются автоматически (1 карта на кабинет, кроме 320×160)."
+        )
+    else:
+        modules_per_card = st.selectbox(
+            "Кол-во модулей на 1 карту:",
+            options=card_mods_options,
+            index=card_mods_options.index(10),
+            key="mods_per_card_select",
+            help="Выберите физическую кратность модулей для одной приёмной карты.",
+        )
 
     receiving_card = selected_card
     card_name = receiving_card["name"]
@@ -1773,9 +2662,15 @@ col4_pwr, col4_zip = st.columns(2)
 with col4_pwr:
     with _ui_bordered_container():
         st.markdown('<p class="section4-subtitle">Блок питания</p>', unsafe_allow_html=True)
+        _psu_target_w = 400 if ("кабинетах" in mount_type and env_key == "Outdoor") else 200
+        _psu_db = PSU_DB
+        if "кабинетах" in mount_type:
+            _psu_filtered = [p for p in PSU_DB if int(p.get("max_w", 0)) == _psu_target_w]
+            if _psu_filtered:
+                _psu_db = _psu_filtered
         selected_psu = st.selectbox(
             "Модель БП (из прайса):",
-            PSU_DB,
+            _psu_db,
             format_func=lambda x: f"{x['name']} — ${x['price_usd']:.2f}",
             index=0,
             key="final_psu_selector",
@@ -1791,12 +2686,18 @@ with col4_pwr:
             unsafe_allow_html=True,
         )
         _mpsu_opts = [4, 6, 8, 10, 12, 16]
-        modules_per_psu = st.selectbox(
-            "Модулей на 1 БП:",
-            _mpsu_opts,
-            index=_mpsu_opts.index(10),
-            key="final_m_per_p",
-        )
+        if "кабинетах" not in mount_type:
+            modules_per_psu = st.selectbox(
+                "Модулей на 1 БП:",
+                _mpsu_opts,
+                index=_mpsu_opts.index(10),
+                key="final_m_per_p",
+            )
+        else:
+            modules_per_psu = 0
+            st.caption(
+                f"Кабинетный монтаж: расчёт БП автоматически по кабинетам ({_psu_target_w}W)."
+            )
         power_phase = st.radio(
             "Вводная сеть:",
             ["Одна фаза (220 В)", "Три фазы (380 В)"],
@@ -1857,8 +2758,17 @@ with col4_j:
                 key="main_power_jumper_select",
                 help="По умолчанию 70 см.",
             )
+        elif "кабинетах" in mount_type and cabinet_commutation_included_selection:
+            st.caption("Для выбранных кабинетов силовые перемычки идут в комплекте.")
         else:
-            st.caption("Только для монолитного монтажа.")
+            selected_power_jumper = st.selectbox(
+                "Длина:",
+                POWER_JUMPERS_MONOLITH_DB,
+                index=3,
+                format_func=lambda p: f"{p['name']} — ${p['price_usd']:.2f}/шт",
+                key="main_power_jumper_select",
+                help="Для C/E и стальных кабинетов считается как обычно.",
+            )
 with col4_p:
     with _ui_bordered_container():
         st.markdown("**Патч-корды**")
@@ -1871,6 +2781,8 @@ with col4_p:
             key="patch_cord_product_select",
             help="Монолит: чаще 1 м; кабинеты: 1,5 м.",
         )
+        if "кабинетах" in mount_type and cabinet_commutation_included_selection:
+            st.caption("Для выбранных алюминиевых кабинетов UTP-линки в комплекте.")
 with col4_c:
     with _ui_bordered_container():
         st.markdown("**Кабели питания карт → БП**")
@@ -1894,6 +2806,44 @@ area_m2 = (real_width / 1000) * (real_height / 1000)
 
 total_price_rub = area_m2 * price_per_m2
 
+cabinet_layout = {"ok": True, "items": [], "total": 0, "arrangement": ""}
+cabinet_layout_items: list[dict] = []
+buy_cabinets_total_usd = 0.0
+total_cabinets = 0
+if "кабинетах" in mount_type:
+    if selected_cabinet_spec is None:
+        selected_cabinet_spec = {
+            "name": cabinet_model,
+            "width_mm": float(cabinet_width),
+            "height_mm": float(cabinet_height),
+            "price_usd": float(cabinet_price_usd),
+            "weight_kg": float(cabinet_weight_per),
+            "hanger_type": "auto",
+            "commutation_included": False,
+        }
+    cabinet_layout = (
+        cabinet_layout_preview
+        if cabinet_layout_preview is not None
+        else solve_cabinet_layout(
+            real_width,
+            real_height,
+            selected_cabinet_spec,
+            secondary_cabinet_spec if cabinet_second_enabled else None,
+        )
+    )
+    if not cabinet_layout.get("ok"):
+        st.error(
+            "❌ Кабинетный монтаж: "
+            + str(cabinet_layout.get("error", "размер экрана не собирается из выбранных кабинетов"))
+        )
+        st.stop()
+    cabinet_layout_items = [i for i in cabinet_layout.get("items", []) if i.get("count", 0) > 0]
+    total_cabinets = sum(int(i["count"]) for i in cabinet_layout_items)
+    buy_cabinets_total_usd = sum(
+        int(i["count"]) * float(i["cabinet"].get("price_usd", 0.0))
+        for i in cabinet_layout_items
+    )
+
 if reserve_modules_choice == "Свой":
     reserve_modules = int(reserve_modules_custom)
 else:
@@ -1906,26 +2856,40 @@ peak_power_screen_kw = total_modules * max_power_module / 1000
 avg_power_screen_kw = peak_power_screen_kw * 0.35
 
 # --- 2. КАРТЫ (РАСЧЕТ ПО ТВОЕМУ СПИСКУ) ---
+if "кабинетах" in mount_type and cabinet_layout_items:
+    num_cards = sum(
+        int(item["count"]) * cabinet_cards_per_piece(item["cabinet"])
+        for item in cabinet_layout_items
+    )
+else:
+    # А) Считаем строго по количеству модулей, которые ты выбрал в списке (6, 8, 10...)
+    num_cards_by_mod = math.ceil(total_modules / modules_per_card)
 
-# А) Считаем строго по количеству модулей, которые ты выбрал в списке (6, 8, 10...)
-num_cards_by_mod = math.ceil(total_modules / modules_per_card)
+    # Б) Для контроля: физический предел карты по разрешению (Novastar)
+    card_res_tuple = CARD_MAX_PIXELS.get(receiving_card['name'], (512, 384))
+    max_pixels_card = card_res_tuple[0] * card_res_tuple[1]
+    num_cards_by_pix = math.ceil(total_px / max_pixels_card)
 
-# Б) Для контроля: физический предел карты по разрешению (Novastar)
-card_res_tuple = CARD_MAX_PIXELS.get(receiving_card['name'], (512, 384))
-max_pixels_card = card_res_tuple[0] * card_res_tuple[1]
-num_cards_by_pix = math.ceil(total_px / max_pixels_card)
-
-# В) ИТОГО "ЧИСТОЕ" КОЛИЧЕСТВО
-# Если ты вручную задал мало модулей (например 6), то num_cards_by_mod будет большим, 
-# и программа возьмет именно его.
-num_cards = max(num_cards_by_mod, num_cards_by_pix)
+    # В) ИТОГО "ЧИСТОЕ" КОЛИЧЕСТВО
+    num_cards = max(num_cards_by_mod, num_cards_by_pix)
 
 # Г) ИТОГО С УЧЕТОМ ЗИП (если нажата кнопка запаса)
-num_cards_reserve = num_cards + 1 if reserve_psu_cards else num_cards
+num_cards_reserve = num_cards + 1 if (reserve_psu_cards and num_cards > 0) else num_cards
 
-num_patch_cords_zip_spare = 1 if reserve_enabled else 0
-patch_cords = num_cards_reserve + num_patch_cords_zip_spare
-buy_patch_cords_total = patch_cords * selected_patch_cord["price_usd"]
+cabinet_commutation_included = (
+    "кабинетах" in mount_type
+    and bool(cabinet_layout_items)
+    and all(bool(item["cabinet"].get("commutation_included", False)) for item in cabinet_layout_items)
+)
+
+if cabinet_commutation_included:
+    num_patch_cords_zip_spare = 0
+    patch_cords = 0
+    buy_patch_cords_total = 0.0
+else:
+    num_patch_cords_zip_spare = 1 if reserve_enabled else 0
+    patch_cords = num_cards_reserve + num_patch_cords_zip_spare
+    buy_patch_cords_total = patch_cords * selected_patch_cord["price_usd"]
 
 num_power_cables = num_cards_reserve
 reserve_power_cables = math.ceil(num_power_cables * 0.1)
@@ -1933,18 +2897,31 @@ num_card_power_cables_order = num_power_cables + reserve_power_cables
 buy_card_power_cables_total = num_card_power_cables_order * selected_card_power_cable["price_usd"]
 
 # --- 3. БП ---
-num_psu = math.ceil(total_modules / modules_per_psu)
-num_psu_reserve = num_psu + 1 if reserve_psu_cards else num_psu
+if "кабинетах" in mount_type and cabinet_layout_items:
+    num_psu = 0
+    for item in cabinet_layout_items:
+        psu_per_cab, _psu_w = cabinet_psu_profile(item["cabinet"], env_key)
+        num_psu += int(item["count"]) * psu_per_cab
+else:
+    num_psu = math.ceil(total_modules / modules_per_psu)
+num_psu_reserve = num_psu + 1 if (reserve_psu_cards and num_psu > 0) else num_psu
 
 num_plates = num_psu_reserve
 vinths = num_plates * 4
 reserve_vinths = math.ceil(vinths * 0.1)
 num_screws_4x16_order = vinths + reserve_vinths
 
-if "Монолитный" in mount_type and selected_power_jumper is not None:
+if selected_power_jumper is not None and (
+    ("Монолитный" in mount_type)
+    or ("кабинетах" in mount_type and not cabinet_commutation_included)
+):
     num_power_jumpers_for_chain = max(0, num_psu_reserve - 1)
     num_power_jumpers_zip_spare = 1 if reserve_enabled else 0
     num_power_jumpers = num_power_jumpers_for_chain + num_power_jumpers_zip_spare
+elif "кабинетах" in mount_type and cabinet_commutation_included:
+    num_power_jumpers_for_chain = 0
+    num_power_jumpers_zip_spare = 0
+    num_power_jumpers = 0
 else:
     num_power_jumpers_for_chain = 0
     num_power_jumpers_zip_spare = 0
@@ -2016,6 +2993,18 @@ else:
     buy_metal_plates_rub = 0.0
     buy_metal_plates_usd = 0.0
 
+if (
+    "кабинетах" in mount_type
+    and cabinet_hanger_enabled
+    and cabinet_hanger_qty > 0
+    and cabinet_hanger_price_rub > 0
+):
+    buy_hangers_total_rub = cabinet_hanger_qty * cabinet_hanger_price_rub
+    buy_hangers_total_usd = buy_hangers_total_rub / exchange_rate if exchange_rate else 0.0
+else:
+    buy_hangers_total_rub = 0.0
+    buy_hangers_total_usd = 0.0
+
 # --- 5. ФИНАНСЫ (USD) ---
 
 # 1. Сначала определяем цену модуля для расчетов (берем ту, что введена выше)
@@ -2039,10 +3028,12 @@ total_buy_usd = (
     buy_patch_cords_total +
     buy_card_power_cables_total +
     buy_power_jumpers_total +
+    buy_cabinets_total_usd +
     buy_profile_usd +
     buy_screws_4x16_usd +
     buy_m6_frame_usd +
-    buy_metal_plates_usd
+    buy_metal_plates_usd +
+    buy_hangers_total_usd
 )
 
 # 4. Пересчет модулей для отчета (как у тебя в коде)
@@ -2059,6 +3050,8 @@ buy_frame_usd = (
     + buy_m6_frame_usd
     + buy_metal_plates_usd
     + buy_magnets_total
+    + buy_hangers_total_usd
+    + buy_cabinets_total_usd
 )
 buy_components_usd = total_buy_usd - buy_frame_usd
 buy_frame_rub = buy_frame_usd * exchange_rate
@@ -2130,16 +3123,37 @@ module_weight = 0.37 if "Indoor" in env_key else 0.5
 weight_modules = total_modules_order * module_weight
 
 total_cabinet_weight = 0
+total_hanger_weight = 0.0
 cabinets_w, cabinets_h, total_cabinets = 0, 0, 0
+cabinet_mix_rows: list[str] = []
+buy_cabinets_total_usd = 0.0
 if "кабинетах" in mount_type:
-    cabinets_w = math.ceil(real_width / cabinet_width)
-    cabinets_h = math.ceil(real_height / cabinet_height)
-    total_cabinets = cabinets_w * cabinets_h
-    total_cabinet_weight = total_cabinets * cabinet_weight_per
+    if cabinet_layout_items:
+        total_cabinets = sum(int(item["count"]) for item in cabinet_layout_items)
+        if len(cabinet_layout_items) == 1:
+            c0 = cabinet_layout_items[0]
+            cw = float(c0["cabinet"]["width_mm"])
+            ch = float(c0["cabinet"]["height_mm"])
+            cabinets_w = int(round(real_width / cw)) if cw > 0 else 0
+            cabinets_h = int(round(real_height / ch)) if ch > 0 else 0
+        for item in cabinet_layout_items:
+            cab = item["cabinet"]
+            cnt = int(item["count"])
+            c_w = _normalize_mm_for_display(float(cab["width_mm"]))
+            c_h = _normalize_mm_for_display(float(cab["height_mm"]))
+            total_cabinet_weight += cnt * float(cab.get("weight_kg", 0.0))
+            buy_cabinets_total_usd += cnt * float(cab.get("price_usd", 0.0))
+            cabinet_mix_rows.append(
+                f"- {cab['name']}: **{cnt} шт.** ({c_w}×{c_h} мм)"
+            )
+    if cabinet_hanger_enabled and cabinet_hanger_qty > 0 and cabinet_hanger_weight_kg > 0:
+        total_hanger_weight = cabinet_hanger_qty * cabinet_hanger_weight_kg
+
+buy_cabinets_total_rub = buy_cabinets_total_usd * exchange_rate
 
 weight_carcas = total_profile_length * 2 if "Монолитный" in mount_type else 0
-weight_extra = (weight_modules + weight_carcas + total_cabinet_weight) * 0.05
-total_weight = weight_modules + weight_carcas + total_cabinet_weight + weight_extra
+weight_extra = (weight_modules + weight_carcas + total_cabinet_weight + total_hanger_weight) * 0.05
+total_weight = weight_modules + weight_carcas + total_cabinet_weight + total_hanger_weight + weight_extra
 
 # Логистика
 num_boxes = math.ceil(total_modules_order / 40)
@@ -2153,10 +3167,16 @@ st.markdown('<div class="section-header">📊 Финальный отчёт и �
 
 _spec_qty_cells = [
     ("Модули", f"{total_modules_order} шт."),
-    ("БП", f"{num_psu_reserve} шт."),
-    ("Карты", f"{num_cards_reserve} шт."),
-    ("Хабы", f"{num_hubs} шт."),
 ]
+if "кабинетах" in mount_type:
+    _spec_qty_cells.append(("Кабинеты", f"{total_cabinets} шт."))
+_spec_qty_cells.extend(
+    [
+        ("БП", f"{num_psu_reserve} шт."),
+        ("Карты", f"{num_cards_reserve} шт."),
+        ("Хабы", f"{num_hubs} шт."),
+    ]
+)
 if num_magnets:
     _spec_qty_cells.append(("Магниты", f"{num_magnets} шт."))
 _spec_qty_cells.extend(
@@ -2169,6 +3189,8 @@ if num_power_jumpers:
     _spec_qty_cells.append(("Перемычки БП", f"{num_power_jumpers} шт."))
 if profile_purchased_m > 0:
     _spec_qty_cells.append(("Профиль 40×20×1,5", f"{profile_purchased_m:.1f} м"))
+if total_hanger_weight > 0:
+    _spec_qty_cells.append(("Балки подвеса", f"{cabinet_hanger_qty} шт."))
 if buy_screws_4x16_usd > 0:
     _spec_qty_cells.append(("Саморезы", f"{num_screws_4x16_order} шт."))
 if buy_m6_frame_usd > 0:
@@ -2372,13 +3394,18 @@ with st.expander("Модули", expanded=True):
 
 if "кабинетах" in mount_type:
     with st.expander("Кабинеты", expanded=True):
+        _cab_mix_md = "\n".join(cabinet_mix_rows) if cabinet_mix_rows else "-"
         st.markdown(f"""
-        - **Модель**: {cabinet_model}
-        - **Размер одного**: {cabinet_width} × {cabinet_height} мм
-        - **Сетка**: {cabinets_w} (Ш) × {cabinets_h} (В)
+        - **Компоновка**: {cabinet_layout.get("arrangement") or "—"}
         - **Общее количество**: **{total_cabinets} шт.**
-        - **Вес одного**: {cabinet_weight_per:.1f} кг
+        - **Позиции**:
+{_cab_mix_md}
         - **Общий вес кабинетов**: {total_cabinet_weight:.1f} кг
+        - **Балка подвеса**: {cabinet_hanger_model if total_hanger_weight > 0 else "не выбрана"}
+        - **Количество балок**: {cabinet_hanger_qty if total_hanger_weight > 0 else 0} шт.
+        - **Общий вес балок**: {total_hanger_weight:.1f} кг
+        - **Стоимость кабинетов**: ${buy_cabinets_total_usd:.2f} ({buy_cabinets_total_rub:,.0f} ₽)
+        - **Стоимость балок**: ${buy_hangers_total_usd:.2f} ({buy_hangers_total_rub:,.0f} ₽)
         """)
 
 with st.expander("Принимающие карты", expanded=True):
@@ -2389,14 +3416,24 @@ with st.expander("Принимающие карты", expanded=True):
     """)
 
 with st.expander("Блоки питания", expanded=True):
-    st.markdown(f"""
-    - **Модель БП**: {sel_psu['name']} ({sel_psu['max_w']}W)
-    - **Схема коммутации**: {modules_per_psu} модулей на 1 БП
-    - **Пиковое потребление экрана**: {peak_power_screen_kw:.1f} кВт
-    - **Рабочее (среднее) потребление**: {avg_power_screen_kw:.1f} кВт
-    - **Основное количество БП**: {num_psu} шт.
-    - **Итого БП к заказу (с ЗИП)**: **{num_psu_reserve} шт.**
-    """)
+    if "кабинетах" in mount_type:
+        st.markdown(f"""
+        - **Модель БП**: {sel_psu['name']} ({sel_psu['max_w']}W)
+        - **Логика**: расчет по кабинетам (Indoor/Outdoor)
+        - **Пиковое потребление экрана**: {peak_power_screen_kw:.1f} кВт
+        - **Рабочее (среднее) потребление**: {avg_power_screen_kw:.1f} кВт
+        - **Основное количество БП**: {num_psu} шт.
+        - **Итого БП к заказу (с ЗИП)**: **{num_psu_reserve} шт.**
+        """)
+    else:
+        st.markdown(f"""
+        - **Модель БП**: {sel_psu['name']} ({sel_psu['max_w']}W)
+        - **Схема коммутации**: {modules_per_psu} модулей на 1 БП
+        - **Пиковое потребление экрана**: {peak_power_screen_kw:.1f} кВт
+        - **Рабочее (среднее) потребление**: {avg_power_screen_kw:.1f} кВт
+        - **Основное количество БП**: {num_psu} шт.
+        - **Итого БП к заказу (с ЗИП)**: **{num_psu_reserve} шт.**
+        """)
 
 with st.expander("Процессор / Контроллер", expanded=True):
     _rep_proc_ports = (
@@ -2506,7 +3543,7 @@ with st.expander("Коммутация", expanded=True):
 with st.expander("Весовые характеристики", expanded=True):
     st.markdown(f"""
     - **Вес модулей**: {weight_modules:.1f} кг
-    - **Вес каркаса / кабинетов**: {weight_carcas + total_cabinet_weight:.1f} кг
+    - **Вес каркаса / кабинетов / балок**: {weight_carcas + total_cabinet_weight + total_hanger_weight:.1f} кг
     - **Метизы и проводка (5%)**: {weight_extra:.1f} кг
     - **Общий расчётный вес экрана**: **{total_weight:.1f} кг**
     """)
@@ -2562,6 +3599,19 @@ figma_data = {
     "power_jumpers_zip_spare_qty": num_power_jumpers_zip_spare,
     "power_jumper_model": selected_power_jumper["name"] if selected_power_jumper else None,
     "power_jumpers_cost_usd": round(buy_power_jumpers_total, 2),
+    "cabinet_hanger_enabled": bool(total_hanger_weight > 0),
+    "cabinet_hanger_model": cabinet_hanger_model if total_hanger_weight > 0 else "",
+    "cabinet_hanger_qty": int(cabinet_hanger_qty if total_hanger_weight > 0 else 0),
+    "cabinet_hanger_weight_kg_each": round(cabinet_hanger_weight_kg, 3),
+    "cabinet_hanger_weight_total_kg": round(total_hanger_weight, 3),
+    "cabinet_hanger_price_rub_each": round(cabinet_hanger_price_rub, 2),
+    "cabinet_hanger_price_usd_each": round(cabinet_hanger_price_usd, 2),
+    "cabinet_hanger_cost_total_usd": round(buy_hangers_total_usd, 2),
+    "cabinet_hanger_cost_total_rub": round(buy_hangers_total_rub, 2),
+    "total_cabinets": int(total_cabinets),
+    "cabinet_layout": cabinet_layout.get("arrangement"),
+    "cabinet_cost_total_usd": round(buy_cabinets_total_usd, 2),
+    "cabinet_cost_total_rub": round(buy_cabinets_total_rub, 2),
     "profile_40x20_stick_length_m": PROFILE_40X20_STICK_M,
     "profile_40x20_sticks_6m": profile_sticks_6m,
     "profile_purchased_m": round(profile_purchased_m, 3),
@@ -2628,15 +3678,21 @@ figma_json = json.dumps(figma_data, indent=4, ensure_ascii=False)
 
 _pdf_spec_rows = [
     ("Модули", f"{total_modules_order} шт."),
+]
+if "кабинетах" in mount_type:
+    _pdf_spec_rows.append(("Кабинеты", f"{total_cabinets} шт."))
+_pdf_spec_rows.extend([
     ("Приёмные карты", f"{num_cards_reserve} шт."),
     ("БП", f"{num_psu_reserve} шт."),
     ("Патч-корды", f"{patch_cords} шт."),
     ("Кабели питания карт", f"{num_card_power_cables_order} шт."),
-]
+])
 if num_magnets:
     _pdf_spec_rows.append(("Магниты", f"{num_magnets} шт."))
 if num_power_jumpers:
     _pdf_spec_rows.append(("Перемычки БП", f"{num_power_jumpers} шт."))
+if total_hanger_weight > 0:
+    _pdf_spec_rows.append(("Балки подвеса", f"{cabinet_hanger_qty} шт."))
 if profile_purchased_m > 0:
     _pdf_spec_rows.append(("Профиль 40×20×1,5", f"{profile_purchased_m:.1f} м"))
 if buy_m6_frame_usd > 0:
