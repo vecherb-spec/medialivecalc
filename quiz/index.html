@@ -344,7 +344,7 @@
     const STEP_HINTS = {
       1: "Выберите формат проекта. Это влияет на доступные варианты конструкции.",
       2: "Покажем только релевантные варианты для выбранного типа.",
-      3: "Минимальная дистанция просмотра обычно близка к значению шага пикселя (в метрах).",
+      3: "Дистанция просмотра зависит от шага пикселя, сценария контента, высоты установки и яркости.",
       4: "Для точного расчёта используем реальные размеры будущего экрана.",
       5: "Выберите вариант работы монтажной команды.",
       6: "Оставьте контакт и город — менеджер пришлёт расчёт и КП."
@@ -359,29 +359,34 @@
       "Прокатный": ["Интерьерный", "Уличный"]
     };
 
-    const OUTDOOR_PITCH = [
-      "P2.5 — комфортно от 2.5 м",
-      "P3 — комфортно от 3 м",
-      "P4 — комфортно от 4 м",
-      "P5 — комфортно от 5 м",
-      "P6 — комфортно от 6 м",
-      "P8 — комфортно от 8 м",
-      "P10 — комфортно от 10 м"
-    ];
-    const RENTAL_PITCH = [
-      "P1.9 — комфортно от 1.9 м",
-      "P2.6 — комфортно от 2.6 м",
-      "P3.9 — комфортно от 3.9 м",
-      "P4.8 — комфортно от 4.8 м"
-    ];
-    const INDOOR_PITCH = [
-      "P1.25 — комфортно от 1.25 м",
-      "P1.5 — комфортно от 1.5 м",
-      "P2 — комфортно от 2 м",
-      "P2.5 — комфортно от 2.5 м",
-      "P3.07 — комфортно от 3.07 м",
-      "P4 — комфортно от 4 м"
-    ];
+    const OUTDOOR_PITCH = ["P2.5", "P3", "P4", "P5", "P6", "P8", "P10"];
+    const RENTAL_PITCH = ["P1.9", "P2.6", "P3.9", "P4.8"];
+    const INDOOR_PITCH = ["P1.25", "P1.5", "P2", "P2.5", "P3.07", "P4"];
+    const PITCH_DISTANCE_BY_CONTEXT = {
+      indoor: {
+        "1.25": "ориентировочно 1.5-3 м",
+        "1.5": "ориентировочно 2-3.5 м",
+        "2": "ориентировочно 2.5-4.5 м",
+        "2.5": "ориентировочно 3-5.5 м",
+        "3.07": "ориентировочно 4-7 м",
+        "4": "ориентировочно 5-9 м"
+      },
+      outdoor: {
+        "2.5": "ориентировочно 4-7 м",
+        "3": "ориентировочно 5-8 м",
+        "4": "ориентировочно 6-10 м",
+        "5": "ориентировочно 8-13 м",
+        "6": "ориентировочно 9-15 м",
+        "8": "ориентировочно 12-20 м",
+        "10": "ориентировочно 15-25 м"
+      },
+      rental: {
+        "1.9": "ориентировочно 2.5-4.5 м",
+        "2.6": "ориентировочно 3.5-6 м",
+        "3.9": "ориентировочно 5.5-9 м",
+        "4.8": "ориентировочно 7-12 м"
+      }
+    };
     const INSTALL_OPTIONS = ["Под ключ", "Шеф-монтаж", "Без монтажа"];
     const CONTACT_METHODS = ["Телефон", "Telegram", "WhatsApp", "Email", "Звонок"];
     const DEFAULT_DIMENSIONS = {
@@ -510,10 +515,19 @@
       return (Math.round(Number(value) * 100) / 100).toFixed(2);
     }
 
-    function extractPitchMeters(label) {
+    function extractPitchValue(label) {
       const match = String(label || "").match(/P(\d+(?:\.\d+)?)/i);
       if (!match) return "";
       return Number(match[1]).toString();
+    }
+
+    function pitchDistanceHint() {
+      const pitch = extractPitchValue(state.pixelPitch);
+      if (!pitch) return "";
+      const context = state.screenType === "Прокатный"
+        ? "rental"
+        : (resolveOutdoorContext() ? "outdoor" : "indoor");
+      return (PITCH_DISTANCE_BY_CONTEXT[context] || {})[pitch] || "подбирается по задаче";
     }
 
     function currentSizeInfo() {
@@ -543,8 +557,7 @@
       const showSize = state.submitted || state.step >= 4;
       const showInstallation = state.submitted || state.step >= 5;
       const showContacts = state.submitted || state.step >= 6;
-      const pitchDistance = extractPitchMeters(state.pixelPitch);
-      const distance = showPixel && pitchDistance ? `от ${pitchDistance} м` : "—";
+      const distance = showPixel ? (pitchDistanceHint() || "—") : "—";
       const sizeLabel = showSize ? size.size : "—";
       const areaLabel = showSize ? size.area : "—";
       const pitchLabel = showPixel ? (state.pixelPitch || "—") : "—";
@@ -565,7 +578,7 @@
           <li><span class="preview-k">Город</span><span class="preview-v">${escapeHtml(state.city || "—")}</span></li>
           <li><span class="preview-k">Контакт</span><span class="preview-v">${escapeHtml(contactLabel)}</span></li>
         </ul>
-        <p class="preview-note">Подсказка: минимальная комфортная дистанция обзора обычно близка к значению P в метрах.</p>
+        <p class="preview-note">Подсказка: дистанция указана ориентировочно и зависит от контента, высоты установки, яркости и угла обзора.</p>
       `;
     }
 
